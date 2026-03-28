@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { de } from "@/lib/i18n/de";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid email or password");
+      setError(de.auth.invalidCredentials);
     } else {
       router.push("/dashboard");
       router.refresh();
@@ -49,14 +50,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-semibold tracking-tight">
-            BelegPilot
+            {de.auth.signInTitle}
           </CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardDescription>{de.auth.signInDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{de.auth.email}</Label>
               <Input
                 id="email"
                 name="email"
@@ -67,7 +68,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{de.auth.password}</Label>
               <Input
                 id="password"
                 name="password"
@@ -82,7 +83,7 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? de.auth.signingIn : de.auth.signIn}
             </Button>
           </form>
         </CardContent>

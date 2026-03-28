@@ -2,13 +2,9 @@ import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
 import type { StorageService } from "./storage.interface";
 
-const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "documents";
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "Documents";
 
 export class SupabaseStorageService implements StorageService {
-  /**
-   * Upload a file to Supabase Storage.
-   * Path format: {companyId}/{year}/{month}/{uuid}-{originalFileName}
-   */
   async store(
     fileName: string,
     fileBuffer: Buffer,
@@ -29,32 +25,40 @@ export class SupabaseStorageService implements StorageService {
       });
 
     if (error) {
-      throw new Error(`Storage upload failed: ${error.message}`);
+      console.error("[Storage] Upload failed:", {
+        bucket: BUCKET,
+        path: storagePath,
+        error: JSON.stringify(error),
+        statusCode: (error as any).statusCode,
+      });
+      throw new Error(
+        `Storage upload failed (bucket: "${BUCKET}"): ${error.message}`
+      );
     }
 
     return storagePath;
   }
 
-  /**
-   * Download a file from Supabase Storage.
-   */
   async retrieve(storagePath: string): Promise<Buffer> {
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .download(storagePath);
 
     if (error || !data) {
-      throw new Error(`Storage download failed: ${error?.message}`);
+      console.error("[Storage] Download failed:", {
+        bucket: BUCKET,
+        path: storagePath,
+        error: JSON.stringify(error),
+      });
+      throw new Error(
+        `Storage download failed (bucket: "${BUCKET}"): ${error?.message}`
+      );
     }
 
     const arrayBuffer = await data.arrayBuffer();
     return Buffer.from(arrayBuffer);
   }
 
-  /**
-   * Create a signed URL for temporary access (e.g. PDF preview).
-   * Default expiry: 1 hour (3600 seconds).
-   */
   async getSignedUrl(
     storagePath: string,
     expiresIn: number = 3600
@@ -64,22 +68,33 @@ export class SupabaseStorageService implements StorageService {
       .createSignedUrl(storagePath, expiresIn);
 
     if (error || !data?.signedUrl) {
-      throw new Error(`Signed URL creation failed: ${error?.message}`);
+      console.error("[Storage] Signed URL failed:", {
+        bucket: BUCKET,
+        path: storagePath,
+        error: JSON.stringify(error),
+      });
+      throw new Error(
+        `Signed URL creation failed (bucket: "${BUCKET}"): ${error?.message}`
+      );
     }
 
     return data.signedUrl;
   }
 
-  /**
-   * Delete a file from Supabase Storage.
-   */
   async delete(storagePath: string): Promise<void> {
     const { error } = await supabase.storage
       .from(BUCKET)
       .remove([storagePath]);
 
     if (error) {
-      throw new Error(`Storage delete failed: ${error.message}`);
+      console.error("[Storage] Delete failed:", {
+        bucket: BUCKET,
+        path: storagePath,
+        error: JSON.stringify(error),
+      });
+      throw new Error(
+        `Storage delete failed (bucket: "${BUCKET}"): ${error.message}`
+      );
     }
   }
 }

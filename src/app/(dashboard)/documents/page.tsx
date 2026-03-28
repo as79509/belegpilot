@@ -1,21 +1,39 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { de } from "@/lib/i18n/de";
+import { UploadZone } from "@/components/documents/upload-zone";
+import { DocumentTable } from "@/components/documents/document-table";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 
 export default function DocumentsPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showUpload, setShowUpload] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {de.documents.title}
+        </h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowUpload(!showUpload)}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          {de.documents.upload}
+        </Button>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-          <p className="text-sm text-muted-foreground">
-            No documents yet. Upload functionality coming in Phase 2.
-          </p>
-        </CardContent>
-      </Card>
+      {showUpload && (
+        <UploadZone
+          onUploadComplete={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+
+      <DocumentTable refreshKey={refreshKey} />
     </div>
   );
 }

@@ -11,14 +11,15 @@ import {
   ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { de } from "@/lib/i18n/de";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/suppliers", label: "Suppliers", icon: Building2 },
-  { href: "/exports", label: "Exports", icon: Download },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/audit-log", label: "Audit Log", icon: ScrollText },
+  { href: "/dashboard", label: de.nav.dashboard, icon: LayoutDashboard },
+  { href: "/documents", label: de.nav.documents, icon: FileText },
+  { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
+  { href: "/exports", label: de.nav.exports, icon: Download },
+  { href: "/settings", label: de.nav.settings, icon: Settings },
+  { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
 ];
 
 export function Sidebar() {

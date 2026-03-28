@@ -12,6 +12,7 @@ import {
 import { LogOut, User, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileSidebar } from "./mobile-sidebar";
+import { de } from "@/lib/i18n/de";
 
 interface HeaderProps {
   userName: string;
@@ -46,7 +47,7 @@ export function Header({ userName, userRole }: HeaderProps) {
           variant="secondary"
           className={roleBadgeVariant[userRole] || roleBadgeVariant.readonly}
         >
-          {userRole}
+          {de.role[userRole as keyof typeof de.role] || userRole}
         </Badge>
 
         <DropdownMenu>
@@ -57,13 +58,13 @@ export function Header({ userName, userRole }: HeaderProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuItem disabled>
               <span className="text-xs text-muted-foreground">
-                Signed in as {userName}
+                {de.auth.signedInAs} {userName}
               </span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
               <LogOut className="h-4 w-4 mr-2" />
-              Sign out
+              {de.auth.signOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
