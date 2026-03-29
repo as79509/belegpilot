@@ -60,11 +60,9 @@ export class ClaudeNormalizer implements AiNormalizerService {
     buffers: Buffer[],
     mimeType: string
   ): Promise<NormalizedInvoiceData> {
-    // Build content blocks — use document type for PDFs, image type for images
-    const contentBlocks: Anthropic.Messages.ContentBlockParam[] = [];
+    const contentBlocks: any[] = [];
 
     if (mimeType === "application/pdf") {
-      // Send PDF directly as a base64 document
       contentBlocks.push({
         type: "document",
         source: {
@@ -72,9 +70,8 @@ export class ClaudeNormalizer implements AiNormalizerService {
           media_type: "application/pdf",
           data: buffers[0].toString("base64"),
         },
-      } as any);
+      });
     } else {
-      // Send as image(s)
       const imageMediaType = this.toImageMediaType(mimeType);
       for (const buf of buffers) {
         contentBlocks.push({
@@ -93,14 +90,16 @@ export class ClaudeNormalizer implements AiNormalizerService {
       text: "Extract and normalize all data from this document into the specified JSON structure.",
     });
 
-    const response = await this.client.messages.create({
+    // Use beta API for PDF document support
+    const response = await this.client.beta.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
+      betas: ["pdfs-2024-09-25"],
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: contentBlocks }],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
+    const textBlock = response.content.find((b: any) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
       throw new Error("No text response from Claude");
     }

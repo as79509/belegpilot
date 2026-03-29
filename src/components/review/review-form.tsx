@@ -42,7 +42,24 @@ const CURRENCY_OPTIONS = ["CHF", "EUR", "USD", "GBP"];
 
 export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState<Record<string, any>>({});
+  const [form, setForm] = useState<Record<string, any>>({
+    supplierNameRaw: "",
+    supplierNameNormalized: "",
+    documentType: "other",
+    invoiceNumber: "",
+    invoiceDate: "",
+    dueDate: "",
+    currency: "CHF",
+    netAmount: "",
+    vatAmount: "",
+    grossAmount: "",
+    iban: "",
+    paymentReference: "",
+    expenseCategory: "",
+    accountCode: "",
+    costCenter: "",
+    reviewNotes: "",
+  });
   const [saving, setSaving] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);

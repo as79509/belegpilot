@@ -16,6 +16,29 @@ export const processDocument = inngest.createFunction(
     name: "Process Document",
     retries: 3,
     triggers: [{ event: "document/uploaded" }],
+    onFailure: async ({ error, event }: any) => {
+      // Mark document as failed after all retries exhausted
+      const { documentId } = event.data?.event?.data || event.data || {} as any;
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { status: "failed" },
+        });
+        await prisma.processingStep.create({
+          data: {
+            documentId,
+            stepName: "processing",
+            status: "failed",
+            startedAt: new Date(),
+            completedAt: new Date(),
+            errorMessage: error.message || "Unbekannter Fehler",
+            errorDetails: { stack: error.stack } as any,
+          },
+        });
+      } catch {
+        console.error("[processDocument] onFailure handler error for", documentId);
+      }
+    },
   },
   async ({ event, step }) => {
     const { documentId } = event.data as { documentId: string };
