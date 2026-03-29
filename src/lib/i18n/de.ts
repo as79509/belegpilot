@@ -178,10 +178,66 @@ export const de = {
     comingSoon: "Kommt in Phase 5.",
   },
 
+  // Validation messages
+  validation: {
+    title: "Validierung",
+    mathInconsistency: "Netto + MwSt weicht vom Bruttobetrag ab",
+    grossMissing: "Bruttobetrag fehlt",
+    invalidCurrency: "Ungültige Währung",
+    invoiceDateMissing: "Rechnungsdatum fehlt",
+    invoiceDateFuture: "Rechnungsdatum liegt in der Zukunft",
+    invoiceDateTooOld: "Rechnungsdatum ist älter als 2 Jahre",
+    dueDateBeforeInvoice: "Fälligkeitsdatum liegt vor dem Rechnungsdatum",
+    supplierMissing: "Lieferantenname fehlt",
+    invoiceNumberMissing: "Rechnungsnummer fehlt",
+    possibleDuplicate: "Mögliches Duplikat gefunden",
+    unusualVatRate: "Ungewöhnlicher MwSt-Satz",
+    highAmount: "Ungewöhnlich hoher Betrag",
+    negativeAmount: "Betrag ist null oder negativ",
+    passed: "Bestanden",
+    failed: "Fehlgeschlagen",
+    checks: "Prüfungen",
+  },
+
+  // Review actions
+  review: {
+    approve: "Genehmigen",
+    reject: "Ablehnen",
+    reprocess: "Erneut verarbeiten",
+    saveChanges: "Änderungen speichern",
+    nextDocument: "Nächster Beleg →",
+    reviewNotes: "Prüfnotizen",
+    reviewNotesPlaceholder: "Interne Anmerkungen zur Prüfung...",
+    rejectReasonRequired: "Bitte geben Sie einen Ablehnungsgrund ein",
+    rejectDialogTitle: "Beleg ablehnen",
+    rejectDialogDescription: "Warum wird dieser Beleg abgelehnt?",
+    approveSuccess: "Beleg genehmigt",
+    rejectSuccess: "Beleg abgelehnt",
+    saveSuccess: "Änderungen gespeichert",
+    reprocessSuccess: "Beleg wird erneut verarbeitet",
+    keyboardShortcuts: "Strg+Enter = Genehmigen, Strg+S = Speichern",
+    processing: "Wird verarbeitet...",
+  },
+
   // Audit log
   auditLog: {
     title: "Protokoll",
     noEntries: "Noch keine Protokolleinträge vorhanden.",
+    timestamp: "Zeitpunkt",
+    user: "Benutzer",
+    action: "Aktion",
+    entityType: "Typ",
+    details: "Details",
+    before: "Vorher",
+    after: "Nachher",
+    actions: {
+      document_uploaded: "Beleg hochgeladen",
+      document_processed: "Beleg verarbeitet",
+      document_approved: "Beleg genehmigt",
+      document_rejected: "Beleg abgelehnt",
+      document_reprocessed: "Beleg erneut verarbeitet",
+      document_fields_edited: "Beleg bearbeitet",
+    } as Record<string, string>,
   },
 
   // Auth

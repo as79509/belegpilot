@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -18,48 +15,33 @@ import {
 } from "@/components/ui/table";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { PdfViewer } from "@/components/documents/pdf-viewer";
-import { DocumentDetailFields } from "@/components/documents/document-detail-fields";
+import { ReviewForm } from "@/components/review/review-form";
 import { de } from "@/lib/i18n/de";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatRelativeTime } from "@/lib/i18n/format";
 
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const [doc, setDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [reprocessing, setReprocessing] = useState(false);
-
-  async function handleReprocess() {
-    setReprocessing(true);
-    try {
-      const res = await fetch(`/api/documents/${params.id}/reprocess`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler");
-      }
-      toast.success("Verarbeitung gestartet");
-      router.refresh();
-      // Reload document data after a short delay
-      setTimeout(() => {
-        fetch(`/api/documents/${params.id}`)
-          .then((r) => r.json())
-          .then(setDoc);
-      }, 1000);
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setReprocessing(false);
-    }
-  }
+  const [nextDocId, setNextDocId] = useState<string | null>(null);
+  const [auditEntries, setAuditEntries] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch(`/api/documents/${params.id}`)
-      .then((r) => r.json())
-      .then(setDoc)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`/api/documents/${params.id}`).then((r) => r.json()),
+      fetch(`/api/documents/${params.id}/audit`).then((r) => r.json()).catch(() => []),
+      // Fetch next document in review queue
+      fetch(`/api/documents?status=needs_review&pageSize=2&sortBy=confidenceScore&sortOrder=asc`)
+        .then((r) => r.json())
+        .catch(() => ({ documents: [] })),
+    ]).then(([docData, audit, queue]) => {
+      setDoc(docData);
+      setAuditEntries(Array.isArray(audit) ? audit : []);
+      // Find next document that isn't the current one
+      const next = queue.documents?.find((d: any) => d.id !== params.id);
+      setNextDocId(next?.id || null);
+      setLoading(false);
+    });
   }, [params.id]);
 
   if (loading) {
@@ -73,10 +55,7 @@ export default function DocumentDetailPage() {
   if (!doc || doc.error) {
     return (
       <div className="space-y-4">
-        <Link
-          href="/documents"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
+        <Link href="/documents" className="text-sm text-muted-foreground hover:text-foreground">
           {de.detail.backToList}
         </Link>
         <p className="text-muted-foreground">Beleg nicht gefunden.</p>
@@ -88,10 +67,7 @@ export default function DocumentDetailPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link
-          href="/documents"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
+        <Link href="/documents" className="text-sm text-muted-foreground hover:text-foreground">
           {de.detail.backToList}
         </Link>
       </div>
@@ -100,51 +76,60 @@ export default function DocumentDetailPage() {
           {doc.file?.fileName || `Beleg ${doc.id.slice(0, 8)}`}
         </h1>
         <DocumentStatusBadge status={doc.status} />
-        {["uploaded", "failed"].includes(doc.status) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReprocess}
-            disabled={reprocessing}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${reprocessing ? "animate-spin" : ""}`}
-            />
-            {reprocessing ? "Wird verarbeitet..." : "Erneut verarbeiten"}
-          </Button>
-        )}
       </div>
 
-      {/* Main layout: PDF + Fields */}
+      {/* Main layout: PDF + Review Form */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3">
-          <PdfViewer
-            documentId={doc.id}
-            mimeType={doc.file?.mimeType}
-          />
+          <PdfViewer documentId={doc.id} mimeType={doc.file?.mimeType} />
         </div>
-        <div className="lg:col-span-2">
-          <DocumentDetailFields document={doc} />
+        <div className="lg:col-span-2 overflow-y-auto max-h-[calc(100vh-12rem)]">
+          <ReviewForm
+            document={doc}
+            onUpdate={setDoc}
+            nextDocumentId={nextDocId}
+          />
         </div>
       </div>
 
-      {/* Tabs: Raw data + History */}
-      <Tabs defaultValue="ocr">
+      {/* Tabs: Raw data, Validation, History + Audit */}
+      <Tabs defaultValue="validation">
         <TabsList>
+          <TabsTrigger value="validation">{de.validation.title}</TabsTrigger>
           <TabsTrigger value="ocr">{de.detail.rawOcr}</TabsTrigger>
           <TabsTrigger value="ai">{de.detail.rawAi}</TabsTrigger>
-          <TabsTrigger value="history">
-            {de.detail.processingHistory}
-          </TabsTrigger>
+          <TabsTrigger value="history">{de.detail.processingHistory}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="validation" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {doc.validationResults?.checks?.length > 0 ? (
+                <div className="space-y-2">
+                  {doc.validationResults.checks.map((check: any, i: number) => (
+                    <div key={i} className={`flex items-start gap-2 text-sm p-2 rounded ${!check.passed ? (check.severity === "error" ? "bg-red-50" : "bg-amber-50") : ""}`}>
+                      <span className={`mt-0.5 ${check.passed ? "text-green-600" : check.severity === "error" ? "text-red-600" : "text-amber-600"}`}>
+                        {check.passed ? "✓" : check.severity === "error" ? "✗" : "⚠"}
+                      </span>
+                      <div>
+                        <span className="font-medium">{check.checkName}</span>
+                        <p className="text-muted-foreground text-xs">{check.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{de.detail.noData}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="ocr" className="mt-4">
           <Card>
             <CardContent className="pt-4">
               <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96">
-                {doc.ocrResult
-                  ? JSON.stringify(doc.ocrResult.rawPayload, null, 2)
-                  : de.detail.noData}
+                {doc.ocrResult ? JSON.stringify(doc.ocrResult.rawPayload, null, 2) : de.detail.noData}
               </pre>
             </CardContent>
           </Card>
@@ -154,13 +139,7 @@ export default function DocumentDetailPage() {
           <Card>
             <CardContent className="pt-4">
               <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96">
-                {doc.aiResults?.[0]
-                  ? JSON.stringify(
-                      doc.aiResults[0].normalizedData,
-                      null,
-                      2
-                    )
-                  : de.detail.noData}
+                {doc.aiResults?.[0] ? JSON.stringify(doc.aiResults[0].normalizedData, null, 2) : de.detail.noData}
               </pre>
             </CardContent>
           </Card>
@@ -168,56 +147,65 @@ export default function DocumentDetailPage() {
 
         <TabsContent value="history" className="mt-4">
           <Card>
-            <CardContent className="pt-4">
-              {doc.processingSteps?.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{de.detail.stepName}</TableHead>
-                      <TableHead>{de.detail.stepStatus}</TableHead>
-                      <TableHead>{de.detail.duration}</TableHead>
-                      <TableHead>{de.detail.error}</TableHead>
-                      <TableHead>{de.detail.timestamp}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {doc.processingSteps.map((step: any) => (
-                      <TableRow key={step.id}>
-                        <TableCell>
-                          {de.processingStep[
-                            step.stepName as keyof typeof de.processingStep
-                          ] || step.stepName}
-                        </TableCell>
-                        <TableCell>
-                          <DocumentStatusBadge
-                            status={
-                              step.status === "completed"
-                                ? "ready"
-                                : step.status === "failed"
-                                  ? "failed"
-                                  : "processing"
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {step.durationMs != null
-                            ? `${step.durationMs}ms`
-                            : de.common.noData}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-red-600">
-                          {step.errorMessage || ""}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatDate(step.startedAt)}
-                        </TableCell>
+            <CardContent className="pt-4 space-y-6">
+              {/* Processing steps */}
+              {doc.processingSteps?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-2">{de.detail.processingHistory}</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{de.detail.stepName}</TableHead>
+                        <TableHead>{de.detail.stepStatus}</TableHead>
+                        <TableHead>{de.detail.duration}</TableHead>
+                        <TableHead>{de.detail.timestamp}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {de.detail.noData}
-                </p>
+                    </TableHeader>
+                    <TableBody>
+                      {doc.processingSteps.map((step: any) => (
+                        <TableRow key={step.id}>
+                          <TableCell>{de.processingStep[step.stepName as keyof typeof de.processingStep] || step.stepName}</TableCell>
+                          <TableCell>
+                            <DocumentStatusBadge status={step.status === "completed" ? "ready" : step.status === "failed" ? "failed" : "processing"} />
+                          </TableCell>
+                          <TableCell>{step.durationMs != null ? `${step.durationMs}ms` : de.common.noData}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatDate(step.startedAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Audit log entries */}
+              {auditEntries.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-2">{de.auditLog.title}</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{de.auditLog.timestamp}</TableHead>
+                        <TableHead>{de.auditLog.user}</TableHead>
+                        <TableHead>{de.auditLog.action}</TableHead>
+                        <TableHead>{de.auditLog.details}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditEntries.map((entry: any) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="text-xs">{formatRelativeTime(entry.createdAt)}</TableCell>
+                          <TableCell className="text-xs">{entry.user?.name || de.common.noData}</TableCell>
+                          <TableCell className="text-xs">
+                            {de.auditLog.actions[entry.action as keyof typeof de.auditLog.actions] || entry.action}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate">
+                            {entry.changes ? JSON.stringify(entry.changes).substring(0, 100) : ""}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>

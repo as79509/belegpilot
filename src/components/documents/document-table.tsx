@@ -39,9 +39,10 @@ interface Document {
 
 interface DocumentTableProps {
   refreshKey?: number;
+  initialStatus?: string;
 }
 
-export function DocumentTable({ refreshKey }: DocumentTableProps) {
+export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps) {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export function DocumentTable({ refreshKey }: DocumentTableProps) {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialStatus || "");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 

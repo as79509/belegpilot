@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { DbNull } from "@/generated/prisma/internal/prismaNamespace";
-import { inngest } from "@/lib/inngest/client";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -14,8 +12,20 @@ export async function POST(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!["admin", "reviewer"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { id } = await params;
+    const body = await request.json();
+    const reason = body.reason;
+
+    if (!reason?.trim()) {
+      return NextResponse.json(
+        { error: "Ablehnungsgrund ist erforderlich" },
+        { status: 400 }
+      );
+    }
 
     const document = await prisma.document.findFirst({
       where: { id, companyId: session.user.companyId },
@@ -25,38 +35,29 @@ export async function POST(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (!["uploaded", "failed", "needs_review", "rejected"].includes(document.status)) {
-      return NextResponse.json(
-        { error: "Dokument kann in diesem Status nicht erneut verarbeitet werden" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.document.update({
+    const updated = await prisma.document.update({
       where: { id },
       data: {
-        status: "uploaded",
-        validationResults: DbNull,
-        processingDecision: null as any,
+        status: "rejected",
+        reviewStatus: "rejected",
+        reviewNotes: reason,
+        reviewedBy: session.user.id,
+        reviewedAt: new Date(),
       },
-    });
-
-    await inngest.send({
-      name: "document/uploaded",
-      data: { documentId: id },
     });
 
     await logAudit({
       companyId: session.user.companyId,
       userId: session.user.id,
-      action: "document_reprocessed",
+      action: "document_rejected",
       entityType: "document",
       entityId: id,
+      changes: { reason: { before: null, after: reason } },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("[Reprocess]", error);
+    console.error("[Reject]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

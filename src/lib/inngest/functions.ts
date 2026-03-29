@@ -2,6 +2,13 @@ import { inngest } from "./client";
 import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import { getAiNormalizer } from "@/lib/services/ai";
+import { toCanonical } from "@/lib/types/canonical";
+import { validateDocument } from "@/lib/services/validation/validation-engine";
+import {
+  buildConfidenceFactors,
+  computeCompositeConfidence,
+} from "@/lib/services/validation/confidence";
+import { makeProcessingDecision } from "@/lib/services/validation/decision";
 
 export const processDocument = inngest.createFunction(
   {
@@ -186,54 +193,78 @@ export const processDocument = inngest.createFunction(
       });
     });
 
-    // Step 5: Basic validation — in Phase 2, all documents go to needs_review
-    await step.run("basic-validation", async () => {
+    // Step 5: Full validation engine
+    const decision = await step.run("validate", async () => {
       const startTime = Date.now();
 
-      const hasGross = normalizedData.gross_amount != null;
-      const hasDate = normalizedData.invoice_date != null;
-      const hasSupplier = normalizedData.supplier_name_raw != null;
-
-      const validationResults = {
-        checks: [
-          {
-            name: "gross_amount_present",
-            passed: hasGross,
-            severity: hasGross ? "info" : "warning",
-            message: hasGross
-              ? "Bruttobetrag vorhanden"
-              : "Bruttobetrag fehlt",
-          },
-          {
-            name: "invoice_date_present",
-            passed: hasDate,
-            severity: hasDate ? "info" : "warning",
-            message: hasDate
-              ? "Rechnungsdatum vorhanden"
-              : "Rechnungsdatum fehlt",
-          },
-          {
-            name: "supplier_present",
-            passed: hasSupplier,
-            severity: hasSupplier ? "info" : "warning",
-            message: hasSupplier
-              ? "Lieferant erkannt"
-              : "Lieferant nicht erkannt",
-          },
-        ],
-      };
-
-      await prisma.document.update({
+      // Reload document with populated canonical fields
+      const updatedDoc = await prisma.document.findUnique({
         where: { id: documentId },
-        data: {
-          status: "needs_review",
-          processingDecision: "needs_review",
-          reviewStatus: "pending",
-          validationResults: validationResults as any,
+      });
+      if (!updatedDoc) throw new Error("Document not found after extraction");
+
+      const canonical = toCanonical(updatedDoc);
+
+      // Get existing documents for duplicate check (same company, last 12 months)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const existingDocs = await prisma.document.findMany({
+        where: {
+          companyId: doc.companyId,
+          id: { not: documentId },
+          createdAt: { gte: oneYearAgo },
+          supplierNameNormalized: { not: null },
+          invoiceNumber: { not: null },
+        },
+        select: {
+          id: true,
+          supplierNameNormalized: true,
+          invoiceNumber: true,
+          grossAmount: true,
         },
       });
 
-      // Complete the processing step
+      const dupCheckDocs = existingDocs.map((d) => ({
+        id: d.id,
+        supplierNameNormalized: d.supplierNameNormalized,
+        invoiceNumber: d.invoiceNumber,
+        grossAmount: d.grossAmount ? Number(d.grossAmount) : null,
+      }));
+
+      // Run validation
+      const validationResult = validateDocument(canonical, dupCheckDocs);
+
+      // Compute composite confidence
+      const aiConfidence = normalizedData.confidence || 0;
+      const factors = buildConfidenceFactors(
+        aiConfidence,
+        canonical,
+        validationResult,
+        0 // supplierMatchCertainty — Phase 4
+      );
+      const compositeConfidence = computeCompositeConfidence(factors);
+
+      // Make decision
+      const processingDecision = makeProcessingDecision(
+        validationResult,
+        compositeConfidence
+      );
+      const newStatus =
+        processingDecision === "auto_ready" ? "ready" : "needs_review";
+
+      // Update document
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          status: newStatus,
+          processingDecision,
+          reviewStatus: "pending",
+          confidenceScore: compositeConfidence,
+          validationResults: validationResult as any,
+        },
+      });
+
+      // Complete the overall processing step
       const processingStep = await prisma.processingStep.findFirst({
         where: { documentId, stepName: "processing", status: "started" },
         orderBy: { startedAt: "desc" },
@@ -244,7 +275,8 @@ export const processDocument = inngest.createFunction(
           data: {
             status: "completed",
             completedAt: new Date(),
-            durationMs: Date.now() - new Date(processingStep.startedAt).getTime(),
+            durationMs:
+              Date.now() - new Date(processingStep.startedAt).getTime(),
           },
         });
       }
@@ -257,11 +289,21 @@ export const processDocument = inngest.createFunction(
           startedAt: new Date(startTime),
           completedAt: new Date(),
           durationMs: Date.now() - startTime,
+          metadata: {
+            checks_passed: validationResult.checks.filter((c) => c.passed)
+              .length,
+            checks_failed: validationResult.checks.filter((c) => !c.passed)
+              .length,
+            decision: processingDecision,
+            compositeConfidence,
+          },
         },
       });
+
+      return { decision: processingDecision, status: newStatus };
     });
 
-    return { documentId, status: "needs_review" };
+    return { documentId, status: decision.status };
   }
 );
 

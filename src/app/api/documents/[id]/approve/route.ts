@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { DbNull } from "@/generated/prisma/internal/prismaNamespace";
-import { inngest } from "@/lib/inngest/client";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(
@@ -14,9 +12,11 @@ export async function POST(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!["admin", "reviewer"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { id } = await params;
-
     const document = await prisma.document.findFirst({
       where: { id, companyId: session.user.companyId },
     });
@@ -25,38 +25,27 @@ export async function POST(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (!["uploaded", "failed", "needs_review", "rejected"].includes(document.status)) {
-      return NextResponse.json(
-        { error: "Dokument kann in diesem Status nicht erneut verarbeitet werden" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.document.update({
+    const updated = await prisma.document.update({
       where: { id },
       data: {
-        status: "uploaded",
-        validationResults: DbNull,
-        processingDecision: null as any,
+        status: "ready",
+        reviewStatus: "approved",
+        reviewedBy: session.user.id,
+        reviewedAt: new Date(),
       },
-    });
-
-    await inngest.send({
-      name: "document/uploaded",
-      data: { documentId: id },
     });
 
     await logAudit({
       companyId: session.user.companyId,
       userId: session.user.id,
-      action: "document_reprocessed",
+      action: "document_approved",
       entityType: "document",
       entityId: id,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("[Reprocess]", error);
+    console.error("[Approve]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
