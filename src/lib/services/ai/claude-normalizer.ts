@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
   AiNormalizerService,
+  AiNormalizerResult,
   NormalizedInvoiceData,
 } from "./ai-normalizer.interface";
 
@@ -59,7 +60,7 @@ export class ClaudeNormalizer implements AiNormalizerService {
   async normalize(
     buffers: Buffer[],
     mimeType: string
-  ): Promise<NormalizedInvoiceData> {
+  ): Promise<AiNormalizerResult> {
     const contentBlocks: any[] = [];
 
     if (mimeType === "application/pdf") {
@@ -114,7 +115,15 @@ export class ClaudeNormalizer implements AiNormalizerService {
     }
 
     try {
-      return JSON.parse(jsonStr) as NormalizedInvoiceData;
+      const data = JSON.parse(jsonStr) as NormalizedInvoiceData;
+      return {
+        data,
+        usage: {
+          inputTokens: (response as any).usage?.input_tokens || 0,
+          outputTokens: (response as any).usage?.output_tokens || 0,
+          model: "claude-sonnet-4-20250514",
+        },
+      };
     } catch {
       throw new Error(
         `Failed to parse Claude response as JSON: ${raw.substring(0, 200)}`

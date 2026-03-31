@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 const CSV_HEADERS = [
+  "Belegnummer",
   "Lieferant",
   "Rechnungsnr.",
   "Rechnungsdatum",
@@ -67,6 +68,7 @@ export async function generateCsvExport(
     const vatRateStr = vatRates.map((r) => `${r.rate}%`).join(", ");
 
     const row = [
+      escCsv(doc.documentNumber || ""),
       escCsv(doc.supplier?.nameNormalized || doc.supplierNameNormalized || doc.supplierNameRaw || ""),
       escCsv(doc.invoiceNumber || ""),
       formatDateDE(doc.invoiceDate),

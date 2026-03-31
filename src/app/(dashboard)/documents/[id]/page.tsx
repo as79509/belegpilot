@@ -81,6 +81,9 @@ export default function DocumentDetailPage() {
         </Link>
       </div>
       <div className="flex items-center gap-3">
+        {doc.documentNumber && (
+          <span className="text-sm font-mono text-muted-foreground">{doc.documentNumber}</span>
+        )}
         <h1 className="text-xl font-semibold tracking-tight">
           {doc.file?.fileName || `Beleg ${doc.id.slice(0, 8)}`}
         </h1>

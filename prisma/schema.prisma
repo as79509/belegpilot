@@ -95,6 +95,7 @@ model Company {
   auditLogs    AuditLog[]
   integrations Integration[]
   rules        Rule[]
+  aiUsages     AiUsage[]
 
   @@map("companies")
 }
@@ -121,6 +122,7 @@ model User {
 model Document {
   id                     String              @id @default(uuid()) @db.Uuid
   companyId              String              @map("company_id") @db.Uuid
+  documentNumber         String?             @unique @map("document_number")
   status                 DocumentStatus      @default(uploaded)
   documentType           DocumentType        @default(other) @map("document_type")
 
@@ -169,6 +171,7 @@ model Document {
   aiResults       AiResult[]
   processingSteps ProcessingStep[]
   exportRecords   ExportRecord[]
+  aiUsages        AiUsage[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -235,6 +238,17 @@ model Supplier {
   iban               String?
   address            Json?
   country            String?  @db.VarChar(2)
+  email              String?
+  phone              String?
+  website            String?
+  contactPerson      String?  @map("contact_person")
+  street             String?
+  zip                String?
+  city               String?
+  notes              String?  @db.Text
+  bankName           String?  @map("bank_name")
+  bic                String?
+  paymentTermDays    Int?     @map("payment_term_days")
   defaultCategory    String?  @map("default_category")
   defaultAccountCode String?  @map("default_account_code")
   defaultCostCenter  String?  @map("default_cost_center")
@@ -343,4 +357,22 @@ model Rule {
 
   @@index([companyId, ruleType])
   @@map("rules")
+}
+
+model AiUsage {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  documentId       String   @map("document_id") @db.Uuid
+  provider         String
+  model            String
+  inputTokens      Int      @map("input_tokens")
+  outputTokens     Int      @map("output_tokens")
+  estimatedCostUsd Decimal  @map("estimated_cost_usd") @db.Decimal(8, 4)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@map("ai_usage")
 }

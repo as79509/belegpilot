@@ -27,6 +27,7 @@ import { toast } from "sonner";
 
 interface Document {
   id: string;
+  documentNumber: string | null;
   status: string;
   supplierNameRaw: string | null;
   supplierNameNormalized: string | null;
@@ -183,6 +184,7 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
                   }}
                 />
               </TableHead>
+              <TableHead className="whitespace-nowrap">Belegnr.</TableHead>
               <SortHeader column="status">{de.documents.status}</SortHeader>
               <SortHeader column="supplierNameRaw">
                 {de.documents.supplier}
@@ -205,14 +207,14 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   {de.common.loading}
                 </TableCell>
               </TableRow>
             ) : documents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {de.documents.noDocuments}
@@ -237,6 +239,9 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
                         });
                       }}
                     />
+                  </TableCell>
+                  <TableCell className="font-mono text-xs whitespace-nowrap">
+                    {doc.documentNumber || de.common.noData}
                   </TableCell>
                   <TableCell>
                     <DocumentStatusBadge status={doc.status} />

@@ -13,6 +13,7 @@ import {
   findMatchingSupplier,
   createSupplierFromDocument,
 } from "@/lib/services/supplier-matching/supplier-matcher";
+import { recordAiUsage } from "@/lib/services/ai/cost-tracker";
 
 export const processDocument = inngest.createFunction(
   {
@@ -115,11 +116,13 @@ export const processDocument = inngest.createFunction(
       // Deserialize file buffer from base64
       const fileBuffer = Buffer.from(imageData.fileBase64, "base64");
 
-      const result = await normalizer.normalize(
+      const aiResult = await normalizer.normalize(
         [fileBuffer],
         imageData.mimeType,
         { fileName: doc.fileName }
       );
+
+      const result = aiResult.data;
 
       // Store OcrResult (raw extracted text)
       await prisma.ocrResult.create({
@@ -161,6 +164,22 @@ export const processDocument = inngest.createFunction(
           processingTimeMs: Date.now() - startTime,
         },
       });
+
+      // Record AI usage for cost tracking
+      if (aiResult.usage) {
+        try {
+          await recordAiUsage({
+            companyId: doc.companyId,
+            documentId,
+            provider: aiResult.usage.model.includes("claude") ? "anthropic" : "mock",
+            model: aiResult.usage.model,
+            inputTokens: aiResult.usage.inputTokens,
+            outputTokens: aiResult.usage.outputTokens,
+          });
+        } catch {
+          // Non-critical — don't fail processing if cost tracking fails
+        }
+      }
 
       await prisma.processingStep.create({
         data: {

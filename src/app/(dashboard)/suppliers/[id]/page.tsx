@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -22,7 +23,14 @@ export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [supplier, setSupplier] = useState<any>(null);
-  const [form, setForm] = useState<Record<string, any>>({});
+  const [form, setForm] = useState<Record<string, any>>({
+    nameNormalized: "", vatNumber: "", iban: "", country: "",
+    email: "", phone: "", website: "", contactPerson: "",
+    street: "", zip: "", city: "",
+    bankName: "", bic: "", paymentTermDays: "",
+    defaultCategory: "", defaultAccountCode: "",
+    defaultCostCenter: "", defaultVatCode: "", notes: "",
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,10 +43,21 @@ export default function SupplierDetailPage() {
           vatNumber: data.vatNumber || "",
           iban: data.iban || "",
           country: data.country || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          website: data.website || "",
+          contactPerson: data.contactPerson || "",
+          street: data.street || "",
+          zip: data.zip || "",
+          city: data.city || "",
+          bankName: data.bankName || "",
+          bic: data.bic || "",
+          paymentTermDays: data.paymentTermDays ?? "",
           defaultCategory: data.defaultCategory || "",
           defaultAccountCode: data.defaultAccountCode || "",
           defaultCostCenter: data.defaultCostCenter || "",
           defaultVatCode: data.defaultVatCode || "",
+          notes: data.notes || "",
         });
       })
       .finally(() => setLoading(false));
@@ -49,25 +68,25 @@ export default function SupplierDetailPage() {
   }
 
   async function handleSave() {
+    const payload = { ...form };
+    if (payload.paymentTermDays === "") payload.paymentTermDays = null;
+    else payload.paymentTermDays = parseInt(payload.paymentTermDays);
+
     const res = await fetch(`/api/suppliers/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setSupplier(updated);
+      setSupplier(await res.json());
       toast.success(de.suppliers.saveSuccess);
-    } else {
-      toast.error(de.common.error);
-    }
+    } else toast.error(de.common.error);
   }
 
   async function handleVerify() {
     const res = await fetch(`/api/suppliers/${params.id}/verify`, { method: "POST" });
     if (res.ok) {
-      const updated = await res.json();
-      setSupplier(updated);
+      setSupplier(await res.json());
       toast.success(de.suppliers.verifySuccess);
     }
   }
@@ -77,11 +96,8 @@ export default function SupplierDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Link href="/suppliers" className="text-sm text-muted-foreground hover:text-foreground">
-        ← {de.suppliers.title}
-      </Link>
+      <Link href="/suppliers" className="text-sm text-muted-foreground hover:text-foreground">← {de.suppliers.title}</Link>
 
-      {/* Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">{supplier.nameNormalized}</h1>
         {supplier.isVerified ? (
@@ -93,9 +109,7 @@ export default function SupplierDetailPage() {
             <Badge variant="secondary" className="bg-amber-100 text-amber-800">
               <AlertTriangle className="h-3 w-3 mr-1" />{de.suppliers.unverified}
             </Badge>
-            <Button variant="outline" size="sm" onClick={handleVerify}>
-              {de.suppliers.verify}
-            </Button>
+            <Button variant="outline" size="sm" onClick={handleVerify}>{de.suppliers.verify}</Button>
           </>
         )}
       </div>
@@ -107,25 +121,66 @@ export default function SupplierDetailPage() {
         </TabsList>
 
         <TabsContent value="details" className="mt-4 space-y-4">
-          {/* Basic info */}
+          {/* Stammdaten */}
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Stammdaten</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><Label className="text-xs">{de.suppliers.name}</Label>
                 <Input value={form.nameNormalized} onChange={(e) => set("nameNormalized", e.target.value)} /></div>
               <div><Label className="text-xs">{de.detail.vatNumber}</Label>
                 <Input value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} /></div>
-              <div><Label className="text-xs">IBAN</Label>
-                <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} /></div>
               <div><Label className="text-xs">{de.suppliers.country}</Label>
                 <Input value={form.country} onChange={(e) => set("country", e.target.value)} placeholder="CH" /></div>
             </CardContent>
           </Card>
 
-          {/* Defaults */}
+          {/* Kontakt */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Standardwerte</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Kontakt</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><Label className="text-xs">E-Mail</Label>
+                <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></div>
+              <div><Label className="text-xs">Telefon</Label>
+                <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} /></div>
+              <div><Label className="text-xs">Webseite</Label>
+                <Input value={form.website} onChange={(e) => set("website", e.target.value)} /></div>
+              <div><Label className="text-xs">Ansprechpartner</Label>
+                <Input value={form.contactPerson} onChange={(e) => set("contactPerson", e.target.value)} /></div>
+            </CardContent>
+          </Card>
+
+          {/* Adresse */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.address}</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-3"><Label className="text-xs">Strasse</Label>
+                <Input value={form.street} onChange={(e) => set("street", e.target.value)} /></div>
+              <div><Label className="text-xs">PLZ</Label>
+                <Input value={form.zip} onChange={(e) => set("zip", e.target.value)} /></div>
+              <div className="md:col-span-2"><Label className="text-xs">Ort</Label>
+                <Input value={form.city} onChange={(e) => set("city", e.target.value)} /></div>
+            </CardContent>
+          </Card>
+
+          {/* Bankverbindung */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Bankverbindung</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><Label className="text-xs">IBAN</Label>
+                <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} /></div>
+              <div><Label className="text-xs">BIC</Label>
+                <Input value={form.bic} onChange={(e) => set("bic", e.target.value)} /></div>
+              <div><Label className="text-xs">Bank</Label>
+                <Input value={form.bankName} onChange={(e) => set("bankName", e.target.value)} /></div>
+              <div><Label className="text-xs">Zahlungsfrist (Tage)</Label>
+                <Input type="number" value={form.paymentTermDays} onChange={(e) => set("paymentTermDays", e.target.value)} /></div>
+            </CardContent>
+          </Card>
+
+          {/* Standardwerte */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Standardwerte für Belege</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><Label className="text-xs">{de.suppliers.defaultCategory}</Label>
                 <Input value={form.defaultCategory} onChange={(e) => set("defaultCategory", e.target.value)} /></div>
               <div><Label className="text-xs">{de.suppliers.defaultAccount}</Label>
@@ -137,9 +192,15 @@ export default function SupplierDetailPage() {
             </CardContent>
           </Card>
 
-          <Button onClick={handleSave}>
-            <Save className="h-4 w-4 mr-2" />{de.suppliers.save}
-          </Button>
+          {/* Notizen */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Notizen</CardTitle></CardHeader>
+            <CardContent>
+              <Textarea rows={4} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Interne Anmerkungen..." />
+            </CardContent>
+          </Card>
+
+          <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />{de.suppliers.save}</Button>
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4">
@@ -149,6 +210,7 @@ export default function SupplierDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Belegnr.</TableHead>
                       <TableHead>{de.documents.status}</TableHead>
                       <TableHead>{de.documents.invoiceNumber}</TableHead>
                       <TableHead>{de.documents.date}</TableHead>
@@ -158,6 +220,7 @@ export default function SupplierDetailPage() {
                   <TableBody>
                     {supplier.documents.map((doc: any) => (
                       <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/documents/${doc.id}`)}>
+                        <TableCell className="font-mono text-xs">{doc.documentNumber || de.common.noData}</TableCell>
                         <TableCell><DocumentStatusBadge status={doc.status} /></TableCell>
                         <TableCell>{doc.invoiceNumber || de.common.noData}</TableCell>
                         <TableCell>{formatDate(doc.invoiceDate)}</TableCell>

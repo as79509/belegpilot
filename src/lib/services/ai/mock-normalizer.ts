@@ -1,6 +1,6 @@
 import type {
   AiNormalizerService,
-  NormalizedInvoiceData,
+  AiNormalizerResult,
 } from "./ai-normalizer.interface";
 
 export class MockNormalizer implements AiNormalizerService {
@@ -8,7 +8,7 @@ export class MockNormalizer implements AiNormalizerService {
     _images: Buffer[],
     _mimeType: string,
     metadata?: Record<string, unknown>
-  ): Promise<NormalizedInvoiceData> {
+  ): Promise<AiNormalizerResult> {
     // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
@@ -17,7 +17,7 @@ export class MockNormalizer implements AiNormalizerService {
 
     // Return credit note data if filename suggests it
     if (fileName.includes("credit") || fileName.includes("gutschrift")) {
-      return {
+      return { data: {
         supplier_name_raw: "Muster AG",
         supplier_name_normalized: "Muster",
         supplier_vat_number: "CHE-111.222.333 MWST",
@@ -49,11 +49,11 @@ export class MockNormalizer implements AiNormalizerService {
           "Credit note clearly identified with negative amounts and reference to original invoice.",
         extracted_text:
           "Muster AG\nGutschrift GS-2026-001\nDatum: 15.03.2026\nGutschriftsbetrag: CHF -540.50",
-      };
+      } };
     }
 
     // Default: realistic Swiss invoice
-    return {
+    return { data: {
       supplier_name_raw: "Beispiel GmbH",
       supplier_name_normalized: "Beispiel",
       supplier_vat_number: "CHE-123.456.789 MWST",
@@ -99,6 +99,6 @@ export class MockNormalizer implements AiNormalizerService {
         "All key fields extracted with high confidence. Swiss QR-bill reference detected.",
       extracted_text:
         "Beispiel GmbH\nMusterstrasse 10\n8001 Zürich\n\nRechnung RE-2026-0042\nDatum: 20.03.2026\nFällig: 20.04.2026\n\nPos  Beschreibung                    Menge  Preis    Total\n1    Druckerpapier A4, 5x 500 Blatt  5      45.00    225.00\n2    Toner HP LaserJet Pro            2      189.00   378.00\n3    IT-Dienstleistung Monat März     1      647.00   647.00\n\nNetto:  CHF 1'250.00\nMWST 8.1%: CHF 101.25\nTotal: CHF 1'351.25\n\nZahlbar bis: 20.04.2026\nIBAN: CH93 0076 2011 6238 5295 7\nCHE-123.456.789 MWST",
-    };
+    } };
   }
 }

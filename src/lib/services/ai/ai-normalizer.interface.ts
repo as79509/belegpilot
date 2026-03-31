@@ -28,10 +28,19 @@ export interface NormalizedInvoiceData {
   extracted_text: string;
 }
 
+export interface AiNormalizerResult {
+  data: NormalizedInvoiceData;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    model: string;
+  };
+}
+
 export interface AiNormalizerService {
   normalize(
     images: Buffer[],
     mimeType: string,
     metadata?: Record<string, unknown>
-  ): Promise<NormalizedInvoiceData>;
+  ): Promise<AiNormalizerResult>;
 }

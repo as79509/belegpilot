@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import { inngest } from "@/lib/inngest/client";
+import { generateDocumentNumber } from "@/lib/services/document-number";
 import { createHash } from "crypto";
 
 const ALLOWED_TYPES = [
@@ -96,9 +97,11 @@ export async function POST(request: NextRequest) {
         const now = new Date();
 
         // Create Document + DocumentFile
+        const documentNumber = await generateDocumentNumber(companyId);
         const document = await prisma.document.create({
           data: {
             companyId,
+            documentNumber,
             status: "uploaded",
             documentType: "other",
           },

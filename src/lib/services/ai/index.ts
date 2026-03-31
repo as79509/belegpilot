@@ -14,4 +14,8 @@ export function getAiNormalizer(): AiNormalizerService {
   }
 }
 
-export type { AiNormalizerService, NormalizedInvoiceData } from "./ai-normalizer.interface";
+export type {
+  AiNormalizerService,
+  NormalizedInvoiceData,
+  AiNormalizerResult,
+} from "./ai-normalizer.interface";

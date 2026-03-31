@@ -18,8 +18,8 @@ export async function GET(
         orderBy: { createdAt: "desc" },
         take: 50,
         select: {
-          id: true, status: true, invoiceNumber: true, invoiceDate: true,
-          grossAmount: true, currency: true, createdAt: true,
+          id: true, documentNumber: true, status: true, invoiceNumber: true,
+          invoiceDate: true, grossAmount: true, currency: true, createdAt: true,
         },
       },
     },
@@ -48,6 +48,8 @@ export async function PATCH(
 
     const fields = [
       "nameNormalized", "nameVariants", "vatNumber", "iban", "address", "country",
+      "email", "phone", "website", "contactPerson", "street", "zip", "city",
+      "bankName", "bic", "paymentTermDays", "notes",
       "defaultCategory", "defaultAccountCode", "defaultCostCenter", "defaultVatCode",
     ];
     const updateData: Record<string, any> = {};
