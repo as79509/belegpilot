@@ -27,21 +27,30 @@ export default function DocumentDetailPage() {
   const [auditEntries, setAuditEntries] = useState<any[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/documents/${params.id}`).then((r) => r.json()),
-      fetch(`/api/documents/${params.id}/audit`).then((r) => r.json()).catch(() => []),
-      // Fetch next document in review queue
-      fetch(`/api/documents?status=needs_review&pageSize=2&sortBy=confidenceScore&sortOrder=asc`)
-        .then((r) => r.json())
-        .catch(() => ({ documents: [] })),
-    ]).then(([docData, audit, queue]) => {
-      setDoc(docData);
-      setAuditEntries(Array.isArray(audit) ? audit : []);
-      // Find next document that isn't the current one
-      const next = queue.documents?.find((d: any) => d.id !== params.id);
-      setNextDocId(next?.id || null);
-      setLoading(false);
-    });
+    async function loadData() {
+      try {
+        const docRes = await fetch(`/api/documents/${params.id}`);
+        if (docRes.ok) setDoc(await docRes.json());
+
+        const auditRes = await fetch(`/api/documents/${params.id}/audit`).catch(() => null);
+        if (auditRes?.ok) {
+          const audit = await auditRes.json();
+          setAuditEntries(Array.isArray(audit) ? audit : []);
+        }
+
+        const queueRes = await fetch(`/api/documents?status=needs_review&pageSize=2&sortBy=confidenceScore&sortOrder=asc`).catch(() => null);
+        if (queueRes?.ok) {
+          const queue = await queueRes.json();
+          const next = queue.documents?.find((d: any) => d.id !== params.id);
+          setNextDocId(next?.id || null);
+        }
+      } catch (err) {
+        console.error("[DocumentDetail] Load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, [params.id]);
 
   if (loading) {

@@ -129,10 +129,12 @@ export async function POST(request: NextRequest) {
 
         // Trigger Inngest processing (non-blocking — don't fail upload if Inngest is down)
         try {
+          console.log("[Upload] Sending inngest event for document:", document.id);
           await inngest.send({
             name: "document/uploaded",
             data: { documentId: document.id },
           });
+          console.log("[Upload] Inngest event sent successfully");
         } catch (inngestError) {
           console.error("[Upload] Inngest send failed:", inngestError);
         }

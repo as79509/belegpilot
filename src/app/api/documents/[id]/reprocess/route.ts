@@ -41,10 +41,16 @@ export async function POST(
       },
     });
 
-    await inngest.send({
-      name: "document/uploaded",
-      data: { documentId: id },
-    });
+    console.log("[Reprocess] Sending inngest event for:", id);
+    try {
+      await inngest.send({
+        name: "document/uploaded",
+        data: { documentId: id },
+      });
+      console.log("[Reprocess] Inngest event sent");
+    } catch (inngestErr) {
+      console.error("[Reprocess] Inngest send failed:", inngestErr);
+    }
 
     await logAudit({
       companyId: session.user.companyId,
