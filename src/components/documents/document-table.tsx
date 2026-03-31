@@ -21,7 +21,9 @@ import {
   formatConfidence,
   getConfidenceColor,
 } from "@/lib/i18n/format";
-import { ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface Document {
   id: string;
@@ -51,8 +53,9 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(initialStatus || "");
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState(initialStatus === "needs_review" ? "confidenceScore" : "createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(initialStatus === "needs_review" ? "asc" : "desc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -137,11 +140,49 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
         </select>
       </div>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-md border border-blue-200">
+          <span className="text-sm font-medium">{selected.size} ausgewählt</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const res = await fetch("/api/documents/bulk-reprocess", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ documentIds: Array.from(selected) }),
+              });
+              if (res.ok) {
+                const r = await res.json();
+                toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
+                setSelected(new Set());
+                fetchDocuments();
+              }
+            }}
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />{de.bulk.reprocess}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            {de.bulk.deselectAll}
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="border rounded-md bg-white">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8">
+                <Checkbox
+                  checked={documents.length > 0 && selected.size === documents.length}
+                  onCheckedChange={(c) => {
+                    if (c) setSelected(new Set(documents.map((d) => d.id)));
+                    else setSelected(new Set());
+                  }}
+                />
+              </TableHead>
               <SortHeader column="status">{de.documents.status}</SortHeader>
               <SortHeader column="supplierNameRaw">
                 {de.documents.supplier}
@@ -164,14 +205,14 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   {de.common.loading}
                 </TableCell>
               </TableRow>
             ) : documents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {de.documents.noDocuments}
@@ -184,6 +225,19 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => router.push(`/documents/${doc.id}`)}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selected.has(doc.id)}
+                      onCheckedChange={(c) => {
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (c) next.add(doc.id);
+                          else next.delete(doc.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <DocumentStatusBadge status={doc.status} />
                   </TableCell>

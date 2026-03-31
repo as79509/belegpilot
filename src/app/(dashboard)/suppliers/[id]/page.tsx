@@ -1,24 +1,178 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { de } from "@/lib/i18n/de";
+"use client";
 
-export default async function SupplierDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { CheckCircle2, AlertTriangle, Save } from "lucide-react";
+import { de } from "@/lib/i18n/de";
+import { formatCurrency, formatDate } from "@/lib/i18n/format";
+import { toast } from "sonner";
+
+export default function SupplierDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const [supplier, setSupplier] = useState<any>(null);
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/suppliers/${params.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setSupplier(data);
+        setForm({
+          nameNormalized: data.nameNormalized || "",
+          vatNumber: data.vatNumber || "",
+          iban: data.iban || "",
+          country: data.country || "",
+          defaultCategory: data.defaultCategory || "",
+          defaultAccountCode: data.defaultAccountCode || "",
+          defaultCostCenter: data.defaultCostCenter || "",
+          defaultVatCode: data.defaultVatCode || "",
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  function set(field: string, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSave() {
+    const res = await fetch(`/api/suppliers/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSupplier(updated);
+      toast.success(de.suppliers.saveSuccess);
+    } else {
+      toast.error(de.common.error);
+    }
+  }
+
+  async function handleVerify() {
+    const res = await fetch(`/api/suppliers/${params.id}/verify`, { method: "POST" });
+    if (res.ok) {
+      const updated = await res.json();
+      setSupplier(updated);
+      toast.success(de.suppliers.verifySuccess);
+    }
+  }
+
+  if (loading) return <p className="py-20 text-center text-muted-foreground">{de.common.loading}</p>;
+  if (!supplier) return <p className="py-20 text-center text-muted-foreground">Nicht gefunden</p>;
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {de.suppliers.title}
-      </h1>
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Lieferantendetails kommen in Phase 4. (ID: {id})
-          </p>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <Link href="/suppliers" className="text-sm text-muted-foreground hover:text-foreground">
+        ← {de.suppliers.title}
+      </Link>
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold">{supplier.nameNormalized}</h1>
+        {supplier.isVerified ? (
+          <Badge variant="secondary" className="bg-green-100 text-green-800">
+            <CheckCircle2 className="h-3 w-3 mr-1" />{de.suppliers.verified}
+          </Badge>
+        ) : (
+          <>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+              <AlertTriangle className="h-3 w-3 mr-1" />{de.suppliers.unverified}
+            </Badge>
+            <Button variant="outline" size="sm" onClick={handleVerify}>
+              {de.suppliers.verify}
+            </Button>
+          </>
+        )}
+      </div>
+
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="documents">{de.suppliers.documentCount} ({supplier.documentCount})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details" className="mt-4 space-y-4">
+          {/* Basic info */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Stammdaten</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div><Label className="text-xs">{de.suppliers.name}</Label>
+                <Input value={form.nameNormalized} onChange={(e) => set("nameNormalized", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.detail.vatNumber}</Label>
+                <Input value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} /></div>
+              <div><Label className="text-xs">IBAN</Label>
+                <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.suppliers.country}</Label>
+                <Input value={form.country} onChange={(e) => set("country", e.target.value)} placeholder="CH" /></div>
+            </CardContent>
+          </Card>
+
+          {/* Defaults */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Standardwerte</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div><Label className="text-xs">{de.suppliers.defaultCategory}</Label>
+                <Input value={form.defaultCategory} onChange={(e) => set("defaultCategory", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.suppliers.defaultAccount}</Label>
+                <Input value={form.defaultAccountCode} onChange={(e) => set("defaultAccountCode", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.suppliers.defaultCostCenter}</Label>
+                <Input value={form.defaultCostCenter} onChange={(e) => set("defaultCostCenter", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.suppliers.defaultVatCode}</Label>
+                <Input value={form.defaultVatCode} onChange={(e) => set("defaultVatCode", e.target.value)} /></div>
+            </CardContent>
+          </Card>
+
+          <Button onClick={handleSave}>
+            <Save className="h-4 w-4 mr-2" />{de.suppliers.save}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              {supplier.documents?.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{de.documents.status}</TableHead>
+                      <TableHead>{de.documents.invoiceNumber}</TableHead>
+                      <TableHead>{de.documents.date}</TableHead>
+                      <TableHead>{de.documents.amount}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {supplier.documents.map((doc: any) => (
+                      <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/documents/${doc.id}`)}>
+                        <TableCell><DocumentStatusBadge status={doc.status} /></TableCell>
+                        <TableCell>{doc.invoiceNumber || de.common.noData}</TableCell>
+                        <TableCell>{formatDate(doc.invoiceDate)}</TableCell>
+                        <TableCell>{formatCurrency(doc.grossAmount, doc.currency || "CHF")}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">Keine Belege</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

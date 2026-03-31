@@ -9,6 +9,10 @@ import {
   computeCompositeConfidence,
 } from "@/lib/services/validation/confidence";
 import { makeProcessingDecision } from "@/lib/services/validation/decision";
+import {
+  findMatchingSupplier,
+  createSupplierFromDocument,
+} from "@/lib/services/supplier-matching/supplier-matcher";
 
 export const processDocument = inngest.createFunction(
   {
@@ -216,11 +220,101 @@ export const processDocument = inngest.createFunction(
       });
     });
 
-    // Step 5: Full validation engine
+    // Step 5: Supplier matching + auto-creation
+    const supplierMatchResult = await step.run("supplier-matching", async () => {
+      const startTime = Date.now();
+      const updatedDoc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+      if (!updatedDoc) throw new Error("Document not found");
+
+      const vatNum = normalizedData.supplier_vat_number || null;
+      const docIban = updatedDoc.iban;
+      const nameNorm = updatedDoc.supplierNameNormalized;
+
+      let supplierId: string | null = null;
+      let matchCertainty = 0;
+
+      // Try to match existing supplier
+      const match = await findMatchingSupplier(
+        doc.companyId,
+        vatNum,
+        docIban,
+        nameNorm
+      );
+
+      if (match) {
+        supplierId = match.supplierId;
+        matchCertainty = match.confidence;
+
+        // Increment document count
+        await prisma.supplier.update({
+          where: { id: supplierId },
+          data: { documentCount: { increment: 1 } },
+        });
+
+        // Apply verified supplier defaults as suggestions
+        const supplier = await prisma.supplier.findUnique({
+          where: { id: supplierId },
+        });
+        if (supplier?.isVerified) {
+          const defaults: Record<string, any> = {};
+          if (!updatedDoc.expenseCategory && supplier.defaultCategory)
+            defaults.expenseCategory = supplier.defaultCategory;
+          if (!updatedDoc.accountCode && supplier.defaultAccountCode)
+            defaults.accountCode = supplier.defaultAccountCode;
+          if (!updatedDoc.costCenter && supplier.defaultCostCenter)
+            defaults.costCenter = supplier.defaultCostCenter;
+          if (Object.keys(defaults).length > 0) {
+            await prisma.document.update({
+              where: { id: documentId },
+              data: defaults,
+            });
+          }
+        }
+      } else if (nameNorm?.trim()) {
+        // Auto-create new supplier
+        supplierId = await createSupplierFromDocument(
+          doc.companyId,
+          nameNorm,
+          updatedDoc.supplierNameRaw,
+          vatNum,
+          docIban
+        );
+        matchCertainty = 0;
+      }
+
+      // Link document to supplier
+      if (supplierId) {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { supplierId },
+        });
+      }
+
+      await prisma.processingStep.create({
+        data: {
+          documentId,
+          stepName: "supplier-matching",
+          status: "completed",
+          startedAt: new Date(startTime),
+          completedAt: new Date(),
+          durationMs: Date.now() - startTime,
+          metadata: {
+            matchType: match?.matchType || "created",
+            matchCertainty,
+            supplierId,
+          },
+        },
+      });
+
+      return { supplierId, matchCertainty };
+    });
+
+    // Step 6: Full validation engine
     const decision = await step.run("validate", async () => {
       const startTime = Date.now();
 
-      // Reload document with populated canonical fields
       const updatedDoc = await prisma.document.findUnique({
         where: { id: documentId },
       });
@@ -228,7 +322,7 @@ export const processDocument = inngest.createFunction(
 
       const canonical = toCanonical(updatedDoc);
 
-      // Get existing documents for duplicate check (same company, last 12 months)
+      // Get existing documents for duplicate check
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       const existingDocs = await prisma.document.findMany({
@@ -254,20 +348,17 @@ export const processDocument = inngest.createFunction(
         grossAmount: d.grossAmount ? Number(d.grossAmount) : null,
       }));
 
-      // Run validation
       const validationResult = validateDocument(canonical, dupCheckDocs);
 
-      // Compute composite confidence
       const aiConfidence = normalizedData.confidence || 0;
       const factors = buildConfidenceFactors(
         aiConfidence,
         canonical,
         validationResult,
-        0 // supplierMatchCertainty — Phase 4
+        supplierMatchResult.matchCertainty
       );
       const compositeConfidence = computeCompositeConfidence(factors);
 
-      // Make decision
       const processingDecision = makeProcessingDecision(
         validationResult,
         compositeConfidence
@@ -275,7 +366,6 @@ export const processDocument = inngest.createFunction(
       const newStatus =
         processingDecision === "auto_ready" ? "ready" : "needs_review";
 
-      // Update document
       await prisma.document.update({
         where: { id: documentId },
         data: {
@@ -313,10 +403,8 @@ export const processDocument = inngest.createFunction(
           completedAt: new Date(),
           durationMs: Date.now() - startTime,
           metadata: {
-            checks_passed: validationResult.checks.filter((c) => c.passed)
-              .length,
-            checks_failed: validationResult.checks.filter((c) => !c.passed)
-              .length,
+            checks_passed: validationResult.checks.filter((c) => c.passed).length,
+            checks_failed: validationResult.checks.filter((c) => !c.passed).length,
             decision: processingDecision,
             compositeConfidence,
           },

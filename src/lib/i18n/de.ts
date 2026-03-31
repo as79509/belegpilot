@@ -154,28 +154,72 @@ export const de = {
     extraction: "Extraktion",
     validation: "Validierung",
     decision: "Entscheidung",
+    "supplier-matching": "Lieferant-Zuordnung",
   },
 
   // Suppliers
   suppliers: {
     title: "Lieferanten",
     noSuppliers: "Noch keine Lieferanten vorhanden. Lieferanten werden automatisch beim Verarbeiten von Belegen erstellt.",
+    name: "Name",
+    verified: "Verifiziert",
+    unverified: "Nicht verifiziert",
+    verify: "Verifizieren",
+    verifySuccess: "Lieferant verifiziert",
+    defaultCategory: "Standard-Kategorie",
+    defaultAccount: "Standard-Konto",
+    defaultCostCenter: "Standard-Kostenstelle",
+    defaultVatCode: "Standard-MwSt",
+    documentCount: "Belege",
+    merge: "Zusammenführen",
+    mergeTitle: "Lieferanten zusammenführen",
+    mergeSuccess: "Lieferanten zusammengeführt",
+    address: "Adresse",
+    country: "Land",
+    variants: "Namensvarianten",
+    supplierNotVerified: "Dieser Lieferant ist noch nicht verifiziert",
+    save: "Speichern",
+    saveSuccess: "Lieferant gespeichert",
   },
 
-  // Exports
+  // Export
   exports: {
     title: "Exporte",
-    noExports: "Noch keine Exporte vorhanden. CSV-Export kommt in Phase 4.",
+    noExports: "Noch keine Exporte vorhanden.",
+    csvExport: "CSV Export",
+    exportAll: "Alle bereiten Belege exportieren",
+    exportSelected: "Ausgewählte exportieren",
+    separator: "Trennzeichen",
+    semicolon: "Semikolon (;)",
+    comma: "Komma (,)",
+    exportButton: "Exportieren",
+    batchId: "Export-ID",
+    documentCount: "Anzahl Belege",
+    exportSuccess: "Belege erfolgreich exportiert",
+    noReadyDocuments: "Keine bereiten Belege zum Exportieren",
+    history: "Export-Verlauf",
+    alreadyExported: "Belege wurden bereits exportiert",
   },
 
   // Settings
   settings: {
     title: "Einstellungen",
-    company: "Unternehmen",
+    company: "Firma",
     integrations: "Integrationen",
-    companySettings: "Unternehmenseinstellungen",
-    integrationSettings: "Integrationseinstellungen",
-    comingSoon: "Kommt in Phase 5.",
+    companyName: "Firmenname",
+    legalName: "Rechtlicher Name",
+    vatNumber: "USt-IdNr.",
+    address: "Adresse",
+    defaultCurrency: "Standardwährung",
+    aiProvider: "KI-Anbieter",
+    apiKey: "API-Schlüssel",
+    testConnection: "Verbindung testen",
+    connected: "Verbunden",
+    notConnected: "Nicht verbunden",
+    testing: "Teste...",
+    storage: "Speicher",
+    storageBucket: "Bucket",
+    saved: "Einstellungen gespeichert",
   },
 
   // Validation messages
@@ -237,7 +281,30 @@ export const de = {
       document_rejected: "Beleg abgelehnt",
       document_reprocessed: "Beleg erneut verarbeitet",
       document_fields_edited: "Beleg bearbeitet",
+      documents_exported: "Belege exportiert",
+      supplier_edited: "Lieferant bearbeitet",
+      supplier_verified: "Lieferant verifiziert",
+      supplier_merged: "Lieferanten zusammengeführt",
+      company_settings_updated: "Firmeneinstellungen aktualisiert",
     } as Record<string, string>,
+  },
+
+  // Bulk actions
+  bulk: {
+    selectAll: "Alle auswählen",
+    deselectAll: "Auswahl aufheben",
+    reprocess: "Erneut verarbeiten",
+    reprocessSubmitted: "zur Verarbeitung eingereicht",
+    export: "Exportieren",
+  },
+
+  // Filters
+  filters: {
+    clearAll: "Filter zurücksetzen",
+    dateFrom: "Datum von",
+    dateTo: "Datum bis",
+    amountFrom: "Betrag von",
+    amountTo: "Betrag bis",
   },
 
   // Auth

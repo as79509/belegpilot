@@ -240,6 +240,7 @@ model Supplier {
   defaultCostCenter  String?  @map("default_cost_center")
   defaultVatCode     String?  @map("default_vat_code")
   documentCount      Int      @default(0) @map("document_count")
+  isVerified         Boolean  @default(false) @map("is_verified")
   isActive           Boolean  @default(true) @map("is_active")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
