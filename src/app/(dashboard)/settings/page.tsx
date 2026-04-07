@@ -6,37 +6,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Zap, Database } from "lucide-react";
+import { Save, Zap, Database, Loader2 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const [company, setCompany] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", legalName: "", vatNumber: "", currency: "CHF" });
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
 
   useEffect(() => {
-    // Load company data from dashboard stats (simple approach)
-    fetch("/api/dashboard/stats").then((r) => r.json()).then(() => {
-      // For now, hardcode the demo company values — full company API is Phase 5
-      setForm({ name: "BelegPilot Demo", legalName: "BelegPilot Demo GmbH", vatNumber: "CHE-123.456.789", currency: "CHF" });
-    });
+    fetch("/api/company")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.id) {
+          setForm({
+            name: data.name || "",
+            legalName: data.legalName || "",
+            vatNumber: data.vatNumber || "",
+            currency: data.currency || "CHF",
+          });
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/company", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.settings.saved);
+    } catch (err: any) {
+      toast.error(err.message || de.errors.serverError);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function testAiConnection() {
     setTestStatus("testing");
     try {
-      // Simple test: call the normalizer with an empty request
-      const res = await fetch("/api/test-ai", { method: "POST" });
+      const res = await fetch("/api/dashboard/ai-costs");
       setTestStatus(res.ok ? "ok" : "error");
     } catch {
       setTestStatus("error");
     }
   }
-
-  const aiProvider = typeof window !== "undefined" ? "Claude (Anthropic)" : "—";
-  const storageBucket = "Documents (Supabase Storage)";
 
   return (
     <div className="space-y-6">
@@ -54,35 +77,45 @@ export default function SettingsPage() {
               <CardTitle className="text-sm">{de.settings.company}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs">{de.settings.companyName}</Label>
-                <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs">{de.settings.legalName}</Label>
-                <Input value={form.legalName} onChange={(e) => setForm(f => ({ ...f, legalName: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs">{de.settings.vatNumber}</Label>
-                <Input value={form.vatNumber} onChange={(e) => setForm(f => ({ ...f, vatNumber: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs">{de.settings.defaultCurrency}</Label>
-                <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={form.currency} onChange={(e) => setForm(f => ({ ...f, currency: e.target.value }))}>
-                  <option value="CHF">CHF</option>
-                  <option value="EUR">EUR</option>
-                  <option value="USD">USD</option>
-                </select>
-              </div>
-              <Button onClick={() => toast.success(de.settings.saved)}>
-                <Save className="h-4 w-4 mr-2" />{de.common.save}
-              </Button>
+              {loading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-24" /><Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-4 w-24" /><Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-4 w-24" /><Skeleton className="h-9 w-full" />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label className="text-xs">{de.settings.companyName}</Label>
+                    <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">{de.settings.legalName}</Label>
+                    <Input value={form.legalName} onChange={(e) => setForm(f => ({ ...f, legalName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">{de.settings.vatNumber}</Label>
+                    <Input value={form.vatNumber} onChange={(e) => setForm(f => ({ ...f, vatNumber: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">{de.settings.defaultCurrency}</Label>
+                    <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={form.currency} onChange={(e) => setForm(f => ({ ...f, currency: e.target.value }))}>
+                      <option value="CHF">CHF</option>
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    {de.common.save}
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-4 space-y-4">
-          {/* AI Provider */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -106,7 +139,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Storage */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -116,7 +148,7 @@ export default function SettingsPage() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <span className="text-sm">{de.settings.storageBucket}:</span>
-                <Badge variant="secondary">{storageBucket}</Badge>
+                <Badge variant="secondary">Documents (Supabase Storage)</Badge>
               </div>
             </CardContent>
           </Card>

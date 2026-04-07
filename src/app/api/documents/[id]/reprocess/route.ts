@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { DbNull } from "@/generated/prisma/internal/prismaNamespace";
 import { inngest } from "@/lib/inngest/client";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   _request: NextRequest,
@@ -16,6 +17,11 @@ export async function POST(
     }
     if (!["admin", "reviewer"].includes(session.user.role)) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
+
+    const { allowed } = rateLimit(`reprocess:${session.user.id}`, 10, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
     }
 
     const { id } = await params;

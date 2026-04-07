@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import { inngest } from "@/lib/inngest/client";
 import { generateDocumentNumber } from "@/lib/services/document-number";
+import { rateLimit } from "@/lib/rate-limit";
 import { createHash } from "crypto";
 
 const ALLOWED_TYPES = [
@@ -23,6 +24,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { companyId } = session.user;
+
+    const { allowed } = rateLimit(`upload:${session.user.id}`, 30, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
+    }
+
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
 

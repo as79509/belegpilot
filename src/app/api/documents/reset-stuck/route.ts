@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inngest } from "@/lib/inngest/client";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
   try {
@@ -9,6 +10,11 @@ export async function POST() {
     if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     if (session.user.role !== "admin")
       return NextResponse.json({ error: "Nur Administratoren" }, { status: 403 });
+
+    const { allowed } = rateLimit(`reset-stuck:${session.user.id}`, 5, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
+    }
 
     const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
 

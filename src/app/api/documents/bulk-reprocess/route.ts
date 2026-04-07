@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inngest } from "@/lib/inngest/client";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +10,11 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     if (!["admin", "reviewer"].includes(session.user.role))
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+
+    const { allowed } = rateLimit(`bulk-reprocess:${session.user.id}`, 5, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
+    }
 
     const { documentIds } = await request.json();
     if (!documentIds?.length) {
