@@ -2,16 +2,41 @@ import { prisma } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import ExcelJS from "exceljs";
 
+interface ColumnDef {
+  key: string;
+  header: string;
+  getValue: (doc: any) => any;
+  isNumber?: boolean;
+}
+
 function formatDateDE(d: Date | null): string {
   if (!d) return "";
   return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
 }
 
+const ALL_COLUMNS: ColumnDef[] = [
+  { key: "documentNumber", header: "Belegnummer", getValue: (d) => d.documentNumber || "" },
+  { key: "supplier", header: "Lieferant", getValue: (d) => d.supplier?.nameNormalized || d.supplierNameNormalized || d.supplierNameRaw || "" },
+  { key: "invoiceNumber", header: "Rechnungsnr.", getValue: (d) => d.invoiceNumber || "" },
+  { key: "invoiceDate", header: "Rechnungsdatum", getValue: (d) => formatDateDE(d.invoiceDate) },
+  { key: "dueDate", header: "Fälligkeitsdatum", getValue: (d) => formatDateDE(d.dueDate) },
+  { key: "currency", header: "Währung", getValue: (d) => d.currency || "" },
+  { key: "netAmount", header: "Netto", getValue: (d) => d.netAmount ? Number(d.netAmount) : null, isNumber: true },
+  { key: "vatAmount", header: "MwSt", getValue: (d) => d.vatAmount ? Number(d.vatAmount) : null, isNumber: true },
+  { key: "grossAmount", header: "Brutto", getValue: (d) => d.grossAmount ? Number(d.grossAmount) : null, isNumber: true },
+  { key: "vatRates", header: "MwSt-Satz", getValue: (d) => ((d.vatRatesDetected as any[]) || []).map((r: any) => `${r.rate}%`).join(", ") },
+  { key: "category", header: "Kategorie", getValue: (d) => d.expenseCategory || "" },
+  { key: "accountCode", header: "Kontonummer", getValue: (d) => d.accountCode || "" },
+  { key: "costCenter", header: "Kostenstelle", getValue: (d) => d.costCenter || "" },
+  { key: "iban", header: "IBAN", getValue: (d) => d.iban || "" },
+  { key: "paymentReference", header: "Zahlungsreferenz", getValue: (d) => d.paymentReference || "" },
+];
+
 export async function generateXlsxExport(
   companyId: string,
   userId: string,
   documentIds: string[],
-  columns?: string[]
+  selectedColumns?: string[]
 ): Promise<{ batchId: string; buffer: Buffer; count: number }> {
   const batchId = uuidv4();
 
@@ -23,48 +48,33 @@ export async function generateXlsxExport(
 
   if (!documents.length) throw new Error("Keine bereiten Belege");
 
+  // Filter columns
+  const columns = selectedColumns?.length
+    ? ALL_COLUMNS.filter((c) => selectedColumns.includes(c.key))
+    : ALL_COLUMNS;
+
   const workbook = new ExcelJS.Workbook();
+
+  // Data sheet
   const sheet = workbook.addWorksheet("Belege");
 
-  // Headers
-  const headers = [
-    "Belegnummer", "Lieferant", "Rechnungsnr.", "Rechnungsdatum",
-    "Fälligkeitsdatum", "Währung", "Netto", "MwSt", "Brutto",
-    "MwSt-Satz", "Kategorie", "Kontonummer", "Kostenstelle", "IBAN", "Zahlungsreferenz",
-  ];
-
-  const headerRow = sheet.addRow(headers);
+  const headerRow = sheet.addRow(columns.map((c) => c.header));
   headerRow.font = { bold: true };
-  headerRow.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFE0E0E0" },
-  };
+  headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E0E0" } };
 
-  // Data rows
+  let totalGross = 0;
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+
   for (const doc of documents) {
-    const vatRates = (doc.vatRatesDetected as any[]) || [];
-    const vatRateStr = vatRates.map((r) => `${r.rate}%`).join(", ");
+    sheet.addRow(columns.map((c) => c.getValue(doc)));
 
-    sheet.addRow([
-      doc.documentNumber || "",
-      doc.supplier?.nameNormalized || doc.supplierNameNormalized || doc.supplierNameRaw || "",
-      doc.invoiceNumber || "",
-      formatDateDE(doc.invoiceDate),
-      formatDateDE(doc.dueDate),
-      doc.currency || "",
-      doc.netAmount ? Number(doc.netAmount) : null,
-      doc.vatAmount ? Number(doc.vatAmount) : null,
-      doc.grossAmount ? Number(doc.grossAmount) : null,
-      vatRateStr,
-      doc.expenseCategory || "",
-      doc.accountCode || "",
-      doc.costCenter || "",
-      doc.iban || "",
-      doc.paymentReference || "",
-    ]);
+    if (doc.grossAmount) totalGross += Number(doc.grossAmount);
+    if (doc.invoiceDate) {
+      if (!minDate || doc.invoiceDate < minDate) minDate = doc.invoiceDate;
+      if (!maxDate || doc.invoiceDate > maxDate) maxDate = doc.invoiceDate;
+    }
 
-    // Create export record
     await prisma.exportRecord.create({
       data: { documentId: doc.id, exportTarget: "xlsx", status: "success", externalId: batchId },
     });
@@ -74,12 +84,14 @@ export async function generateXlsxExport(
     });
   }
 
-  // Format amount columns as numbers
-  [7, 8, 9].forEach((col) => {
-    sheet.getColumn(col).numFmt = '#,##0.00';
+  // Format number columns
+  columns.forEach((col, idx) => {
+    if (col.isNumber) {
+      sheet.getColumn(idx + 1).numFmt = "#,##0.00";
+    }
   });
 
-  // Auto-width columns
+  // Auto-width
   sheet.columns.forEach((col) => {
     let maxLen = 10;
     col.eachCell?.({ includeEmpty: false }, (cell) => {
@@ -89,12 +101,21 @@ export async function generateXlsxExport(
     col.width = Math.min(maxLen + 2, 40);
   });
 
-  const arrayBuffer = await workbook.xlsx.writeBuffer();
-  console.log(`[XLSX Export] ${documents.length} documents exported`);
+  // Summary sheet
+  const summary = workbook.addWorksheet("Zusammenfassung");
+  summary.addRow(["Zusammenfassung"]).font = { bold: true, size: 14 };
+  summary.addRow([]);
+  summary.addRow(["Anzahl Belege", documents.length]);
+  summary.addRow(["Gesamtbetrag", totalGross]);
+  summary.addRow(["Exportdatum", formatDateDE(new Date())]);
+  if (minDate && maxDate) {
+    summary.addRow(["Zeitraum", `${formatDateDE(minDate)} – ${formatDateDE(maxDate)}`]);
+  }
+  summary.getColumn(1).width = 20;
+  summary.getColumn(2).width = 30;
+  summary.getRow(4).getCell(2).numFmt = "#,##0.00";
 
-  return {
-    batchId,
-    buffer: Buffer.from(arrayBuffer),
-    count: documents.length,
-  };
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+
+  return { batchId, buffer: Buffer.from(arrayBuffer), count: documents.length };
 }

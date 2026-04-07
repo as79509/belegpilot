@@ -203,6 +203,12 @@ export const de = {
     noReadyDocuments: "Keine bereiten Belege zum Exportieren",
     history: "Export-Verlauf",
     alreadyExported: "Belege wurden bereits exportiert",
+    downloadZip: "Belege herunterladen (ZIP)",
+    downloadZipDescription: "Original-Belege als ZIP-Archiv",
+    downloading: "Wird heruntergeladen...",
+    format: "Format",
+    download: "Herunterladen",
+    filterUsed: "Filter",
   },
 
   // Settings

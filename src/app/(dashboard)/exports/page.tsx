@@ -13,7 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download } from "lucide-react";
+import { Download, FolderArchive, Loader2 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
@@ -117,10 +117,28 @@ export default function ExportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{de.exports.title}</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger>
-            <Button><Download className="h-4 w-4 mr-2" />Exportieren</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled={exporting} onClick={async () => {
+            setExporting(true);
+            try {
+              const res = await fetch("/api/documents/download-zip", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filter: "all-ready" }),
+              });
+              if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = "belegpilot-belege.zip"; a.click();
+              URL.revokeObjectURL(url);
+            } catch (err: any) { toast.error(err.message); } finally { setExporting(false); }
+          }}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderArchive className="h-4 w-4 mr-2" />}
+            {de.exports.downloadZip}
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger>
+              <Button><Download className="h-4 w-4 mr-2" />Exportieren</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{de.exports.csvExport}</DialogTitle>
@@ -190,6 +208,7 @@ export default function ExportsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Export history */}
