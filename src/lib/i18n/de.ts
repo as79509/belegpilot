@@ -291,6 +291,7 @@ export const de = {
       supplier_merged: "Lieferanten zusammengeführt",
       company_settings_updated: "Firmeneinstellungen aktualisiert",
       document_exported_bexio: "Beleg an Bexio exportiert",
+      system_error: "Systemfehler",
     } as Record<string, string>,
   },
 
@@ -310,6 +311,15 @@ export const de = {
     dateTo: "Datum bis",
     amountFrom: "Betrag von",
     amountTo: "Betrag bis",
+  },
+
+  // Alerts
+  alerts: {
+    aiCostWarning: "AI-Kosten: Monatsbudget fast erreicht",
+    aiCostOver: "AI-Kostenbudget überschritten!",
+    bexioExportFailed: "Bexio-Export(e) fehlgeschlagen (letzte 24h)",
+    processingStuck: "Beleg(e) hängen in der Verarbeitung",
+    noAlerts: "Keine Warnungen",
   },
 
   // Bexio

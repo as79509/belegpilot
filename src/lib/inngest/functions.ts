@@ -40,8 +40,10 @@ export const processDocument = inngest.createFunction(
             errorDetails: { stack: error.stack } as any,
           },
         });
-      } catch {
-        console.error("[processDocument] onFailure handler error for", documentId);
+        const { trackError } = await import("@/lib/services/error-tracker");
+        await trackError({ source: "inngest", message: error.message || "Pipeline failed", documentId });
+      } catch (e) {
+        console.error("[processDocument] onFailure handler error for", documentId, e);
       }
     },
   },

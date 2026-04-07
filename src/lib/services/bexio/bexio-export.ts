@@ -156,6 +156,8 @@ export async function exportDocumentToBexio(
     return { success: true, bexioId };
   } catch (error: any) {
     console.error("[Bexio] Export failed:", error.message);
+    const { trackError } = await import("@/lib/services/error-tracker");
+    await trackError({ source: "bexio", message: error.message, companyId, documentId });
 
     await prisma.exportRecord.create({
       data: {

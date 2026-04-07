@@ -35,6 +35,8 @@ export default function DashboardPage() {
   const [aiCosts, setAiCosts] = useState<any>(null);
   const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [stuckCount, setStuckCount] = useState(0);
+  const [systemAlerts, setSystemAlerts] = useState<any[]>([]);
+  const [aiCostAlert, setAiCostAlert] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,13 +46,17 @@ export default function DashboardPage() {
       fetch("/api/suppliers?pageSize=5&sortBy=documentCount&sortOrder=desc").then((r) => r.json()).catch(() => ({ suppliers: [] })),
       fetch("/api/dashboard/ai-costs").then((r) => r.json()).catch(() => null),
       fetch("/api/audit-log?pageSize=5").then((r) => r.json()).catch(() => ({ entries: [] })),
-    ]).then(([statsData, docsData, suppData, costs, auditData]) => {
+      fetch("/api/alerts/system").then((r) => r.json()).catch(() => ({ alerts: [] })),
+      fetch("/api/alerts/ai-costs").then((r) => r.json()).catch(() => null),
+    ]).then(([statsData, docsData, suppData, costs, auditData, sysAlerts, aiAlert]) => {
       setStats(statsData);
       setRecentDocs(docsData.documents || []);
       setTopSuppliers(suppData.suppliers || []);
       setAiCosts(costs);
       setAuditEntries(auditData.entries || []);
       setStuckCount((statsData.uploaded || 0) + (statsData.failed || 0));
+      setSystemAlerts(sysAlerts?.alerts || []);
+      setAiCostAlert(aiAlert);
     }).catch((e) => console.error("[Dashboard] Load error:", e))
       .finally(() => setLoading(false));
   }, []);
@@ -107,6 +113,34 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* AI cost alert */}
+      {aiCostAlert?.isOverBudget && (
+        <Card className="border-red-300 bg-red-50">
+          <CardContent className="flex items-center gap-2 py-3">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-800">{de.alerts.aiCostOver} ({aiCostAlert.monthlyCost} USD / {aiCostAlert.monthlyBudget} USD)</span>
+          </CardContent>
+        </Card>
+      )}
+      {aiCostAlert?.isWarning && !aiCostAlert?.isOverBudget && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="flex items-center gap-2 py-3">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <span className="text-sm text-amber-800">{de.alerts.aiCostWarning} ({aiCostAlert.percentUsed}%)</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* System alerts */}
+      {systemAlerts.length > 0 && systemAlerts.map((alert: any, i: number) => (
+        <Card key={i} className={alert.type === "error" ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}>
+          <CardContent className="flex items-center gap-2 py-3">
+            {alert.type === "error" ? <XCircle className="h-4 w-4 text-red-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}
+            <span className={`text-sm ${alert.type === "error" ? "text-red-800" : "text-amber-800"}`}>{alert.message}</span>
+          </CardContent>
+        </Card>
+      ))}
 
       {/* Clickable status cards */}
       <div className="grid gap-4 md:grid-cols-3">
