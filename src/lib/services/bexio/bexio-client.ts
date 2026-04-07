@@ -1,6 +1,7 @@
 export class BexioClient {
   private baseUrl = "https://api.bexio.com";
   private token: string;
+  private cachedOwnerId: number | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -21,6 +22,17 @@ export class BexioClient {
       throw new Error(`Bexio API ${res.status}: ${err.message || JSON.stringify(err)}`);
     }
     return res.json();
+  }
+
+  async getOwnerId(): Promise<number> {
+    if (this.cachedOwnerId) return this.cachedOwnerId;
+    try {
+      const me = await this.request<any>("GET", "/3.0/users/me");
+      this.cachedOwnerId = me.id;
+      return me.id;
+    } catch {
+      return 1;
+    }
   }
 
   async searchContacts(name: string): Promise<any[]> {
@@ -44,6 +56,19 @@ export class BexioClient {
 
   async getAccounts(): Promise<any[]> {
     return this.request("GET", "/2.0/accounts");
+  }
+
+  async searchAccountByNumber(accountNumber: string): Promise<any | null> {
+    try {
+      const accounts = await this.request<any[]>("GET", "/2.0/accounts");
+      return accounts.find((a: any) => String(a.account_no) === accountNumber) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async getTaxes(): Promise<any[]> {
+    return this.request("GET", "/3.0/taxes");
   }
 
   async testConnection(): Promise<boolean> {

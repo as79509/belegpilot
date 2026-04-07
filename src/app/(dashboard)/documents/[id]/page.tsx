@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -107,29 +108,51 @@ export default function DocumentDetailPage() {
             {formatConfidence(doc.confidenceScore)}
           </span>
           <span className="text-xs text-muted-foreground">{formatRelativeTime(doc.createdAt)}</span>
-          {doc.status === "ready" && (
+          {/* Bexio export status */}
+          {doc.exportStatus === "exported" ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">{de.bexio.alreadyExported} ✓</Badge>
+              <button className="text-xs text-muted-foreground hover:text-foreground underline" onClick={async () => {
+                if (!confirm(de.bexio.reExportConfirm)) return;
+                setExporting(true);
+                try {
+                  const res = await fetch("/api/bexio/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: doc.id, force: true }) });
+                  const data = await res.json();
+                  if (data.results?.[0]?.success) { toast.success(de.bexio.exportSuccess); const r = await fetch(`/api/documents/${doc.id}`); if (r.ok) setDoc(await r.json()); }
+                  else toast.error(data.results?.[0]?.error || de.bexio.exportFailed);
+                } catch { toast.error(de.bexio.exportFailed); } finally { setExporting(false); }
+              }}>{de.bexio.reExport}</button>
+            </div>
+          ) : doc.exportStatus === "export_failed" ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">{de.bexio.exportFailed}</Badge>
+              <Button size="sm" variant="outline" disabled={exporting} onClick={async () => {
+                setExporting(true);
+                try {
+                  const res = await fetch("/api/bexio/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: doc.id, force: true }) });
+                  const data = await res.json();
+                  if (data.results?.[0]?.success) { toast.success(de.bexio.exportSuccess); const r = await fetch(`/api/documents/${doc.id}`); if (r.ok) setDoc(await r.json()); }
+                  else toast.error(data.results?.[0]?.error || de.bexio.exportFailed);
+                } catch { toast.error(de.bexio.exportFailed); } finally { setExporting(false); }
+              }}>
+                {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Link2 className="h-3 w-3 mr-1" />}
+                {de.bexio.retryExport}
+              </Button>
+            </div>
+          ) : doc.status === "ready" ? (
             <Button size="sm" variant="outline" disabled={exporting} onClick={async () => {
               setExporting(true);
               try {
-                const res = await fetch("/api/bexio/export", {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ documentId: doc.id }),
-                });
+                const res = await fetch("/api/bexio/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: doc.id }) });
                 const data = await res.json();
-                if (data.results?.[0]?.success) {
-                  toast.success(de.bexio.exportSuccess);
-                  const r = await fetch(`/api/documents/${doc.id}`);
-                  if (r.ok) setDoc(await r.json());
-                } else {
-                  toast.error(data.results?.[0]?.error || de.bexio.exportFailed);
-                }
-              } catch { toast.error(de.bexio.exportFailed); }
-              finally { setExporting(false); }
+                if (data.results?.[0]?.success) { toast.success(de.bexio.exportSuccess); const r = await fetch(`/api/documents/${doc.id}`); if (r.ok) setDoc(await r.json()); }
+                else toast.error(data.results?.[0]?.error || de.bexio.exportFailed);
+              } catch { toast.error(de.bexio.exportFailed); } finally { setExporting(false); }
             }}>
               {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Link2 className="h-3 w-3 mr-1" />}
               {de.bexio.exportToBexio}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 

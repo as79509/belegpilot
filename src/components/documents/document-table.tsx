@@ -37,6 +37,7 @@ interface Document {
   grossAmount: string | null;
   currency: string | null;
   confidenceScore: number | null;
+  exportStatus: string | null;
   createdAt: string;
   file?: { fileName: string; mimeType: string } | null;
 }
@@ -225,6 +226,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               <SortHeader column="confidenceScore">
                 {de.documents.confidence}
               </SortHeader>
+              <TableHead className="whitespace-nowrap">Export</TableHead>
               <SortHeader column="createdAt">
                 {de.documents.uploadedAt}
               </SortHeader>
@@ -247,7 +249,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12">
+                <TableCell colSpan={10} className="text-center py-12">
                   <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">{de.documents.noDocuments}</p>
                 </TableCell>
@@ -292,6 +294,15 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                     <span className={getConfidenceColor(doc.confidenceScore)}>
                       {formatConfidence(doc.confidenceScore)}
                     </span>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {doc.exportStatus === "exported" ? (
+                      <span className="text-green-600">✓</span>
+                    ) : doc.exportStatus === "export_failed" ? (
+                      <span className="text-red-600">✗</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatRelativeTime(doc.createdAt)}

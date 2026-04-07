@@ -326,6 +326,11 @@ export const de = {
     exportFailed: "Export fehlgeschlagen",
     notConfigured: "Bexio nicht konfiguriert",
     bulkExport: "Ausgewählte exportieren",
+    alreadyExported: "Bereits exportiert",
+    reExport: "Erneut exportieren",
+    reExportConfirm: "Beleg wurde bereits exportiert. Erneut senden?",
+    exportHistory: "Export-Verlauf",
+    retryExport: "Erneut versuchen",
   },
 
   // Rules

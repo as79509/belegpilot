@@ -10,14 +10,14 @@ export async function POST(request: NextRequest) {
     if (!["admin", "reviewer"].includes(session.user.role))
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
-    const { documentId, documentIds } = await request.json();
+    const { documentId, documentIds, force } = await request.json();
     const ids = documentIds || (documentId ? [documentId] : []);
 
     if (!ids.length) return NextResponse.json({ error: "Keine Belege angegeben" }, { status: 400 });
 
     const results = [];
     for (const id of ids) {
-      const result = await exportDocumentToBexio(session.user.companyId, id);
+      const result = await exportDocumentToBexio(session.user.companyId, id, !!force);
       results.push({ documentId: id, ...result });
 
       if (result.success) {
