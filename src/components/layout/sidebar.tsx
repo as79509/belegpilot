@@ -7,6 +7,7 @@ import {
   FileText,
   Building2,
   Download,
+  Workflow,
   Settings,
   ScrollText,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/documents", label: de.nav.documents, icon: FileText },
   { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
   { href: "/exports", label: de.nav.exports, icon: Download },
+  { href: "/rules", label: de.nav.rules, icon: Workflow },
   { href: "/settings", label: de.nav.settings, icon: Settings },
   { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
 ];

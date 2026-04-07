@@ -5,6 +5,7 @@ export const de = {
     documents: "Belege",
     suppliers: "Lieferanten",
     exports: "Exporte",
+    rules: "Regeln",
     settings: "Einstellungen",
     auditLog: "Protokoll",
   },
@@ -155,6 +156,8 @@ export const de = {
     validation: "Validierung",
     decision: "Entscheidung",
     "supplier-matching": "Lieferant-Zuordnung",
+    "rules-engine": "Regelverarbeitung",
+    "apply-rules": "Regelverarbeitung",
   },
 
   // Suppliers
@@ -305,6 +308,54 @@ export const de = {
     dateTo: "Datum bis",
     amountFrom: "Betrag von",
     amountTo: "Betrag bis",
+  },
+
+  // Rules
+  rules: {
+    title: "Regeln",
+    newRule: "Neue Regel",
+    editRule: "Regel bearbeiten",
+    name: "Name",
+    type: "Typ",
+    priority: "Priorität",
+    conditions: "Bedingungen",
+    actions: "Aktionen",
+    active: "Aktiv",
+    inactive: "Inaktiv",
+    noRules: "Noch keine Regeln erstellt",
+    deleteConfirm: "Möchten Sie diese Regel wirklich löschen?",
+    saveSuccess: "Regel gespeichert",
+    deleteSuccess: "Regel gelöscht",
+    addCondition: "Bedingung hinzufügen",
+    addAction: "Aktion hinzufügen",
+    types: {
+      supplier_default: "Lieferanten-Standard",
+      auto_approve: "Auto-Genehmigung",
+      category_mapping: "Kategorie-Zuordnung",
+      vat_logic: "MwSt-Logik",
+    } as Record<string, string>,
+    fields: {
+      supplierName: "Lieferantenname",
+      invoiceNumber: "Rechnungsnummer",
+      grossAmount: "Bruttobetrag",
+      currency: "Währung",
+      expenseCategory: "Ausgabenkategorie",
+      documentType: "Belegtyp",
+    } as Record<string, string>,
+    operators: {
+      equals: "ist gleich",
+      contains: "enthält",
+      greater_than: "grösser als",
+      less_than: "kleiner als",
+      starts_with: "beginnt mit",
+    } as Record<string, string>,
+    actionTypes: {
+      set_category: "Kategorie setzen",
+      set_account_code: "Kontonummer setzen",
+      set_cost_center: "Kostenstelle setzen",
+      set_vat_code: "MwSt-Code setzen",
+      auto_approve: "Automatisch genehmigen",
+    } as Record<string, string>,
   },
 
   // Auth

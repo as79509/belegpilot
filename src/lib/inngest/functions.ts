@@ -239,6 +239,43 @@ export const processDocument = inngest.createFunction(
       });
     });
 
+    // Step 4.5: Apply business rules
+    const rulesResult = await step.run("apply-rules", async () => {
+      const startTime = Date.now();
+      const { applyRules } = await import("@/lib/services/rules/rules-engine");
+
+      const currentDoc = await prisma.document.findUnique({ where: { id: documentId } });
+      if (!currentDoc) throw new Error("Document not found");
+
+      const result = await applyRules(doc.companyId, documentId, currentDoc);
+
+      if (Object.keys(result.updates).length > 0) {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: result.updates,
+        });
+      }
+
+      await prisma.processingStep.create({
+        data: {
+          documentId,
+          stepName: "rules-engine",
+          status: "completed",
+          startedAt: new Date(startTime),
+          completedAt: new Date(),
+          durationMs: Date.now() - startTime,
+          metadata: {
+            rulesEvaluated: result.matches.length,
+            rulesMatched: result.matches.map((m) => m.ruleName),
+            fieldsUpdated: Object.keys(result.updates),
+            autoApprove: result.shouldAutoApprove,
+          },
+        },
+      });
+
+      return result;
+    });
+
     // Step 5: Supplier matching + auto-creation
     const supplierMatchResult = await step.run("supplier-matching", async () => {
       const startTime = Date.now();
@@ -378,10 +415,16 @@ export const processDocument = inngest.createFunction(
       );
       const compositeConfidence = computeCompositeConfidence(factors);
 
-      const processingDecision = makeProcessingDecision(
+      let processingDecision = makeProcessingDecision(
         validationResult,
         compositeConfidence
       );
+
+      // Override: rules-based auto-approve
+      if (rulesResult.shouldAutoApprove && validationResult.errorCount === 0) {
+        processingDecision = "auto_ready";
+      }
+
       const newStatus =
         processingDecision === "auto_ready" ? "ready" : "needs_review";
 
