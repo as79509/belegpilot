@@ -6,11 +6,13 @@ import { inngest } from "@/lib/inngest/client";
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!["admin", "reviewer"].includes(session.user.role))
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { documentIds } = await request.json();
     if (!documentIds?.length) {
-      return NextResponse.json({ error: "No documents specified" }, { status: 400 });
+      return NextResponse.json({ error: "Keine Belege ausgewählt" }, { status: 400 });
     }
 
     const docs = await prisma.document.findMany({

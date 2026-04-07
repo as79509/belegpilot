@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
   const search = searchParams.get("search");

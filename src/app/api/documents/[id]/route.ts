@@ -34,7 +34,7 @@ export async function GET(
 ) {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -52,7 +52,7 @@ export async function GET(
   });
 
   if (!document) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
   }
 
   return NextResponse.json(document);
@@ -65,10 +65,10 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
     if (!["admin", "reviewer"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -78,7 +78,7 @@ export async function PATCH(
       where: { id, companyId: session.user.companyId },
     });
     if (!document) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
     }
 
     // Build update from allowed fields only

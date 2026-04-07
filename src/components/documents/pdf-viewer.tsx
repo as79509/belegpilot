@@ -16,7 +16,7 @@ export function PdfViewer({ documentId, mimeType }: PdfViewerProps) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fileUrl}
-          alt="Document"
+          alt="Beleg"
           className="max-w-full max-h-full object-contain"
         />
       </div>

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
 
     const { companyId } = session.user;
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (!files.length) {
       return NextResponse.json(
-        { error: "No files provided" },
+        { error: "Keine Dateien ausgewählt" },
         { status: 400 }
       );
     }

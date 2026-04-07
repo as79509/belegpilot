@@ -49,6 +49,7 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
   const [rejectOpen, setRejectOpen] = useState(false);
   const [dupDoc, setDupDoc] = useState<any>(null);
   const [dupOpen, setDupOpen] = useState(false);
+  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -106,13 +107,19 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
     try {
       const res = await fetch(`/api/documents/${doc.id}/approve`, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error);
-      onUpdate(await res.json());
+      const updated = await res.json();
+      onUpdate(updated);
       toast.success(de.review.approveSuccess);
-      // Auto-navigate to next
-      if (nextDocumentId) {
+
+      // Check if supplier has no defaults set
+      const hasSupplier = updated.supplierId && updated.supplier;
+      const supplierMissingDefaults = hasSupplier && (!updated.supplier?.defaultCategory || !updated.supplier?.defaultAccountCode);
+      if (supplierMissingDefaults && (form.expenseCategory || form.accountCode)) {
+        setDefaultsDialogOpen(true);
+      } else if (nextDocumentId) {
         setTimeout(() => router.push(`/documents/${nextDocumentId}`), 500);
       }
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(err.message || de.errors.serverError); }
     finally { setApproving(false); }
   }
 
@@ -150,6 +157,37 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
       toast.success("Alle Belege geprüft! ✓");
       router.push("/documents?status=needs_review");
     }
+  }
+
+  // Supplier verification
+  async function handleVerifySupplier() {
+    if (!doc.supplierId) return;
+    try {
+      await fetch(`/api/suppliers/${doc.supplierId}/verify`, { method: "POST" });
+      toast.success("Lieferant verifiziert");
+      // Reload doc to update supplier state
+      const res = await fetch(`/api/documents/${doc.id}`);
+      if (res.ok) onUpdate(await res.json());
+    } catch { toast.error(de.errors.serverError); }
+  }
+
+  // Update supplier defaults after approval
+  async function handleUpdateSupplierDefaults() {
+    if (!doc.supplierId) return;
+    try {
+      await fetch(`/api/suppliers/${doc.supplierId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defaultCategory: form.expenseCategory || undefined,
+          defaultAccountCode: form.accountCode || undefined,
+          defaultCostCenter: form.costCenter || undefined,
+        }),
+      });
+      toast.success("Lieferanten-Standardwerte aktualisiert");
+    } catch {}
+    setDefaultsDialogOpen(false);
+    if (nextDocumentId) router.push(`/documents/${nextDocumentId}`);
   }
 
   // Duplicate popup handler
@@ -200,8 +238,21 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
 
   const isReviewable = ["needs_review", "ready", "extracted", "validated"].includes(doc.status);
 
+  const supplierUnverified = doc.supplier && doc.supplier.isVerified === false;
+
   return (
     <div className="space-y-4 pb-24">
+      {/* Unverified supplier banner */}
+      {supplierUnverified && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-sm text-amber-800 flex-1">{de.suppliers.supplierNotVerified}</span>
+          <Button variant="outline" size="sm" onClick={handleVerifySupplier}>
+            {de.suppliers.verify}
+          </Button>
+        </div>
+      )}
+
       {/* Supplier */}
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.supplier}</CardTitle></CardHeader>
@@ -339,6 +390,26 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
           <DialogFooter>
             <DialogClose><Button variant="outline">Kein Duplikat</Button></DialogClose>
             <Button variant="destructive" onClick={confirmDuplicate}>Duplikat bestätigen</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supplier defaults dialog (shown after approval) */}
+      <Dialog open={defaultsDialogOpen} onOpenChange={setDefaultsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Standardwerte für {doc.supplierNameNormalized || doc.supplierNameRaw} festlegen?</DialogTitle>
+            <DialogDescription>
+              Kategorie: {form.expenseCategory || "—"} | Konto: {form.accountCode || "—"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDefaultsDialogOpen(false); if (nextDocumentId) router.push(`/documents/${nextDocumentId}`); }}>
+              Nein, überspringen
+            </Button>
+            <Button onClick={handleUpdateSupplierDefaults}>
+              Ja, übernehmen
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

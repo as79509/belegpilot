@@ -6,7 +6,9 @@ import { inngest } from "@/lib/inngest/client";
 export async function POST() {
   try {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (session.user.role !== "admin")
+      return NextResponse.json({ error: "Nur Administratoren" }, { status: 403 });
 
     const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
 

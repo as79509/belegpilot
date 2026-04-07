@@ -10,10 +10,10 @@ export async function POST(
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
     if (!["admin", "reviewer"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -22,7 +22,7 @@ export async function POST(
     });
 
     if (!document) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
     }
 
     const updated = await prisma.document.update({

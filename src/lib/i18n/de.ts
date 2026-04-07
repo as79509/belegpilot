@@ -320,6 +320,16 @@ export const de = {
     signedInAs: "Angemeldet als",
   },
 
+  // Errors
+  errors: {
+    networkError: "Verbindungsfehler. Bitte versuchen Sie es erneut.",
+    sessionExpired: "Sitzung abgelaufen. Bitte erneut anmelden.",
+    serverError: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+    unauthorized: "Nicht autorisiert",
+    forbidden: "Keine Berechtigung für diese Aktion",
+    notFound: "Nicht gefunden",
+  },
+
   // Common
   common: {
     loading: "Wird geladen...",
@@ -334,6 +344,8 @@ export const de = {
     no: "Nein",
     or: "oder",
     noData: "—",
+    system: "System",
+    all: "Alle",
   },
 
   // Relative time

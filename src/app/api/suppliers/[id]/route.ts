@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { id } = await params;
   const supplier = await prisma.supplier.findFirst({
@@ -25,7 +25,7 @@ export async function GET(
     },
   });
 
-  if (!supplier) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!supplier) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
   return NextResponse.json(supplier);
 }
 
@@ -35,16 +35,16 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     if (!["admin", "reviewer"].includes(session.user.role))
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
     const supplier = await prisma.supplier.findFirst({
       where: { id, companyId: session.user.companyId },
     });
-    if (!supplier) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!supplier) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
 
     const fields = [
       "nameNormalized", "nameVariants", "vatNumber", "iban", "address", "country",

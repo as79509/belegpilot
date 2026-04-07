@@ -6,13 +6,13 @@ import { logAudit } from "@/lib/services/audit/audit-service";
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     if (session.user.role !== "admin")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { primaryId, secondaryId } = await request.json();
     if (!primaryId || !secondaryId)
-      return NextResponse.json({ error: "primaryId and secondaryId required" }, { status: 400 });
+      return NextResponse.json({ error: "Primärer und sekundärer Lieferant erforderlich" }, { status: 400 });
 
     const [primary, secondary] = await Promise.all([
       prisma.supplier.findFirst({ where: { id: primaryId, companyId: session.user.companyId } }),
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (!primary || !secondary)
-      return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
+      return NextResponse.json({ error: "Lieferant nicht gefunden" }, { status: 404 });
 
     // Move all documents from secondary to primary
     const movedDocs = await prisma.document.updateMany({

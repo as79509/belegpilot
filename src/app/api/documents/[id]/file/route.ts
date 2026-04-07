@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -22,7 +22,7 @@ export async function GET(
   });
 
   if (!file) {
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
+    return NextResponse.json({ error: "Datei nicht gefunden" }, { status: 404 });
   }
 
   const storage = new SupabaseStorageService();
