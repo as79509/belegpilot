@@ -61,6 +61,7 @@ export default function SupplierDetailPage() {
           notes: data.notes || "",
         });
       })
+      .catch((err) => console.error("[SupplierDetail] Fetch error:", err))
       .finally(() => setLoading(false));
   }, [params.id]);
 

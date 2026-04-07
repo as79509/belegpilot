@@ -226,7 +226,7 @@ export default function RulesPage() {
               {supplierOptions.length > 0 && quickSupplier.length >= 2 && (
                 <div className="absolute z-10 top-full left-0 right-0 bg-white border rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto">
                   {supplierOptions.map((s) => (
-                    <button key={s.id} className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted" onClick={() => { setQuickSupplier(s.name); setSupplierOptions([]); }}>
+                    <button type="button" key={s.id} className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted" onClick={() => { setQuickSupplier(s.name); setSupplierOptions([]); }}>
                       {s.name}
                     </button>
                   ))}
@@ -285,7 +285,7 @@ export default function RulesPage() {
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">{readableRule(rule)}</p>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => toggleActive(rule)}>
+                    <button type="button" onClick={() => toggleActive(rule)}>
                       <Badge variant="secondary" className={`text-xs cursor-pointer ${rule.isActive ? "bg-green-100 text-green-800" : "bg-gray-100"}`}>
                         {rule.isActive ? de.rules.active : de.rules.inactive}
                       </Badge>

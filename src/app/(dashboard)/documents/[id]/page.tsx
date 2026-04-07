@@ -112,7 +112,7 @@ export default function DocumentDetailPage() {
           {doc.exportStatus === "exported" ? (
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">{de.bexio.alreadyExported} ✓</Badge>
-              <button className="text-xs text-muted-foreground hover:text-foreground underline" onClick={async () => {
+              <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline" onClick={async () => {
                 if (!confirm(de.bexio.reExportConfirm)) return;
                 setExporting(true);
                 try {

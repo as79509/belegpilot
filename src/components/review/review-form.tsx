@@ -185,7 +185,7 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
         }),
       });
       toast.success("Lieferanten-Standardwerte aktualisiert");
-    } catch {}
+    } catch (e) { console.warn("[ReviewForm] Update supplier defaults failed:", e); }
     setDefaultsDialogOpen(false);
     if (nextDocumentId) router.push(`/documents/${nextDocumentId}`);
   }
@@ -198,7 +198,7 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
         setDupDoc(await res.json());
         setDupOpen(true);
       }
-    } catch {}
+    } catch (e) { console.warn("[ReviewForm] Duplicate popup fetch failed:", e); }
   }
 
   async function confirmDuplicate() {
@@ -215,7 +215,7 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
         toast.success(de.review.rejectSuccess);
         setDupOpen(false);
       }
-    } catch {}
+    } catch (e) { console.warn("[ReviewForm] Confirm duplicate failed:", e); }
   }
 
   // Keyboard shortcuts

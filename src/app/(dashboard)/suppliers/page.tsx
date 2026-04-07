@@ -25,13 +25,18 @@ export default function SuppliersPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (search) params.set("search", search);
-    const res = await fetch(`/api/suppliers?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setSuppliers(data.suppliers);
-      setTotalPages(data.pagination.totalPages);
+    try {
+      const res = await fetch(`/api/suppliers?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuppliers(data.suppliers);
+        setTotalPages(data.pagination.totalPages);
+      }
+    } catch (err) {
+      console.error("[Suppliers] Fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [page, search]);
 
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);

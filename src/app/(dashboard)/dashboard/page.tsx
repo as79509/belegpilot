@@ -15,6 +15,7 @@ import {
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 const cardConfig = [
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const [aiCosts, setAiCosts] = useState<any>(null);
   const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [stuckCount, setStuckCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -49,7 +51,8 @@ export default function DashboardPage() {
       setAiCosts(costs);
       setAuditEntries(auditData.entries || []);
       setStuckCount((statsData.uploaded || 0) + (statsData.failed || 0));
-    });
+    }).catch((e) => console.error("[Dashboard] Load error:", e))
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleReprocessStuck() {
@@ -66,7 +69,17 @@ export default function DashboardPage() {
     if (r.ok) { const result = await r.json(); toast.success(`${result.submitted} ${de.bulk.reprocessSubmitted}`); }
   }
 
-  console.log("[Dashboard] Loaded with clickable cards, top suppliers, AI costs");
+  if (loading) return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (<Card key={i}><CardContent className="pt-6"><Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-8 w-16" /></CardContent></Card>))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-48" /><Skeleton className="h-48" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

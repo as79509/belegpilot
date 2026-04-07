@@ -58,7 +58,7 @@ export async function exportDocumentToBexio(
     try {
       const contacts = await client.searchContacts(supplierName);
       if (contacts.length > 0) contactId = contacts[0].id;
-    } catch {}
+    } catch (e) { console.warn("[Bexio] Contact search failed:", e); }
 
     if (!contactId) {
       try {
@@ -107,7 +107,7 @@ export async function exportDocumentToBexio(
             (t: any) => Math.abs(t.percentage - rate) < 0.1 && t.is_active
           );
           if (matchingTax) taxId = matchingTax.id;
-        } catch {}
+        } catch (e) { console.warn("[Bexio] Tax lookup failed:", e); }
       }
     }
 

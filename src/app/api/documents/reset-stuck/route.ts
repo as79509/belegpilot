@@ -37,7 +37,7 @@ export async function POST() {
       try {
         await inngest.send({ name: "document/uploaded", data: { documentId: doc.id } });
         submitted++;
-      } catch {}
+      } catch (e) { console.warn("[ResetStuck] Inngest send failed for", doc.id, e); }
     }
 
     console.log(`[Reset-Stuck] Reset ${stuck.length} documents, submitted ${submitted} for reprocessing`);

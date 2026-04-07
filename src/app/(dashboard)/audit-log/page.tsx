@@ -33,14 +33,19 @@ export default function AuditLogPage() {
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
 
-    const res = await fetch(`/api/audit-log?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setEntries(data.entries);
-      setTotalPages(data.pagination.totalPages);
-      if (data.users) setUsers(data.users);
+    try {
+      const res = await fetch(`/api/audit-log?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEntries(data.entries);
+        setTotalPages(data.pagination.totalPages);
+        if (data.users) setUsers(data.users);
+      }
+    } catch (err) {
+      console.error("[AuditLog] Fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [page, actionFilter, userFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
@@ -135,7 +140,7 @@ export default function AuditLogPage() {
                     <TableCell className="text-xs whitespace-nowrap">{formatTimestamp(entry.createdAt)}</TableCell>
                     <TableCell className="text-xs font-mono">
                       {entry.documentNumber ? (
-                        <button className="text-blue-600 hover:underline" onClick={() => router.push(`/documents/${entry.entityId}`)}>
+                        <button type="button" className="text-blue-600 hover:underline" onClick={() => router.push(`/documents/${entry.entityId}`)}>
                           {entry.documentNumber}
                         </button>
                       ) : de.common.noData}
@@ -147,7 +152,7 @@ export default function AuditLogPage() {
                     </TableCell>
                     <TableCell>
                       {entry.changes && (
-                        <button onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
+                        <button type="button" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
                           {expandedId === entry.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
                       )}
