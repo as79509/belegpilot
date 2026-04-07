@@ -171,6 +171,25 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
           >
             <RefreshCw className="h-3 w-3 mr-1" />{de.bulk.reprocess}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const res = await fetch("/api/bexio/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ documentIds: Array.from(selected) }),
+              });
+              if (res.ok) {
+                const r = await res.json();
+                toast.success(`${r.successCount} an Bexio gesendet`);
+                setSelected(new Set());
+                fetchDocuments();
+              } else { toast.error("Export fehlgeschlagen"); }
+            }}
+          >
+            {de.bexio.exportToBexio}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
             {de.bulk.deselectAll}
           </Button>

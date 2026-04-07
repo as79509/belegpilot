@@ -158,6 +158,7 @@ export const de = {
     "supplier-matching": "Lieferant-Zuordnung",
     "rules-engine": "Regelverarbeitung",
     "apply-rules": "Regelverarbeitung",
+    "bexio-export": "Bexio Export",
   },
 
   // Suppliers
@@ -289,6 +290,7 @@ export const de = {
       supplier_verified: "Lieferant verifiziert",
       supplier_merged: "Lieferanten zusammengeführt",
       company_settings_updated: "Firmeneinstellungen aktualisiert",
+      document_exported_bexio: "Beleg an Bexio exportiert",
     } as Record<string, string>,
   },
 
@@ -308,6 +310,22 @@ export const de = {
     dateTo: "Datum bis",
     amountFrom: "Betrag von",
     amountTo: "Betrag bis",
+  },
+
+  // Bexio
+  bexio: {
+    title: "Bexio",
+    connected: "Verbunden",
+    notConnected: "Nicht verbunden",
+    pat: "Personal Access Token",
+    testConnection: "Verbindung testen",
+    testing: "Teste...",
+    saveSettings: "Bexio-Einstellungen gespeichert",
+    exportToBexio: "An Bexio senden",
+    exportSuccess: "Erfolgreich an Bexio gesendet",
+    exportFailed: "Export fehlgeschlagen",
+    notConfigured: "Bexio nicht konfiguriert",
+    bulkExport: "Ausgewählte exportieren",
   },
 
   // Rules

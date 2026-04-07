@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Zap, Database, Loader2 } from "lucide-react";
+import { Save, Zap, Database, Loader2, Link2 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
@@ -17,6 +17,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", legalName: "", vatNumber: "", currency: "CHF" });
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [bexioPat, setBexioPat] = useState("");
+  const [bexioStatus, setBexioStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [bexioConfigured, setBexioConfigured] = useState(false);
+  const [savingBexio, setSavingBexio] = useState(false);
 
   useEffect(() => {
     fetch("/api/company")
@@ -32,6 +36,10 @@ export default function SettingsPage() {
         }
       })
       .finally(() => setLoading(false));
+    fetch("/api/bexio/settings").then(r => r.json()).then(data => {
+      setBexioConfigured(data.configured);
+      if (data.lastTestStatus === "connected") setBexioStatus("ok");
+    }).catch(() => {});
   }, []);
 
   async function handleSave() {
@@ -136,6 +144,49 @@ export default function SettingsPage() {
               <Button variant="outline" size="sm" onClick={testAiConnection} disabled={testStatus === "testing"}>
                 {testStatus === "testing" ? de.settings.testing : de.settings.testConnection}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Bexio */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Link2 className="h-4 w-4" />{de.bexio.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Bexio</span>
+                <Badge variant="secondary" className={bexioStatus === "ok" ? "bg-green-100 text-green-800" : bexioConfigured ? "bg-amber-100 text-amber-800" : "bg-gray-100"}>
+                  {bexioStatus === "ok" ? de.bexio.connected : bexioConfigured ? "Konfiguriert" : de.bexio.notConnected}
+                </Badge>
+              </div>
+              <div>
+                <Label className="text-xs">{de.bexio.pat}</Label>
+                <Input type="password" value={bexioPat} onChange={e => setBexioPat(e.target.value)} placeholder="Token eingeben..." />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  if (bexioPat.trim()) {
+                    setSavingBexio(true);
+                    await fetch("/api/bexio/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accessToken: bexioPat }) });
+                    setSavingBexio(false);
+                    setBexioConfigured(true);
+                    toast.success(de.bexio.saveSettings);
+                  }
+                }} disabled={savingBexio || !bexioPat.trim()}>
+                  {savingBexio ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                  {de.common.save}
+                </Button>
+                <Button variant="outline" size="sm" onClick={async () => {
+                  setBexioStatus("testing");
+                  const res = await fetch("/api/bexio/test", { method: "POST" });
+                  const data = await res.json();
+                  setBexioStatus(data.connected ? "ok" : "error");
+                }} disabled={!bexioConfigured || bexioStatus === "testing"}>
+                  {bexioStatus === "testing" ? de.bexio.testing : de.bexio.testConnection}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

@@ -9,6 +9,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Link2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { PdfViewer } from "@/components/documents/pdf-viewer";
 import { ReviewForm } from "@/components/review/review-form";
@@ -22,6 +25,7 @@ export default function DocumentDetailPage() {
   const [nextDocId, setNextDocId] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [queuePosition, setQueuePosition] = useState<{ current: number; total: number } | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -103,6 +107,29 @@ export default function DocumentDetailPage() {
             {formatConfidence(doc.confidenceScore)}
           </span>
           <span className="text-xs text-muted-foreground">{formatRelativeTime(doc.createdAt)}</span>
+          {doc.status === "ready" && (
+            <Button size="sm" variant="outline" disabled={exporting} onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await fetch("/api/bexio/export", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ documentId: doc.id }),
+                });
+                const data = await res.json();
+                if (data.results?.[0]?.success) {
+                  toast.success(de.bexio.exportSuccess);
+                  const r = await fetch(`/api/documents/${doc.id}`);
+                  if (r.ok) setDoc(await r.json());
+                } else {
+                  toast.error(data.results?.[0]?.error || de.bexio.exportFailed);
+                }
+              } catch { toast.error(de.bexio.exportFailed); }
+              finally { setExporting(false); }
+            }}>
+              {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Link2 className="h-3 w-3 mr-1" />}
+              {de.bexio.exportToBexio}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -487,6 +487,34 @@ export const exportDocument = inngest.createFunction(
     triggers: [{ event: "document/export-requested" }],
   },
   async ({ event, step }) => {
-    // Will be implemented in Phase 4
+    const { documentId, companyId } = event.data as {
+      documentId: string;
+      companyId: string;
+    };
+
+    await step.run("bexio-export", async () => {
+      const { exportDocumentToBexio } = await import(
+        "@/lib/services/bexio/bexio-export"
+      );
+      const result = await exportDocumentToBexio(companyId, documentId);
+
+      await prisma.processingStep.create({
+        data: {
+          documentId,
+          stepName: "bexio-export",
+          status: result.success ? "completed" : "failed",
+          startedAt: new Date(),
+          completedAt: new Date(),
+          errorMessage: result.error || null,
+          metadata: { bexioId: result.bexioId },
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Bexio export failed");
+      }
+
+      return result;
+    });
   }
 );
