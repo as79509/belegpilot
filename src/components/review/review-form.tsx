@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,25 +9,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { de } from "@/lib/i18n/de";
-import { formatCurrency } from "@/lib/i18n/format";
+import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Save, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Save, ChevronRight, Loader2 } from "lucide-react";
 
 interface ReviewFormProps {
   document: Record<string, any>;
   onUpdate: (doc: Record<string, any>) => void;
   nextDocumentId?: string | null;
+  queuePosition?: { current: number; total: number } | null;
 }
 
 const DOC_TYPE_OPTIONS = [
@@ -37,34 +31,25 @@ const DOC_TYPE_OPTIONS = [
   { value: "reminder", label: "Mahnung" },
   { value: "other", label: "Sonstiges" },
 ];
-
 const CURRENCY_OPTIONS = ["CHF", "EUR", "USD", "GBP"];
 
-export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFormProps) {
+export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosition }: ReviewFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<Record<string, any>>({
-    supplierNameRaw: "",
-    supplierNameNormalized: "",
-    documentType: "other",
-    invoiceNumber: "",
-    invoiceDate: "",
-    dueDate: "",
-    currency: "CHF",
-    netAmount: "",
-    vatAmount: "",
-    grossAmount: "",
-    iban: "",
-    paymentReference: "",
-    expenseCategory: "",
-    accountCode: "",
-    costCenter: "",
-    reviewNotes: "",
+    supplierNameRaw: "", supplierNameNormalized: "", documentType: "other",
+    invoiceNumber: "", invoiceDate: "", dueDate: "", currency: "CHF",
+    netAmount: "", vatAmount: "", grossAmount: "", iban: "",
+    paymentReference: "", expenseCategory: "", accountCode: "",
+    costCenter: "", reviewNotes: "",
   });
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [dupDoc, setDupDoc] = useState<any>(null);
+  const [dupOpen, setDupOpen] = useState(false);
 
-  // Initialize form from document
   useEffect(() => {
     setForm({
       supplierNameRaw: doc.supplierNameRaw || "",
@@ -90,15 +75,13 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  // Validation results
   const validationChecks: any[] = doc.validationResults?.checks || [];
   const failedFields = new Set(
     validationChecks.filter((c: any) => !c.passed && c.field).map((c: any) => c.field)
   );
 
   function fieldClass(field: string) {
-    if (failedFields.has(field)) return "border-red-300 bg-red-50/50";
-    return "";
+    return failedFields.has(field) ? "border-red-300 bg-red-50/50" : "";
   }
 
   async function handleSave() {
@@ -112,26 +95,25 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
       if (!res.ok) throw new Error((await res.json()).error);
       const updated = await res.json();
       onUpdate(updated);
-      toast.success(de.review.saveSuccess);
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+      toast.success("Änderungen gespeichert ✓");
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   }
 
   async function handleApprove() {
-    // Save any pending changes first
+    setApproving(true);
     await handleSave();
     try {
       const res = await fetch(`/api/documents/${doc.id}/approve`, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error);
-      const updated = await res.json();
-      onUpdate(updated);
+      onUpdate(await res.json());
       toast.success(de.review.approveSuccess);
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+      // Auto-navigate to next
+      if (nextDocumentId) {
+        setTimeout(() => router.push(`/documents/${nextDocumentId}`), 500);
+      }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setApproving(false); }
   }
 
   async function handleReject() {
@@ -143,41 +125,74 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
         body: JSON.stringify({ reason: rejectReason }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      const updated = await res.json();
-      onUpdate(updated);
+      onUpdate(await res.json());
       toast.success(de.review.rejectSuccess);
       setRejectOpen(false);
       setRejectReason("");
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    } catch (err: any) { toast.error(err.message); }
   }
 
   async function handleReprocess() {
+    setReprocessing(true);
     try {
       const res = await fetch(`/api/documents/${doc.id}/reprocess`, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success(de.review.reprocessSuccess);
-      // Reload after short delay
       setTimeout(() => window.location.reload(), 1000);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setReprocessing(false); }
+  }
+
+  function handleNextDocument() {
+    if (nextDocumentId) {
+      router.push(`/documents/${nextDocumentId}`);
+    } else {
+      toast.success("Alle Belege geprüft! ✓");
+      router.push("/documents?status=needs_review");
     }
+  }
+
+  // Duplicate popup handler
+  async function openDuplicatePopup(checkMessage: string) {
+    // Extract document ID from message — look for UUID pattern or BP-XXXX pattern
+    const uuidMatch = checkMessage.match(/([0-9a-f]{8})/);
+    if (!uuidMatch) return;
+    // Search by partial ID in all documents
+    try {
+      const res = await fetch(`/api/documents?search=${uuidMatch[1]}&pageSize=1`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.documents?.[0]) {
+          setDupDoc(data.documents[0]);
+          setDupOpen(true);
+        }
+      }
+    } catch {}
+  }
+
+  async function confirmDuplicate() {
+    if (!dupDoc) return;
+    const reason = `Duplikat von ${dupDoc.documentNumber || dupDoc.id.slice(0, 8)}`;
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        onUpdate(await res.json());
+        toast.success(de.review.rejectSuccess);
+        setDupOpen(false);
+      }
+    } catch {}
   }
 
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.ctrlKey && e.key === "Enter") {
-        e.preventDefault();
-        handleApprove();
-      } else if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      } else if (e.ctrlKey && (e.key === "ArrowRight" || e.key === "n")) {
-        e.preventDefault();
-        if (nextDocumentId) router.push(`/documents/${nextDocumentId}`);
-      }
+      if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); handleApprove(); }
+      else if (e.ctrlKey && e.key === "s") { e.preventDefault(); handleSave(); }
+      else if (e.ctrlKey && (e.key === "ArrowRight" || e.key === "n")) { e.preventDefault(); handleNextDocument(); }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -189,124 +204,78 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
     <div className="space-y-4 pb-24">
       {/* Supplier */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.detail.supplier}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.supplier}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">{de.detail.supplierRaw}</Label>
-            <Input className={fieldClass("supplierNameRaw")} value={form.supplierNameRaw} onChange={(e) => set("supplierNameRaw", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.supplierNormalized}</Label>
-            <Input value={form.supplierNameNormalized} onChange={(e) => set("supplierNameNormalized", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.vatNumber}</Label>
-            <Input value={doc.aiResults?.[0]?.normalizedData?.supplier_vat_number || ""} readOnly className="bg-muted/50" />
-          </div>
+          <div><Label className="text-xs">{de.detail.supplierRaw}</Label>
+            <Input className={fieldClass("supplierNameRaw")} value={form.supplierNameRaw} onChange={(e) => set("supplierNameRaw", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.supplierNormalized}</Label>
+            <Input value={form.supplierNameNormalized} onChange={(e) => set("supplierNameNormalized", e.target.value)} /></div>
         </CardContent>
       </Card>
 
       {/* Invoice data */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.detail.invoiceData}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.invoiceData}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">{de.detail.type}</Label>
+          <div><Label className="text-xs">{de.detail.type}</Label>
             <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={form.documentType} onChange={(e) => set("documentType", e.target.value)}>
               {DOC_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.invoiceNumber}</Label>
-            <Input className={fieldClass("invoiceNumber")} value={form.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.invoiceDate}</Label>
-            <Input type="date" className={fieldClass("invoiceDate")} value={form.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.dueDate}</Label>
-            <Input type="date" className={fieldClass("dueDate")} value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} />
-          </div>
+            </select></div>
+          <div><Label className="text-xs">{de.detail.invoiceNumber}</Label>
+            <Input className={fieldClass("invoiceNumber")} value={form.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.invoiceDate}</Label>
+            <Input type="date" className={fieldClass("invoiceDate")} value={form.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.dueDate}</Label>
+            <Input type="date" className={fieldClass("dueDate")} value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} /></div>
         </CardContent>
       </Card>
 
       {/* Amounts */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.detail.amounts}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.amounts}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">{de.detail.amounts} — {de.common.noData}</Label>
+          <div><Label className="text-xs">Währung</Label>
             <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={form.currency} onChange={(e) => set("currency", e.target.value)}>
               {CURRENCY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.netAmount}</Label>
-            <Input type="number" step="0.01" value={form.netAmount} onChange={(e) => set("netAmount", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.vatAmount}</Label>
-            <Input type="number" step="0.01" value={form.vatAmount} onChange={(e) => set("vatAmount", e.target.value)} />
-          </div>
+            </select></div>
+          <div><Label className="text-xs">{de.detail.netAmount}</Label>
+            <Input type="number" step="0.01" value={form.netAmount} onChange={(e) => set("netAmount", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.vatAmount}</Label>
+            <Input type="number" step="0.01" value={form.vatAmount} onChange={(e) => set("vatAmount", e.target.value)} /></div>
           <Separator />
-          <div>
-            <Label className="text-xs font-bold">{de.detail.grossAmount}</Label>
-            <Input type="number" step="0.01" className={`text-lg font-bold ${fieldClass("grossAmount")}`} value={form.grossAmount} onChange={(e) => set("grossAmount", e.target.value)} />
-          </div>
+          <div><Label className="text-xs font-bold">{de.detail.grossAmount}</Label>
+            <Input type="number" step="0.01" className={`text-lg font-bold ${fieldClass("grossAmount")}`} value={form.grossAmount} onChange={(e) => set("grossAmount", e.target.value)} /></div>
         </CardContent>
       </Card>
 
       {/* Payment */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.detail.payment}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.payment}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">{de.detail.iban}</Label>
-            <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.paymentReference}</Label>
-            <Input value={form.paymentReference} onChange={(e) => set("paymentReference", e.target.value)} />
-          </div>
+          <div><Label className="text-xs">{de.detail.iban}</Label>
+            <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.paymentReference}</Label>
+            <Input value={form.paymentReference} onChange={(e) => set("paymentReference", e.target.value)} /></div>
         </CardContent>
       </Card>
 
       {/* Categorization */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.detail.categorization}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.detail.categorization}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">{de.detail.expenseCategory}</Label>
-            <Input value={form.expenseCategory} onChange={(e) => set("expenseCategory", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.accountCode}</Label>
-            <Input value={form.accountCode} onChange={(e) => set("accountCode", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">{de.detail.costCenter}</Label>
-            <Input value={form.costCenter} onChange={(e) => set("costCenter", e.target.value)} />
-          </div>
+          <div><Label className="text-xs">{de.detail.expenseCategory}</Label>
+            <Input value={form.expenseCategory} onChange={(e) => set("expenseCategory", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.accountCode}</Label>
+            <Input value={form.accountCode} onChange={(e) => set("accountCode", e.target.value)} /></div>
+          <div><Label className="text-xs">{de.detail.costCenter}</Label>
+            <Input value={form.costCenter} onChange={(e) => set("costCenter", e.target.value)} /></div>
         </CardContent>
       </Card>
 
-      {/* Validation checks */}
+      {/* Validation checks with duplicate popup */}
       {validationChecks.length > 0 && (
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{de.validation.title}</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{de.validation.title}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1">
               {validationChecks.map((check: any, i: number) => (
@@ -318,7 +287,16 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
                   ) : (
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                   )}
-                  <span className={!check.passed && check.severity === "error" ? "text-red-700" : ""}>{check.message}</span>
+                  {check.checkName === "duplicate_by_fields" && !check.passed ? (
+                    <button
+                      className="text-red-700 underline hover:text-red-900"
+                      onClick={() => openDuplicatePopup(check.message)}
+                    >
+                      {check.message}
+                    </button>
+                  ) : (
+                    <span className={!check.passed && check.severity === "error" ? "text-red-700" : ""}>{check.message}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -328,32 +306,55 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
 
       {/* Review notes */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{de.review.reviewNotes}</CardTitle>
-        </CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.review.reviewNotes}</CardTitle></CardHeader>
         <CardContent>
-          <Textarea
-            placeholder={de.review.reviewNotesPlaceholder}
-            value={form.reviewNotes}
-            onChange={(e) => set("reviewNotes", e.target.value)}
-            rows={3}
-          />
+          <Textarea placeholder={de.review.reviewNotesPlaceholder} value={form.reviewNotes} onChange={(e) => set("reviewNotes", e.target.value)} rows={3} />
         </CardContent>
       </Card>
+
+      {/* Duplicate comparison popup */}
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Duplikat-Vergleich</DialogTitle></DialogHeader>
+          {dupDoc && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="font-medium mb-2">Aktueller Beleg</p>
+                <p>Belegnr.: {doc.documentNumber || "—"}</p>
+                <p>Lieferant: {doc.supplierNameNormalized || doc.supplierNameRaw || "—"}</p>
+                <p>Rechnungsnr.: {doc.invoiceNumber || "—"}</p>
+                <p>Datum: {formatDate(doc.invoiceDate)}</p>
+                <p>Betrag: {formatCurrency(doc.grossAmount, doc.currency || "CHF")}</p>
+              </div>
+              <div>
+                <p className="font-medium mb-2">Vermutetes Duplikat</p>
+                <p>Belegnr.: {dupDoc.documentNumber || "—"}</p>
+                <p>Lieferant: {dupDoc.supplierNameNormalized || dupDoc.supplierNameRaw || "—"}</p>
+                <p>Rechnungsnr.: {dupDoc.invoiceNumber || "—"}</p>
+                <p>Datum: {formatDate(dupDoc.invoiceDate)}</p>
+                <p>Betrag: {formatCurrency(dupDoc.grossAmount, dupDoc.currency || "CHF")}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose><Button variant="outline">Kein Duplikat</Button></DialogClose>
+            <Button variant="destructive" onClick={confirmDuplicate}>Duplikat bestätigen</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sticky action buttons */}
       {isReviewable && (
         <div className="fixed bottom-0 right-0 left-0 lg:left-60 bg-white border-t p-3 flex items-center gap-2 z-30">
-          <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
-            <CheckCircle2 className="h-4 w-4 mr-1" />
+          <Button onClick={handleApprove} disabled={approving} className="bg-green-600 hover:bg-green-700">
+            {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
             {de.review.approve}
           </Button>
 
           <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
             <DialogTrigger>
               <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
-                <XCircle className="h-4 w-4 mr-1" />
-                {de.review.reject}
+                <XCircle className="h-4 w-4 mr-1" />{de.review.reject}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -361,43 +362,38 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId }: ReviewFo
                 <DialogTitle>{de.review.rejectDialogTitle}</DialogTitle>
                 <DialogDescription>{de.review.rejectDialogDescription}</DialogDescription>
               </DialogHeader>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder={de.review.rejectReasonRequired}
-                rows={3}
-              />
+              <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={de.review.rejectReasonRequired} rows={3} />
               <DialogFooter>
-                <DialogClose>
-                  <Button variant="outline">{de.common.cancel}</Button>
-                </DialogClose>
-                <Button onClick={handleReject} disabled={!rejectReason.trim()} variant="destructive">
-                  {de.review.reject}
-                </Button>
+                <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+                <Button onClick={handleReject} disabled={!rejectReason.trim()} variant="destructive">{de.review.reject}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" onClick={handleReprocess}>
-            <RefreshCw className="h-4 w-4 mr-1" />
+          <Button variant="outline" onClick={handleReprocess} disabled={reprocessing}>
+            {reprocessing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             {de.review.reprocess}
           </Button>
 
           <Button variant="outline" onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-1" />
-            {saving ? de.review.processing : de.review.saveChanges}
+            {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+            {de.review.saveChanges}
           </Button>
 
           <div className="flex-1" />
 
-          {nextDocumentId && (
-            <Button variant="ghost" onClick={() => router.push(`/documents/${nextDocumentId}`)}>
-              {de.review.nextDocument}
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+          {queuePosition && (
+            <span className="text-xs text-muted-foreground hidden md:block mr-2">
+              Beleg {queuePosition.current} von {queuePosition.total}
+            </span>
           )}
 
-          <span className="text-xs text-muted-foreground hidden md:block">
+          <Button variant="ghost" onClick={handleNextDocument}>
+            {de.review.nextDocument}
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+
+          <span className="text-xs text-muted-foreground hidden lg:block">
             {de.review.keyboardShortcuts}
           </span>
         </div>

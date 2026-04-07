@@ -22,7 +22,8 @@ import {
   getConfidenceColor,
 } from "@/lib/i18n/format";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Document {
@@ -212,18 +213,24 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  {de.common.loading}
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skel-${i}`}>
+                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                </TableRow>
+              ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  {de.documents.noDocuments}
+                <TableCell colSpan={9} className="text-center py-12">
+                  <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">{de.documents.noDocuments}</p>
                 </TableCell>
               </TableRow>
             ) : (
