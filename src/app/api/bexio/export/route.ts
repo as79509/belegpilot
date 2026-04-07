@@ -15,21 +15,28 @@ export async function POST(request: NextRequest) {
 
     if (!ids.length) return NextResponse.json({ error: "Keine Belege angegeben" }, { status: 400 });
 
-    const results = [];
-    for (const id of ids) {
-      const result = await exportDocumentToBexio(session.user.companyId, id, !!force);
-      results.push({ documentId: id, ...result });
+    const BATCH_SIZE = 3;
+    const results: any[] = [];
 
-      if (result.success) {
-        await logAudit({
-          companyId: session.user.companyId,
-          userId: session.user.id,
-          action: "document_exported_bexio",
-          entityType: "document",
-          entityId: id,
-          changes: { bexioId: { before: null, after: result.bexioId } },
-        });
-      }
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (id: string) => {
+          const result = await exportDocumentToBexio(session.user.companyId, id, !!force);
+          if (result.success) {
+            await logAudit({
+              companyId: session.user.companyId,
+              userId: session.user.id,
+              action: "document_exported_bexio",
+              entityType: "document",
+              entityId: id,
+              changes: { bexioId: { before: null, after: result.bexioId } },
+            });
+          }
+          return { documentId: id, ...result };
+        })
+      );
+      results.push(...batchResults);
     }
 
     const successCount = results.filter((r) => r.success).length;

@@ -8,7 +8,7 @@ import { DocumentTable } from "@/components/documents/document-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Filter, X } from "lucide-react";
+import { Upload, Filter, X, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_FILTERS = [
@@ -91,6 +91,9 @@ export default function DocumentsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{de.documents.title}</h1>
         <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setRefreshKey((k) => k + 1)} title="Aktualisieren">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-4 w-4 mr-1" />Filter
             {hasAdvancedFilters && <Badge variant="secondary" className="ml-1 text-xs px-1">!</Badge>}

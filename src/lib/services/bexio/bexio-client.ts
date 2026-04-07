@@ -2,6 +2,8 @@ export class BexioClient {
   private baseUrl = "https://api.bexio.com";
   private token: string;
   private cachedOwnerId: number | null = null;
+  private accountsCache: any[] | null = null;
+  private taxesCache: any[] | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -54,21 +56,29 @@ export class BexioClient {
     return this.request("POST", "/3.0/accounting/manual-entries", data);
   }
 
+  async getAccountsCached(): Promise<any[]> {
+    if (this.accountsCache) return this.accountsCache;
+    this.accountsCache = await this.request<any[]>("GET", "/2.0/accounts");
+    return this.accountsCache;
+  }
+
   async getAccounts(): Promise<any[]> {
-    return this.request("GET", "/2.0/accounts");
+    return this.getAccountsCached();
   }
 
   async searchAccountByNumber(accountNumber: string): Promise<any | null> {
-    try {
-      const accounts = await this.request<any[]>("GET", "/2.0/accounts");
-      return accounts.find((a: any) => String(a.account_no) === accountNumber) || null;
-    } catch {
-      return null;
-    }
+    const accounts = await this.getAccountsCached();
+    return accounts.find((a: any) => String(a.account_no) === accountNumber) || null;
+  }
+
+  async getTaxesCached(): Promise<any[]> {
+    if (this.taxesCache) return this.taxesCache;
+    this.taxesCache = await this.request<any[]>("GET", "/3.0/taxes");
+    return this.taxesCache;
   }
 
   async getTaxes(): Promise<any[]> {
-    return this.request("GET", "/3.0/taxes");
+    return this.getTaxesCached();
   }
 
   async testConnection(): Promise<boolean> {
