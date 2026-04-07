@@ -43,9 +43,10 @@ interface Document {
 interface DocumentTableProps {
   refreshKey?: number;
   initialStatus?: string;
+  extraParams?: Record<string, string>;
 }
 
-export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps) {
+export function DocumentTable({ refreshKey, initialStatus, extraParams }: DocumentTableProps) {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +69,11 @@ export function DocumentTable({ refreshKey, initialStatus }: DocumentTableProps)
     });
     if (search) params.set("search", search);
     if (statusFilter) params.set("status", statusFilter);
+    if (extraParams) {
+      for (const [k, v] of Object.entries(extraParams)) {
+        if (v) params.set(k, v);
+      }
+    }
 
     const res = await fetch(`/api/documents?${params}`);
     if (res.ok) {
