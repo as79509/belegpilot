@@ -14,6 +14,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, AlertTriangle, Save } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
@@ -91,8 +92,23 @@ export default function SupplierDetailPage() {
     }
   }
 
-  if (loading) return <p className="py-20 text-center text-muted-foreground">{de.common.loading}</p>;
-  if (!supplier) return <p className="py-20 text-center text-muted-foreground">Nicht gefunden</p>;
+  if (loading) return (
+    <div className="space-y-4">
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-8 w-64" />
+      <div className="space-y-4">
+        <Card><CardContent className="pt-4 space-y-3">
+          <Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-full" />
+          <Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-full" />
+        </CardContent></Card>
+        <Card><CardContent className="pt-4 space-y-3">
+          <Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-full" />
+          <Skeleton className="h-4 w-32" /><Skeleton className="h-9 w-full" />
+        </CardContent></Card>
+      </div>
+    </div>
+  );
+  if (!supplier) return <p className="py-20 text-center text-muted-foreground">{de.errors.notFound}</p>;
 
   return (
     <div className="space-y-4">

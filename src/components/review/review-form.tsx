@@ -190,20 +190,13 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
     if (nextDocumentId) router.push(`/documents/${nextDocumentId}`);
   }
 
-  // Duplicate popup handler
-  async function openDuplicatePopup(checkMessage: string) {
-    // Extract document ID from message — look for UUID pattern or BP-XXXX pattern
-    const uuidMatch = checkMessage.match(/([0-9a-f]{8})/);
-    if (!uuidMatch) return;
-    // Search by partial ID in all documents
+  // Duplicate popup handler — uses metadata.duplicateDocumentId from validation check
+  async function openDuplicatePopup(duplicateDocumentId: string) {
     try {
-      const res = await fetch(`/api/documents?search=${uuidMatch[1]}&pageSize=1`);
+      const res = await fetch(`/api/documents/${duplicateDocumentId}`);
       if (res.ok) {
-        const data = await res.json();
-        if (data.documents?.[0]) {
-          setDupDoc(data.documents[0]);
-          setDupOpen(true);
-        }
+        setDupDoc(await res.json());
+        setDupOpen(true);
       }
     } catch {}
   }
@@ -338,10 +331,10 @@ export function ReviewForm({ document: doc, onUpdate, nextDocumentId, queuePosit
                   ) : (
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                   )}
-                  {check.checkName === "duplicate_by_fields" && !check.passed ? (
+                  {check.checkName === "duplicate_by_fields" && !check.passed && check.metadata?.duplicateDocumentId ? (
                     <button
                       className="text-red-700 underline hover:text-red-900"
-                      onClick={() => openDuplicatePopup(check.message)}
+                      onClick={() => openDuplicatePopup(check.metadata!.duplicateDocumentId)}
                     >
                       {check.message}
                     </button>

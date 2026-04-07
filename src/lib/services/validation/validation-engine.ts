@@ -6,6 +6,7 @@ export interface ValidationCheck {
   severity: "error" | "warning" | "info";
   message: string;
   field?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface ValidationResult {
@@ -163,6 +164,7 @@ function checkDuplicateByFields(
       passed: false,
       severity: "error",
       message: `Mögliches Duplikat: Gleicher Lieferant, Rechnungsnr. und Betrag wie Beleg ${dup.id.slice(0, 8)}`,
+      metadata: { duplicateDocumentId: dup.id },
     };
   }
   return { checkName: "duplicate_by_fields", passed: true, severity: "info", message: "Kein Duplikat erkannt" };

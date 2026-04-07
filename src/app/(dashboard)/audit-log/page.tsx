@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { de } from "@/lib/i18n/de";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, ScrollText } from "lucide-react";
 
 export default function AuditLogPage() {
   const router = useRouter();
@@ -95,9 +96,27 @@ export default function AuditLogPage() {
       <Card>
         <CardContent className="pt-4">
           {loading ? (
-            <p className="text-center py-8 text-muted-foreground">{de.common.loading}</p>
+            <Table><TableHeader><TableRow>
+              <TableHead>{de.auditLog.timestamp}</TableHead><TableHead>Belegnr.</TableHead>
+              <TableHead>{de.auditLog.user}</TableHead><TableHead>{de.auditLog.action}</TableHead>
+              <TableHead>{de.auditLog.details}</TableHead><TableHead></TableHead>
+            </TableRow></TableHeader><TableBody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody></Table>
           ) : entries.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">{de.auditLog.noEntries}</p>
+            <div className="text-center py-12">
+              <ScrollText className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">{de.auditLog.noEntries}</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>

@@ -12,6 +12,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Download } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
@@ -198,9 +199,16 @@ export default function ExportsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-4 text-muted-foreground">{de.common.loading}</p>
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex gap-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-8" /><Skeleton className="h-4 w-12" /></div>
+              ))}
+            </div>
           ) : batches.length === 0 ? (
-            <p className="text-center py-4 text-muted-foreground">{de.exports.noExports}</p>
+            <div className="text-center py-8">
+              <Download className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">{de.exports.noExports}</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
