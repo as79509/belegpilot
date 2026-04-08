@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import { inngest } from "@/lib/inngest/client";
 import { generateDocumentNumber } from "@/lib/services/document-number";
@@ -18,12 +18,9 @@ const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    }
-
-    const { companyId } = session.user;
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    const { session, companyId } = ctx;
 
     const { allowed } = rateLimit(`upload:${session.user.id}`, 30, 60_000);
     if (!allowed) {

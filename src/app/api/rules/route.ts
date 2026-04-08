@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getActiveCompany } from "@/lib/get-active-company";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (!["admin", "reviewer"].includes(session.user.role))
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  if (!["admin", "reviewer", "trustee"].includes(ctx.session.user.role))
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
   const rules = await prisma.rule.findMany({
-    where: { companyId: session.user.companyId },
+    where: { companyId: ctx.companyId },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
   });
 

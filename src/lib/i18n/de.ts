@@ -73,8 +73,21 @@ export const de = {
   trustee: {
     switchCompany: "Firma wechseln",
     activeCompany: "Aktive Firma",
-    allCompanies: "Alle Firmen",
+    allCompanies: "Firmen",
     noCompanies: "Keine Firmen zugewiesen",
+    overview: "Mandantenübersicht",
+    queue: "Prüfungs-Queue",
+    totalOpen: "offene Belege gesamt",
+    allReviewed: "Alle Belege geprüft!",
+    openDocuments: "offene Belege",
+    readyDocuments: "bereite Belege",
+    lastUpload: "Letzter Upload",
+    never: "Nie",
+    startReview: "Prüfung starten",
+    progress: "Fortschritt",
+    allClients: "Alle Mandanten",
+    documentsAcrossClients: "Belege über alle Mandanten",
+    group: "Treuhänder",
   },
 
   // Dashboard

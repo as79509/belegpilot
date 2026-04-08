@@ -38,7 +38,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         setCompanies(data.companies || []);
         // Check localStorage for saved preference
-        const saved = typeof window !== "undefined" ? localStorage.getItem("belegpilot-active-company") : null;
+        // Read from cookie
+        const cookieMatch = document.cookie.match(/belegpilot-company=([^;]+)/);
+        const saved = cookieMatch?.[1] || null;
         const validSaved = saved && data.companies?.some((c: CompanyInfo) => c.companyId === saved);
         setActiveCompanyId(validSaved ? saved : data.activeCompanyId || null);
       })
@@ -48,9 +50,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   function switchCompany(companyId: string) {
     setActiveCompanyId(companyId);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("belegpilot-active-company", companyId);
-    }
+    document.cookie = `belegpilot-company=${companyId};path=/;max-age=31536000`;
     // Reload page to refresh all data with new company context
     window.location.reload();
   }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2,
+  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -17,7 +17,16 @@ interface NavGroup {
   defaultOpen?: boolean;
 }
 
-const navGroups: NavGroup[] = [
+const trusteeGroup: NavGroup = {
+  label: de.trustee.group,
+  defaultOpen: true,
+  items: [
+    { href: "/trustee", label: de.trustee.overview, icon: Users },
+    { href: "/trustee/queue", label: de.trustee.queue, icon: ClipboardCheck },
+  ],
+};
+
+const baseNavGroups: NavGroup[] = [
   {
     label: de.nav.documentsGroup,
     defaultOpen: true,
@@ -53,6 +62,7 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { companies, activeCompany, switchCompany, isMultiCompany } = useCompany();
+  const navGroups = isMultiCompany ? [trusteeGroup, ...baseNavGroups] : baseNavGroups;
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );

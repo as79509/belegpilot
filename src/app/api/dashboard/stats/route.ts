@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getActiveCompany } from "@/lib/get-active-company";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  }
-
-  const companyId = session.user.companyId;
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const { companyId } = ctx;
 
   const [statusCounts, todayCount, avgConfidence] = await Promise.all([
     prisma.document.groupBy({

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getActiveCompany } from "@/lib/get-active-company";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
   const search = searchParams.get("search");
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
 
   const where: Record<string, any> = {
-    companyId: session.user.companyId,
+    companyId: ctx.companyId,
     isActive: true,
   };
 
