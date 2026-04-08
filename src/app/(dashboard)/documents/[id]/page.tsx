@@ -166,6 +166,9 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
+      {/* Decision Transparency */}
+      <DecisionReasonsPanel reasons={doc.decisionReasons} />
+
       {/* Tabs */}
       <Tabs defaultValue="validation">
         <TabsList>
@@ -258,5 +261,82 @@ export default function DocumentDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function DecisionReasonsPanel({ reasons }: { reasons: any }) {
+  if (!reasons) {
+    return (
+      <Card>
+        <CardContent className="py-3">
+          <p className="text-sm font-medium mb-1">{de.decisionReasons.title}</p>
+          <p className="text-xs text-muted-foreground">{de.decisionReasons.noDetails}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const r = reasons as {
+    confidence?: number;
+    threshold?: number;
+    escalations?: string[];
+    appliedRules?: string[];
+    knowledgeUsed?: string[];
+    validationErrors?: string[];
+    validationWarnings?: string[];
+    decision?: string;
+    decidedAt?: string;
+  };
+
+  const aboveThreshold = (r.confidence ?? 0) >= (r.threshold ?? 0.65);
+
+  return (
+    <Card>
+      <CardContent className="py-3 space-y-3">
+        <p className="text-sm font-medium">{de.decisionReasons.title}</p>
+
+        {/* Confidence vs Threshold */}
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span>
+            {de.decisionReasons.confidence}:{" "}
+            <span className={`font-bold ${aboveThreshold ? "text-green-700" : "text-red-700"}`}>
+              {r.confidence != null ? `${Math.round(r.confidence * 100)}%` : "—"}
+            </span>
+          </span>
+          <span className="text-muted-foreground">
+            ({de.decisionReasons.threshold}: {r.threshold != null ? `${Math.round(r.threshold * 100)}%` : "—"})
+          </span>
+          {r.decision && (
+            <Badge variant={r.decision === "auto_ready" ? "secondary" : "destructive"} className="text-xs">
+              {de.status[r.decision as keyof typeof de.status] || r.decision}
+            </Badge>
+          )}
+          {r.decidedAt && (
+            <span className="text-muted-foreground">
+              {de.decisionReasons.decidedAt}: {new Date(r.decidedAt).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
+
+        {/* Tag groups */}
+        <div className="flex flex-wrap gap-2">
+          {r.escalations?.map((e, i) => (
+            <span key={`esc-${i}`} className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-800">{e}</span>
+          ))}
+          {r.validationErrors?.map((e, i) => (
+            <span key={`err-${i}`} className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-800">{e}</span>
+          ))}
+          {r.validationWarnings?.map((w, i) => (
+            <span key={`warn-${i}`} className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">{w}</span>
+          ))}
+          {r.appliedRules?.map((rule, i) => (
+            <span key={`rule-${i}`} className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800">{rule}</span>
+          ))}
+          {r.knowledgeUsed?.map((k, i) => (
+            <span key={`know-${i}`} className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-800">{k}</span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

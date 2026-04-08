@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertTriangle, CheckCircle2, XCircle, ArrowRight,
+  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -59,6 +59,13 @@ interface ClientRisk {
   lastActivity: string | null;
 }
 
+interface WaitingTask {
+  id: string;
+  title: string;
+  taskType: string;
+  messageSentAt: string;
+}
+
 interface CockpitData {
   alerts: Alert[];
   todayStats: { uploaded: number; reviewed: number; tasksDue: number; autoQuote: number };
@@ -67,6 +74,7 @@ interface CockpitData {
   openTasks: OpenTask[];
   periods: { current: PeriodInfo | null; last: PeriodInfo | null };
   clientRiskBoard?: ClientRisk[];
+  waitingOnClient?: WaitingTask[];
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -165,6 +173,11 @@ export default function DashboardPage() {
         <HighRiskDocsPanel docs={data.highRiskDocs} />
         <OpenTasksPanel tasks={data.openTasks} />
       </div>
+
+      {/* Wartet auf Mandant */}
+      {data.waitingOnClient && data.waitingOnClient.length > 0 && (
+        <WaitingOnClientPanel tasks={data.waitingOnClient} />
+      )}
 
       {/* Bereich 5: Perioden-Status */}
       <PeriodsPanel periods={data.periods} />
@@ -327,6 +340,38 @@ function OpenTasksPanel({ tasks }: { tasks: OpenTask[] }) {
             })}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------- Wartet auf Mandant ---------- */
+function WaitingOnClientPanel({ tasks }: { tasks: WaitingTask[] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Clock className="h-4 w-4 text-amber-500" />
+          {de.cockpit.waitingOnClient}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          {tasks.map((task) => {
+            const sentDays = Math.floor((Date.now() - new Date(task.messageSentAt).getTime()) / 86400000);
+            return (
+              <div key={task.id} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-secondary)] transition-colors">
+                <span className="text-xs truncate flex-1 min-w-0">{task.title}</span>
+                <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+                  {de.cockpit.sentAgo.replace("{days}", String(sentDays))}
+                </span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                  {de.tasksMgmt.taskTypes[task.taskType] || task.taskType}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

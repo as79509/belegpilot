@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { computeRiskScore } from "@/lib/services/cockpit/risk-score";
 
 export async function GET() {
   const session = await auth();
@@ -40,16 +41,13 @@ export async function GET() {
           where: { companyId: cid, providerType: "export", providerName: "bexio" },
           select: { isEnabled: true },
         }),
-        // Overdue tasks
         prisma.task.count({
           where: { companyId: cid, status: "open", dueDate: { lt: todayStart } },
         }),
-        // Contracts for overdue calculation
         prisma.contract.findMany({
           where: { companyId: cid, status: { in: ["active", "expiring"] } },
           select: { frequency: true, startDate: true, endDate: true, reminderDays: true },
         }),
-        // Current period
         prisma.monthlyPeriod.findUnique({
           where: { companyId_year_month: { companyId: cid, year: currentYear, month: currentMonth } },
           select: { status: true },
@@ -92,14 +90,14 @@ export async function GET() {
         }
       }
 
-      // Risk score calculation
       const periodStatus = currentPeriod?.status || "open";
-      let periodPenalty = 0;
-      if (periodStatus === "locked") periodPenalty = 0;
-      else if (periodStatus === "open") periodPenalty = 10;
-      else periodPenalty = 5;
 
-      const riskScore = needsReview * 3 + overdueTaskCount * 2 + overdueContractCount * 5 + periodPenalty;
+      const riskScore = computeRiskScore({
+        needsReview,
+        overdueTasks: overdueTaskCount,
+        overdueContracts: overdueContractCount,
+        periodStatus,
+      });
 
       return {
         id: cid,
@@ -118,12 +116,11 @@ export async function GET() {
         overdueTasks: overdueTaskCount,
         overdueContracts: overdueContractCount,
         currentPeriodStatus: periodStatus,
-        criticalIssue: null, // computed client-side
+        criticalIssue: null,
       };
     })
   );
 
-  // Sort by riskScore DESC
   companies.sort((a, b) => b.riskScore - a.riskScore);
 
   return NextResponse.json({ companies });

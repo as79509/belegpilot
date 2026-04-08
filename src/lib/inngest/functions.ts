@@ -456,6 +456,23 @@ export const processDocument = inngest.createFunction(
       const newStatus =
         processingDecision === "auto_ready" ? "ready" : "needs_review";
 
+      // Build structured decision reasons for transparency
+      const knowledgeItems = await prisma.knowledgeItem.findMany({
+        where: { companyId: doc.companyId, isActive: true, usableByAi: true },
+        select: { title: true },
+      });
+      const decisionReasons = {
+        confidence: compositeConfidence,
+        threshold,
+        escalations: escalations || [],
+        appliedRules: rulesResult.matches?.map((m: any) => m.ruleName) || [],
+        knowledgeUsed: knowledgeItems.map((k) => k.title) || [],
+        validationErrors: validationResult.checks.filter((c) => !c.passed && c.severity === "error").map((c) => c.message),
+        validationWarnings: validationResult.checks.filter((c) => !c.passed && c.severity === "warning").map((c) => c.message),
+        decision: processingDecision,
+        decidedAt: new Date().toISOString(),
+      };
+
       await prisma.document.update({
         where: { id: documentId },
         data: {
@@ -464,6 +481,7 @@ export const processDocument = inngest.createFunction(
           reviewStatus: "pending",
           confidenceScore: compositeConfidence,
           validationResults: validationResult as any,
+          decisionReasons: decisionReasons as any,
         },
       });
 

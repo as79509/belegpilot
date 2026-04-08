@@ -365,6 +365,8 @@ export const de = {
     criticalClients: "kritische Mandanten",
     clientsOk: "Mandanten OK",
     criticalIssue: "Kritischstes Problem",
+    waitingOnClient: "Wartet auf Mandant",
+    sentAgo: "Gesendet vor {days} Tagen",
   },
 
   // Dashboard
@@ -454,6 +456,21 @@ export const de = {
     timestamp: "Zeitstempel",
     previewNotAvailable: "Vorschau nicht verfügbar",
     noData: "Keine Daten",
+  },
+
+  // Decision Reasons
+  decisionReasons: {
+    title: "Warum diese Entscheidung?",
+    confidence: "Konfidenz",
+    threshold: "Schwellwert",
+    escalations: "Eskalationen",
+    appliedRules: "Angewandte Regeln",
+    knowledgeUsed: "Genutztes Mandantenwissen",
+    validationErrors: "Validierungsfehler",
+    validationWarnings: "Warnungen",
+    decision: "Entscheidung",
+    decidedAt: "Entschieden am",
+    noDetails: "Keine Entscheidungsdetails verfügbar",
   },
 
   // Processing steps

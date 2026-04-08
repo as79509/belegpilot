@@ -214,6 +214,9 @@ model Document {
   processingDecision     ProcessingDecision? @map("processing_decision")
   validationResults      Json?               @map("validation_results")
 
+  // Decision Transparency
+  decisionReasons        Json?               @map("decision_reasons")
+
   // Review
   reviewStatus           ReviewStatus        @default(pending) @map("review_status")
   reviewNotes            String?             @map("review_notes")
