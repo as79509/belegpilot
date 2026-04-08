@@ -264,6 +264,41 @@ export const de = {
     saveSuccess: "Vertrag gespeichert",
   },
 
+  // Periods
+  periods: {
+    title: "Monatsabschluss",
+    year: "Jahr",
+    status: {
+      open: "Offen", incomplete: "Unvollständig", review_ready: "Bereit zur Prüfung",
+      closing: "In Abschluss", closed: "Abgeschlossen", locked: "Gesperrt",
+    } as Record<string, string>,
+    checklist: {
+      documentsComplete: "Belege vollständig", recurringGenerated: "Buchungen generiert",
+      depreciationDone: "Abschreibungen erzeugt", vatChecked: "MwSt geprüft", exportDone: "Export durchgeführt",
+    },
+    documentsProgress: "Belege",
+    lock: "Periode sperren",
+    lockConfirm: "Gesperrte Perioden können nicht mehr geändert werden. Fortfahren?",
+    notes: "Notizen",
+  },
+
+  // Tasks
+  tasksMgmt: {
+    title: "Pendenzen",
+    newTask: "Neuer Task",
+    taskTypes: {
+      missing_document: "Fehlender Beleg", review_needed: "Review nötig",
+      check_private_use: "Privatanteil prüfen", check_asset: "Anlageverdacht",
+      check_vat: "MwSt prüfen", upload_contract: "Vertrag hochladen", custom: "Individuell",
+    } as Record<string, string>,
+    priorities: { low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend" } as Record<string, string>,
+    statusLabels: { open: "Offen", in_progress: "In Bearbeitung", done: "Erledigt", cancelled: "Abgebrochen" } as Record<string, string>,
+    dueDate: "Fällig",
+    assignedTo: "Zugewiesen",
+    relatedTo: "Bezug",
+    noTasks: "Keine offenen Pendenzen",
+  },
+
   // Journal
   journal: {
     title: "Buchungsjournal",

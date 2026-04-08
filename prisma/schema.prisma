@@ -138,6 +138,8 @@ model Company {
   escalationRules   EscalationRule[]
   knowledgeItems    KnowledgeItem[]
   contracts         Contract[]
+  monthlyPeriods    MonthlyPeriod[]
+  tasks             Task[]
 
   @@map("companies")
 }
@@ -158,6 +160,8 @@ model User {
   reviewedDocuments  Document[]    @relation("ReviewedBy")
   auditLogs          AuditLog[]
   journalEntries     JournalEntry[] @relation("JournalEntryCreator")
+  closedPeriods      MonthlyPeriod[] @relation("PeriodClosedBy")
+  assignedTasks      Task[]         @relation("TaskAssignee")
   userCompanies     UserCompany[]
 
   @@map("users")
@@ -232,6 +236,7 @@ model Document {
   exportRecords   ExportRecord[]
   aiUsages        AiUsage[]
   journalEntries  JournalEntry[]
+  relatedTasks    Task[]         @relation("TaskDocument")
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -523,7 +528,8 @@ model Asset {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   company   Company    @relation(fields: [companyId], references: [id])
-  contracts Contract[]
+  contracts    Contract[]
+  relatedTasks Task[] @relation("TaskAsset")
 
   @@index([companyId, status])
   @@index([companyId, category])
@@ -592,10 +598,65 @@ model Contract {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   company  Company   @relation(fields: [companyId], references: [id])
-  supplier Supplier? @relation(fields: [linkedSupplierId], references: [id])
-  asset    Asset?    @relation(fields: [linkedAssetId], references: [id])
+  supplier     Supplier? @relation(fields: [linkedSupplierId], references: [id])
+  asset        Asset?    @relation(fields: [linkedAssetId], references: [id])
+  relatedTasks Task[]    @relation("TaskContract")
 
   @@index([companyId, status])
   @@index([companyId, contractType])
   @@map("contracts")
+}
+
+model MonthlyPeriod {
+  id                    String    @id @default(uuid()) @db.Uuid
+  companyId             String    @map("company_id") @db.Uuid
+  year                  Int
+  month                 Int
+  status                String    @default("open")
+  documentsExpected     Int       @default(0) @map("documents_expected")
+  documentsReceived     Int       @default(0) @map("documents_received")
+  recurringGenerated    Boolean   @default(false) @map("recurring_generated")
+  depreciationGenerated Boolean   @default(false) @map("depreciation_generated")
+  vatChecked            Boolean   @default(false) @map("vat_checked")
+  exportCompleted       Boolean   @default(false) @map("export_completed")
+  closedAt              DateTime? @map("closed_at")
+  closedBy              String?   @map("closed_by") @db.Uuid
+  notes                 String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  company      Company @relation(fields: [companyId], references: [id])
+  closedByUser User?   @relation("PeriodClosedBy", fields: [closedBy], references: [id])
+
+  @@unique([companyId, year, month])
+  @@index([companyId, status])
+  @@map("monthly_periods")
+}
+
+model Task {
+  id                 String    @id @default(uuid()) @db.Uuid
+  companyId          String    @map("company_id") @db.Uuid
+  title              String
+  description        String?   @db.Text
+  taskType           String    @map("task_type")
+  priority           String    @default("medium")
+  status             String    @default("open")
+  relatedDocumentId  String?   @map("related_document_id") @db.Uuid
+  relatedAssetId     String?   @map("related_asset_id") @db.Uuid
+  relatedContractId  String?   @map("related_contract_id") @db.Uuid
+  assignedTo         String?   @map("assigned_to") @db.Uuid
+  dueDate            DateTime? @map("due_date")
+  source             String    @default("manual")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  document Document? @relation("TaskDocument", fields: [relatedDocumentId], references: [id])
+  asset    Asset?    @relation("TaskAsset", fields: [relatedAssetId], references: [id])
+  contract Contract? @relation("TaskContract", fields: [relatedContractId], references: [id])
+  assignee User?     @relation("TaskAssignee", fields: [assignedTo], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, priority])
+  @@map("tasks")
 }
