@@ -49,6 +49,17 @@
 }
 
 :root {
+  --brand-primary: #1B2A4A;
+  --brand-accent: #3B82F6;
+  --brand-success: #16A34A;
+  --brand-warning: #F59E0B;
+  --brand-danger: #DC2626;
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #F8FAFC;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border-default: #E2E8F0;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

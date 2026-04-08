@@ -8,6 +8,17 @@ export const de = {
     rules: "Regeln",
     settings: "Einstellungen",
     auditLog: "Protokoll",
+    documentsGroup: "Belege",
+    accountingGroup: "Buchhaltung",
+    masterData: "Stammdaten",
+    system: "System",
+    upload: "Hochladen",
+    bexio: "Bexio",
+  },
+  greeting: {
+    morning: "Guten Morgen",
+    afternoon: "Guten Tag",
+    evening: "Guten Abend",
   },
 
   // Document statuses
