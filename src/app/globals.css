@@ -60,6 +60,10 @@
   --text-secondary: #64748B;
   --text-muted: #94A3B8;
   --border-default: #E2E8F0;
+  --spacing-compact: 0.5rem;
+  --spacing-tight: 0.75rem;
+  --spacing-normal: 1rem;
+  --card-padding-compact: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

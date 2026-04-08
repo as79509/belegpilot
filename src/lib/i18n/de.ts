@@ -342,6 +342,31 @@ export const de = {
     noTemplates: "Noch keine Vorlagen",
   },
 
+  // Cockpit
+  cockpit: {
+    allGood: "Alles im Griff",
+    failedDocs: "fehlgeschlagene Belege",
+    overdueInvoices: "überfällige Rechnungen",
+    reviewNeeded: "Belege zur Prüfung",
+    contractExpiring: "Vertrag läuft aus",
+    stuckProcessing: "Belege hängen",
+    overdueTasks: "überfällige Pendenzen",
+    todayUploaded: "hochgeladen",
+    todayReviewed: "geprüft",
+    tasksDueToday: "Tasks fällig",
+    autoQuote: "Auto-Quote",
+    highRiskDocs: "Hochrisiko-Belege",
+    noHighRisk: "Keine offenen Hochrisiko-Belege",
+    openTasks: "Offene Pendenzen",
+    noOpenTasks: "Keine offenen Pendenzen",
+    currentPeriod: "Aktueller Monat",
+    lastPeriod: "Letzter Monat",
+    riskScore: "Risiko",
+    criticalClients: "kritische Mandanten",
+    clientsOk: "Mandanten OK",
+    criticalIssue: "Kritischstes Problem",
+  },
+
   // Dashboard
   dashboard: {
     title: "Übersicht",
