@@ -15,6 +15,7 @@ import {
 } from "@/lib/services/supplier-matching/supplier-matcher";
 import { recordAiUsage } from "@/lib/services/ai/cost-tracker";
 import { checkEscalations } from "@/lib/services/rules/escalation-engine";
+import { generateSuggestion } from "@/lib/services/suggestions/suggestion-engine";
 
 export const processDocument = inngest.createFunction(
   {
@@ -520,6 +521,39 @@ export const processDocument = inngest.createFunction(
       });
 
       return { decision: processingDecision, status: newStatus };
+    });
+
+    // Step 7: Generate booking suggestion from historical data
+    await step.run("generate-suggestion", async () => {
+      const doc = await prisma.document.findUnique({ where: { id: documentId } });
+      if (!doc) return;
+
+      const suggestion = await generateSuggestion(doc.companyId, {
+        supplierNameNormalized: doc.supplierNameNormalized,
+        grossAmount: doc.grossAmount ? Number(doc.grossAmount) : null,
+        currency: doc.currency,
+        vatRatesDetected: doc.vatRatesDetected,
+        expenseCategory: doc.expenseCategory,
+        documentType: doc.documentType,
+      });
+
+      if (suggestion) {
+        await prisma.bookingSuggestion.create({
+          data: {
+            companyId: doc.companyId,
+            documentId: doc.id,
+            suggestedAccount: suggestion.suggestedAccount,
+            suggestedCategory: suggestion.suggestedCategory,
+            suggestedVatCode: suggestion.suggestedVatCode,
+            suggestedCostCenter: suggestion.suggestedCostCenter,
+            confidenceLevel: suggestion.confidenceLevel,
+            confidenceScore: suggestion.confidenceScore,
+            reasoning: suggestion.reasoning as any,
+            matchedDocCount: suggestion.matchedDocCount,
+            consistencyRate: suggestion.consistencyRate,
+          },
+        });
+      }
     });
 
     return { documentId, status: decision.status };

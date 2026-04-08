@@ -7,7 +7,7 @@ describe("i18n Vollständigkeit", () => {
       "common", "dashboard", "documents", "suppliers", "auditLog",
       "exports", "settings", "errors", "greeting", "cockpit",
       "documentList", "reviewCockpit", "periodDetail", "expectedDocs",
-      "decisionReasons", "ruleTemplates", "globalRules",
+      "decisionReasons", "ruleTemplates", "globalRules", "suggestions",
     ];
     for (const key of expected) {
       expect(de, `Missing i18n section: ${key}`).toHaveProperty(key);

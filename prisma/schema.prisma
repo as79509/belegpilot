@@ -141,6 +141,7 @@ model Company {
   expectedDocuments  ExpectedDocument[]
   monthlyPeriods     MonthlyPeriod[]
   tasks              Task[]
+  bookingSuggestions BookingSuggestion[]
 
   @@map("companies")
 }
@@ -242,6 +243,7 @@ model Document {
   aiUsages        AiUsage[]
   journalEntries  JournalEntry[]
   relatedTasks    Task[]         @relation("TaskDocument")
+  bookingSuggestions BookingSuggestion[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -696,4 +698,43 @@ model Task {
   @@index([companyId, status])
   @@index([companyId, priority])
   @@map("tasks")
+}
+
+model BookingSuggestion {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @map("company_id") @db.Uuid
+  documentId        String    @map("document_id") @db.Uuid
+
+  // Vorschlag
+  suggestedAccount  String?   @map("suggested_account")
+  suggestedCategory String?   @map("suggested_category")
+  suggestedVatCode  String?   @map("suggested_vat_code")
+  suggestedCostCenter String? @map("suggested_cost_center")
+
+  // Bewertung
+  confidenceLevel   String    @map("confidence_level")
+  confidenceScore   Float     @map("confidence_score")
+
+  // Begründung (strukturiert)
+  reasoning         Json
+
+  // Historische Basis
+  matchedDocCount   Int       @map("matched_doc_count")
+  consistencyRate   Float     @map("consistency_rate")
+
+  // Status
+  status            String    @default("pending")
+  acceptedAt        DateTime? @map("accepted_at")
+  rejectedAt        DateTime? @map("rejected_at")
+  userModifiedTo    Json?     @map("user_modified_to")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  document  Document @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, documentId])
+  @@index([companyId, status])
+  @@map("booking_suggestions")
 }

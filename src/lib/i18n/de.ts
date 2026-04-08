@@ -995,6 +995,26 @@ export const de = {
     monthStatus: "Monatsstatus",
   },
 
+  // Suggestions
+  suggestions: {
+    title: "Buchungsvorschlag",
+    fromHistory: "Aus Historie",
+    fromRule: "Aus Regel",
+    fromKnowledge: "Aus Mandantenwissen",
+    fromSupplierDefault: "Lieferantenstandard",
+    confidence: { high: "Hohe Sicherheit", medium: "Mittlere Sicherheit", low: "Niedrige Sicherheit" },
+    accept: "Vorschlag übernehmen",
+    reject: "Ablehnen",
+    modify: "Anpassen",
+    accepted: "Vorschlag übernommen",
+    rejected: "Vorschlag abgelehnt",
+    noSuggestion: "Kein Vorschlag verfügbar",
+    basedOn: "Basiert auf",
+    matchedDocs: "ähnliche Belege",
+    consistencyRate: "Konsistenz",
+    reasoning: "Begründung",
+  },
+
   // Relative time
   time: {
     justNow: "gerade eben",
