@@ -143,3 +143,31 @@
     @apply font-sans;
   }
 }
+
+/* Premium density overrides */
+:root {
+  --card-padding: 0.875rem;
+  --section-gap: 1.25rem;
+  --table-cell-padding: 0.5rem 0.75rem;
+  --heading-tracking: -0.025em;
+  --body-size: 0.875rem;
+  --small-size: 0.75rem;
+  --badge-size: 0.6875rem;
+  --status-ok: #16a34a;
+  --status-warning: #d97706;
+  --status-error: #dc2626;
+  --status-info: #2563eb;
+  --status-muted: #6b7280;
+}
+
+/* Tables: tighter padding */
+table th,
+table td {
+  padding: var(--table-cell-padding);
+  font-size: var(--body-size);
+}
+
+/* Headings: tighter letter spacing */
+h1, h2, h3 {
+  letter-spacing: var(--heading-tracking);
+}

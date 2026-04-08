@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
+  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
+  Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -18,7 +20,7 @@ interface NavGroup {
 }
 
 const trusteeGroup: NavGroup = {
-  label: de.trustee.group,
+  label: "Treuhänder",
   defaultOpen: true,
   items: [
     { href: "/trustee", label: de.trustee.overview, icon: Users },
@@ -29,47 +31,48 @@ const trusteeGroup: NavGroup = {
 
 const baseNavGroups: NavGroup[] = [
   {
-    label: de.nav.documentsGroup,
+    label: "Belege",
     defaultOpen: true,
     items: [
       { href: "/documents", label: de.nav.documents, icon: FileText },
-      { href: "/documents?upload=true", label: de.nav.upload, icon: Upload },
+      { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
     ],
   },
   {
-    label: de.nav.accountingGroup,
+    label: "Buchhaltung",
     defaultOpen: true,
     items: [
       { href: "/journal", label: de.journal.title, icon: BookOpen },
       { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
       { href: "/assets", label: de.assets.title, icon: Landmark },
-      { href: "/contracts", label: de.contracts.title, icon: FileSignature },
       { href: "/exports", label: de.nav.exports, icon: Download },
-      { href: "/rules", label: de.nav.rules, icon: Workflow },
-      { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },
     ],
   },
   {
     label: "Kontrolle",
+    defaultOpen: true,
     items: [
       { href: "/periods", label: de.periods.title, icon: CalendarCheck },
-      { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
       { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
+      { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
       { href: "/reports", label: de.reports.title, icon: BarChart3 },
     ],
   },
   {
-    label: de.nav.masterData,
+    label: "Automatisierung",
     items: [
-      { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
+      { href: "/rules", label: de.nav.rules, icon: Workflow },
+      { href: "/settings/ai", label: "KI-Einstellungen", icon: Brain },
     ],
   },
   {
-    label: de.nav.system,
+    label: "Verwaltung",
     items: [
-      { href: "/settings", label: de.nav.settings, icon: Settings },
-      { href: "/settings/ai", label: "KI-Einstellungen", icon: Brain },
+      { href: "/contracts", label: de.contracts.title, icon: FileSignature },
+      { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },
       { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
+      { href: "/settings", label: de.nav.settings, icon: Settings },
+      { href: "/settings/phase8-gate", label: "Phase-8-Gate", icon: ShieldCheck },
     ],
   },
 ];
@@ -122,12 +125,12 @@ export function Sidebar() {
         )}
 
         {/* Dashboard (standalone) */}
-        <div className="px-2 pt-3 pb-1">
+        <div className="px-2 pt-3 pb-0.5">
           <Link
             href="/dashboard"
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/dashboard" ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+              "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              pathname === "/dashboard" ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
             )}
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
@@ -136,7 +139,7 @@ export function Sidebar() {
         </div>
 
         {/* Grouped navigation */}
-        <nav className="flex-1 px-2 py-1 space-y-1">
+        <nav className="flex-1 px-2 py-1">
           {navGroups.map((group) => {
             const isOpen = openGroups.has(group.label);
             return (
@@ -144,7 +147,7 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.label)}
-                  className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+                  className="flex items-center justify-between w-full px-3 pt-4 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest hover:text-white/60 transition-colors"
                 >
                   {group.label}
                   <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", isOpen ? "" : "-rotate-90")} />
@@ -158,8 +161,8 @@ export function Sidebar() {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ml-1",
-                          active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                          "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ml-1",
+                          active ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
