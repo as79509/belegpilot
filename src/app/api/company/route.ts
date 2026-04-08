@@ -9,7 +9,14 @@ export async function GET() {
 
   const company = await prisma.company.findUnique({
     where: { id: session.user.companyId },
-    select: { id: true, name: true, legalName: true, vatNumber: true, currency: true, settings: true },
+    select: {
+      id: true, name: true, legalName: true, vatNumber: true, currency: true, settings: true,
+      legalForm: true, uid: true, industry: true, subIndustry: true, businessModel: true,
+      employeeCount: true, fiscalYearStart: true, phone: true, email: true, website: true,
+      vatLiable: true, vatMethod: true, vatInterval: true, vatFlatRate: true,
+      chartOfAccounts: true, costCentersEnabled: true, projectsEnabled: true,
+      aiContext: true, aiConfidenceThreshold: true, aiAutoApprove: true, status: true,
+    },
   });
 
   if (!company) return NextResponse.json({ error: "Firma nicht gefunden" }, { status: 404 });
@@ -22,19 +29,23 @@ export async function PATCH(request: NextRequest) {
   if (session.user.role !== "admin") return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
   const body = await request.json();
-  const { name, legalName, vatNumber, currency } = body;
-
   const old = await prisma.company.findUnique({ where: { id: session.user.companyId } });
+
+  const allowedFields = [
+    "name", "legalName", "vatNumber", "currency", "legalForm", "uid", "industry",
+    "subIndustry", "businessModel", "employeeCount", "fiscalYearStart", "phone",
+    "email", "website", "vatLiable", "vatMethod", "vatInterval", "vatFlatRate",
+    "chartOfAccounts", "costCentersEnabled", "projectsEnabled",
+    "aiContext", "aiConfidenceThreshold", "aiAutoApprove", "settings",
+  ];
+  const updateData: Record<string, any> = {};
+  for (const f of allowedFields) {
+    if (body[f] !== undefined) updateData[f] = body[f];
+  }
 
   const company = await prisma.company.update({
     where: { id: session.user.companyId },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(legalName !== undefined && { legalName }),
-      ...(vatNumber !== undefined && { vatNumber }),
-      ...(currency !== undefined && { currency }),
-    },
-    select: { id: true, name: true, legalName: true, vatNumber: true, currency: true },
+    data: updateData,
   });
 
   const changes = computeChanges(old as any, body, ["name", "legalName", "vatNumber", "currency"]);

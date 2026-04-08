@@ -87,6 +87,39 @@ model Company {
   address   Json?
   currency  String   @default("CHF") @db.VarChar(3)
   settings  Json?
+
+  // Erweiterte Mandanten-Daten
+  legalForm          String?   @map("legal_form")
+  uid                String?   @map("uid_number")
+  industry           String?
+  subIndustry        String?   @map("sub_industry")
+  businessModel      String?   @map("business_model") @db.Text
+  employeeCount      Int?      @map("employee_count")
+  foundedAt          DateTime? @map("founded_at")
+  fiscalYearStart    Int?      @map("fiscal_year_start")
+  phone              String?
+  email              String?
+  website            String?
+  timezone           String?   @default("Europe/Zurich")
+  language           String?   @default("de") @db.VarChar(5)
+  status             String?   @default("active")
+
+  // MwSt
+  vatLiable          Boolean   @default(true) @map("vat_liable")
+  vatMethod          String?   @map("vat_method")
+  vatInterval        String?   @map("vat_interval")
+  vatFlatRate         Float?   @map("vat_flat_rate")
+
+  // Buchhaltung
+  chartOfAccounts    String?   @map("chart_of_accounts")
+  costCentersEnabled Boolean   @default(false) @map("cost_centers_enabled")
+  projectsEnabled    Boolean   @default(false) @map("projects_enabled")
+
+  // KI
+  aiContext              String?  @map("ai_context") @db.Text
+  aiConfidenceThreshold  Float?   @map("ai_confidence_threshold")
+  aiAutoApprove          Boolean  @default(false) @map("ai_auto_approve")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

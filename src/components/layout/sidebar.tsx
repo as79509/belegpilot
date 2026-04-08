@@ -23,6 +23,7 @@ const trusteeGroup: NavGroup = {
   items: [
     { href: "/trustee", label: de.trustee.overview, icon: Users },
     { href: "/trustee/queue", label: de.trustee.queue, icon: ClipboardCheck },
+    { href: "/trustee/clients", label: de.clients.title, icon: Building2 },
   ],
 };
 
