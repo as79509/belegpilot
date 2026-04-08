@@ -14,6 +14,7 @@ enum UserRole {
   reviewer
   accounting
   readonly
+  trustee
 }
 
 enum DocumentStatus {
@@ -94,8 +95,9 @@ model Company {
   suppliers    Supplier[]
   auditLogs    AuditLog[]
   integrations Integration[]
-  rules        Rule[]
-  aiUsages     AiUsage[]
+  rules         Rule[]
+  aiUsages      AiUsage[]
+  userCompanies UserCompany[]
 
   @@map("companies")
 }
@@ -112,11 +114,27 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  company           Company    @relation(fields: [companyId], references: [id])
-  reviewedDocuments  Document[] @relation("ReviewedBy")
+  company           Company        @relation(fields: [companyId], references: [id])
+  reviewedDocuments  Document[]    @relation("ReviewedBy")
   auditLogs         AuditLog[]
+  userCompanies     UserCompany[]
 
   @@map("users")
+}
+
+model UserCompany {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  role      UserRole @default(readonly)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId])
+  @@map("user_companies")
 }
 
 model Document {

@@ -66,6 +66,15 @@ export const de = {
     reviewer: "Prüfer",
     accounting: "Buchhaltung",
     readonly: "Nur Lesen",
+    trustee: "Treuhänder",
+  },
+
+  // Trustee / Multi-Company
+  trustee: {
+    switchCompany: "Firma wechseln",
+    activeCompany: "Aktive Firma",
+    allCompanies: "Alle Firmen",
+    noCompanies: "Keine Firmen zugewiesen",
   },
 
   // Dashboard

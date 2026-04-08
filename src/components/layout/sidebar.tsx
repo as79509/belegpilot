@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
+import { useCompany } from "@/lib/contexts/company-context";
 
 interface NavGroup {
   label: string;
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { companies, activeCompany, switchCompany, isMultiCompany } = useCompany();
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );
@@ -76,6 +78,23 @@ export function Sidebar() {
         <div className="flex items-center h-14 px-4 border-b border-white/10">
           <span className="text-lg font-semibold tracking-tight">BelegPilot</span>
         </div>
+
+        {/* Company switcher */}
+        {isMultiCompany && (
+          <div className="px-3 py-2 border-b border-white/10">
+            <select
+              value={activeCompany?.companyId || ""}
+              onChange={(e) => switchCompany(e.target.value)}
+              className="w-full bg-white/10 text-white text-xs rounded px-2 py-1.5 border border-white/20"
+            >
+              {companies.map((c) => (
+                <option key={c.companyId} value={c.companyId} className="text-black">
+                  {c.company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Dashboard (standalone) */}
         <div className="px-2 pt-3 pb-1">
