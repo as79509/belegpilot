@@ -155,6 +155,49 @@ export const de = {
     documentsTab: "Belege",
   },
 
+  // Journal
+  journal: {
+    title: "Buchungsjournal",
+    newEntry: "Neue Buchung",
+    entryDate: "Datum",
+    debitAccount: "Soll-Konto",
+    creditAccount: "Haben-Konto",
+    amount: "Betrag",
+    description: "Buchungstext",
+    reference: "Referenz",
+    entryType: "Typ",
+    types: {
+      manual: "Manuell",
+      recurring: "Wiederkehrend",
+      depreciation: "Abschreibung",
+      document: "Beleg",
+    } as Record<string, string>,
+    noEntries: "Noch keine Buchungen",
+    total: "Total",
+    saveSuccess: "Buchung gespeichert",
+    deleteSuccess: "Buchung gelöscht",
+  },
+
+  // Recurring
+  recurring: {
+    title: "Wiederkehrende Buchungen",
+    newTemplate: "Neue Vorlage",
+    name: "Bezeichnung",
+    frequency: "Frequenz",
+    frequencies: {
+      monthly: "Monatlich",
+      quarterly: "Quartalsweise",
+      yearly: "Jährlich",
+    } as Record<string, string>,
+    dayOfMonth: "Tag im Monat",
+    startDate: "Startdatum",
+    endDate: "Enddatum",
+    nextExecution: "Nächste Ausführung",
+    generate: "Fällige generieren",
+    generated: "Buchungen generiert",
+    noTemplates: "Noch keine Vorlagen",
+  },
+
   // Dashboard
   dashboard: {
     title: "Übersicht",
