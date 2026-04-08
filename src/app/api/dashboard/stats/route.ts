@@ -7,7 +7,7 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
   const { companyId } = ctx;
 
-  const [statusCounts, todayCount, avgConfidence] = await Promise.all([
+  const [statusCounts, todayCount, avgConfidence, escalatedCount, unverifiedSupplierDocCount] = await Promise.all([
     prisma.document.groupBy({
       by: ["status"],
       where: { companyId },
@@ -24,6 +24,20 @@ export async function GET() {
     prisma.document.aggregate({
       where: { companyId, confidenceScore: { not: null } },
       _avg: { confidenceScore: true },
+    }),
+    prisma.document.count({
+      where: {
+        companyId,
+        processingDecision: "needs_review",
+        status: "needs_review",
+      },
+    }),
+    prisma.document.count({
+      where: {
+        companyId,
+        status: { in: ["needs_review", "ready", "extracted", "validated"] },
+        supplier: { isVerified: false },
+      },
     }),
   ]);
 
@@ -44,5 +58,7 @@ export async function GET() {
     total,
     today_uploaded: todayCount,
     avg_confidence: avgConfidence._avg.confidenceScore || 0,
+    escalated: escalatedCount,
+    unverified_suppliers: unverifiedSupplierDocCount,
   });
 }

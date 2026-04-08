@@ -23,7 +23,7 @@ import {
 } from "@/lib/i18n/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, FileText, Loader2, CheckCircle, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 interface Document {
@@ -152,7 +152,39 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       {/* Bulk actions */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-md border border-blue-200">
-          <span className="text-sm font-medium">{selected.size} ausgewählt</span>
+          <span className="text-sm font-medium">{selected.size} {de.bulk.selected}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const res = await fetch("/api/documents/bulk-approve", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ documentIds: Array.from(selected) }),
+              });
+              if (res.ok) {
+                const r = await res.json();
+                toast.success(`${r.approved} ${de.bulk.approveSubmitted}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`);
+                setSelected(new Set());
+                fetchDocuments();
+              } else {
+                const err = await res.json().catch(() => null);
+                toast.error(err?.error || "Fehler bei Bulk-Genehmigung");
+              }
+            }}
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />{de.bulk.approve}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const ids = Array.from(selected);
+              router.push(`/tasks/new?documentIds=${ids.join(",")}`);
+            }}
+          >
+            <ClipboardList className="h-3 w-3 mr-1" />{de.bulk.createTask}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -192,7 +224,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
             {de.bexio.exportToBexio}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-            {de.bulk.deselectAll}
+            {de.bulk.reset}
           </Button>
         </div>
       )}

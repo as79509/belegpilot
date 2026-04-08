@@ -624,8 +624,29 @@ export const de = {
       supplier_merged: "Lieferanten zusammengeführt",
       company_settings_updated: "Firmeneinstellungen aktualisiert",
       document_exported_bexio: "Beleg an Bexio exportiert",
+      document_bulk_approved: "Beleg per Bulk-Aktion genehmigt",
       system_error: "Systemfehler",
     } as Record<string, string>,
+  },
+
+  // Document list
+  documentList: {
+    escalation: "Eskalation",
+    rule: "Regel",
+    verified: "Verifiziert",
+    unverified: "Nicht verifiziert",
+    lastModified: "Geändert",
+    filterEscalated: "Nur eskalierte",
+    filterUnverified: "Nur unverifizierte Lieferanten",
+    filterLowConfidence: "Niedrige Konfidenz",
+    sortNewest: "Neueste zuerst",
+    sortOldest: "Älteste zuerst",
+    sortConfidence: "Niedrigste Konfidenz",
+    sortAmount: "Höchster Betrag",
+    escalatedCount: "eskaliert",
+    unverifiedCount: "unverifizierte Lieferanten",
+    totalDocs: "Belege",
+    summary: "Zusammenfassung",
   },
 
   // Bulk actions
@@ -635,6 +656,12 @@ export const de = {
     reprocess: "Erneut verarbeiten",
     reprocessSubmitted: "zur Verarbeitung eingereicht",
     export: "Exportieren",
+    approve: "Alle genehmigen",
+    approveSubmitted: "genehmigt",
+    approveSkipped: "übersprungen",
+    createTask: "Task erstellen",
+    reset: "Zurücksetzen",
+    selected: "Belege ausgewählt",
   },
 
   // Filters

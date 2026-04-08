@@ -8,7 +8,7 @@ import { DocumentTable } from "@/components/documents/document-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Filter, X, RefreshCw } from "lucide-react";
+import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_FILTERS = [
@@ -105,6 +105,26 @@ export default function DocumentsPage() {
       </div>
 
       {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
+
+      {/* Summary bar */}
+      <div className="flex gap-4 text-sm">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <FileText className="h-4 w-4" />
+          <span className="font-medium">{counts.total || 0}</span> {de.documentList.totalDocs}
+        </div>
+        {(counts.escalated ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5 text-orange-600">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
+          </div>
+        )}
+        {(counts.unverified_suppliers ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5 text-amber-600">
+            <ShieldAlert className="h-4 w-4" />
+            <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
+          </div>
+        )}
+      </div>
 
       {/* Quick filter buttons */}
       <div className="flex gap-2">
