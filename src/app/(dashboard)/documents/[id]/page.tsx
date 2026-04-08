@@ -1,32 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter, DialogClose,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Link2, Loader2 } from "lucide-react";
+import {
+  Link2, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
+  SkipForward, ClipboardList, MessageSquare, BookOpen, Lightbulb,
+  Keyboard,
+} from "lucide-react";
 import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { PdfViewer } from "@/components/documents/pdf-viewer";
 import { ReviewForm } from "@/components/review/review-form";
 import { de } from "@/lib/i18n/de";
-import { formatDate, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
+import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
 
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [doc, setDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [nextDocId, setNextDocId] = useState<string | null>(null);
+  const [prevDocId, setPrevDocId] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const [queuePosition, setQueuePosition] = useState<{ current: number; total: number } | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [similarDocs, setSimilarDocs] = useState<any[]>([]);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+
+  // Dialogs
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskType, setTaskType] = useState("review_needed");
+  const [taskPriority, setTaskPriority] = useState("medium");
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageBody, setMessageBody] = useState("");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [ruleName, setRuleName] = useState("");
+  const [knowledgeDialogOpen, setKnowledgeDialogOpen] = useState(false);
+  const [knowledgeTitle, setKnowledgeTitle] = useState("");
+  const [knowledgeCategory, setKnowledgeCategory] = useState("booking_rule");
+  const [knowledgeContent, setKnowledgeContent] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -40,20 +72,22 @@ export default function DocumentDetailPage() {
           setAuditEntries(Array.isArray(audit) ? audit : []);
         }
 
-        // Fetch review queue for position + next document
-        const queueRes = await fetch(`/api/documents?status=needs_review&pageSize=100&sortBy=confidenceScore&sortOrder=asc`).catch(() => null);
-        if (queueRes?.ok) {
-          const queue = await queueRes.json();
-          const docs = queue.documents || [];
-          const idx = docs.findIndex((d: any) => d.id === params.id);
-          if (idx >= 0) {
-            setQueuePosition({ current: idx + 1, total: docs.length });
-            const nextDoc = docs[idx + 1];
-            setNextDocId(nextDoc?.id || null);
-          } else {
-            const next = docs[0];
-            setNextDocId(next?.id || null);
+        // Fetch neighbors via dedicated API
+        const neighborsRes = await fetch(`/api/documents/${params.id}/neighbors?filter=needs_review`).catch(() => null);
+        if (neighborsRes?.ok) {
+          const neighbors = await neighborsRes.json();
+          setPrevDocId(neighbors.previousId);
+          setNextDocId(neighbors.nextId);
+          if (neighbors.currentPosition > 0) {
+            setQueuePosition({ current: neighbors.currentPosition, total: neighbors.totalInQueue });
           }
+        }
+
+        // Fetch similar documents
+        const similarRes = await fetch(`/api/documents/${params.id}/similar`).catch(() => null);
+        if (similarRes?.ok) {
+          const data = await similarRes.json();
+          setSimilarDocs(data.similar || []);
         }
       } catch (err) {
         console.error("[DocumentDetail] Load error:", err);
@@ -63,6 +97,178 @@ export default function DocumentDetailPage() {
     }
     loadData();
   }, [params.id]);
+
+  // --- Review toolbar actions ---
+  const handleToolbarApprove = useCallback(async () => {
+    if (approving || !doc) return;
+    setApproving(true);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/approve`, { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const updated = await res.json();
+      setDoc(updated);
+      toast.success(de.review.approveSuccess);
+      if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
+    } catch (err: any) { toast.error(err.message || de.errors.serverError); }
+    finally { setApproving(false); }
+  }, [doc, nextDocId, approving, router]);
+
+  const handleToolbarReject = useCallback(async () => {
+    if (!rejectReason.trim() || !doc) return;
+    setRejecting(true);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setDoc(await res.json());
+      toast.success(de.review.rejectSuccess);
+      setRejectDialogOpen(false);
+      setRejectReason("");
+      if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setRejecting(false); }
+  }, [doc, rejectReason, nextDocId, router]);
+
+  const handleSkip = useCallback(() => {
+    if (nextDocId) router.push(`/documents/${nextDocId}`);
+    else { toast.success("Alle Belege geprüft!"); router.push("/documents?status=needs_review"); }
+  }, [nextDocId, router]);
+
+  const handleCreateTask = async () => {
+    if (!taskTitle.trim() || !doc) return;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: taskTitle,
+          taskType,
+          priority: taskPriority,
+          relatedDocumentId: doc.id,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Task erstellt");
+      setTaskDialogOpen(false);
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageBody.trim() || !doc) return;
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: `Rückfrage zu Beleg ${doc.documentNumber || doc.id.slice(0, 8)}`,
+          body: messageBody,
+          relatedDocumentId: doc.id,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.messages.sent);
+      setMessageDialogOpen(false);
+      setMessageBody("");
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleCreateRule = async () => {
+    if (!doc) return;
+    try {
+      const res = await fetch("/api/rules/quick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierName: doc.supplierNameNormalized || doc.supplierNameRaw || "",
+          actionType: "set_category",
+          value: doc.expenseCategory || "",
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(`${de.reviewCockpit.ruleCreated}: ${ruleName}`);
+      setRuleDialogOpen(false);
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleCreateKnowledge = async () => {
+    if (!knowledgeContent.trim() || !doc) return;
+    try {
+      const res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: knowledgeTitle,
+          category: knowledgeCategory,
+          content: knowledgeContent,
+          relatedSupplier: doc.supplierNameNormalized || doc.supplierNameRaw || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.reviewCockpit.knowledgeCreated);
+      setKnowledgeDialogOpen(false);
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  // Open dialogs with prefilled values
+  function openTaskDialog() {
+    if (!doc) return;
+    setTaskTitle(`${doc.supplierNameNormalized || doc.supplierNameRaw || "Beleg"} prüfen`);
+    setTaskType("review_needed");
+    setTaskPriority("medium");
+    setTaskDialogOpen(true);
+  }
+
+  function openMessageDialog() {
+    if (!doc) return;
+    setMessageBody(`Bezug: Beleg ${doc.documentNumber || doc.id.slice(0, 8)} von ${doc.supplierNameNormalized || doc.supplierNameRaw || "unbekannt"}\n\n`);
+    setMessageDialogOpen(true);
+  }
+
+  function openRuleDialog() {
+    if (!doc) return;
+    const supplier = doc.supplierNameNormalized || doc.supplierNameRaw || "";
+    const cat = doc.expenseCategory || "";
+    setRuleName(`${supplier} → ${cat}`);
+    setRuleDialogOpen(true);
+  }
+
+  function openKnowledgeDialog() {
+    if (!doc) return;
+    setKnowledgeTitle(`${doc.supplierNameNormalized || doc.supplierNameRaw || "Beleg"}`);
+    setKnowledgeContent(`Beleg ${doc.documentNumber || doc.id.slice(0, 8)} von ${doc.supplierNameNormalized || doc.supplierNameRaw || "unbekannt"}: `);
+    setKnowledgeCategory("booking_rule");
+    setKnowledgeDialogOpen(true);
+  }
+
+  // --- Keyboard shortcuts (Task 5) ---
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "ArrowLeft" && prevDocId) {
+        e.preventDefault();
+        router.push(`/documents/${prevDocId}`);
+      } else if (e.key === "ArrowRight" && nextDocId) {
+        e.preventDefault();
+        router.push(`/documents/${nextDocId}`);
+      } else if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        handleToolbarApprove();
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        setRejectDialogOpen(true);
+      } else if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        handleSkip();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [prevDocId, nextDocId, handleToolbarApprove, handleSkip, router]);
 
   if (loading) {
     return (
@@ -88,10 +294,59 @@ export default function DocumentDetailPage() {
     );
   }
 
+  const isReviewable = doc && ["needs_review", "ready", "extracted", "validated"].includes(doc.status);
+
   return (
     <div className="space-y-4">
       {/* Enhanced header */}
       <Link href="/documents" className="text-sm text-muted-foreground hover:text-foreground">{de.detail.backToList}</Link>
+
+      {/* Review toolbar */}
+      {isReviewable && (
+        <div className="flex items-center gap-2 p-3 bg-muted/50 border rounded-lg">
+          <Button variant="outline" size="sm" disabled={!prevDocId} onClick={() => prevDocId && router.push(`/documents/${prevDocId}`)}>
+            <ChevronLeft className="h-4 w-4 mr-1" />{de.reviewCockpit.previous}
+          </Button>
+
+          {queuePosition && (
+            <span className="text-sm text-muted-foreground px-2">
+              {de.reviewCockpit.position} {queuePosition.current} {de.reviewCockpit.of} {queuePosition.total} {de.reviewCockpit.inQueue}
+            </span>
+          )}
+
+          <Button variant="outline" size="sm" disabled={!nextDocId} onClick={() => nextDocId && router.push(`/documents/${nextDocId}`)}>
+            {de.reviewCockpit.next}<ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-1" />
+
+          <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={approving} onClick={handleToolbarApprove}>
+            {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+            {de.reviewCockpit.approve}
+          </Button>
+          <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => setRejectDialogOpen(true)}>
+            <XCircle className="h-4 w-4 mr-1" />{de.reviewCockpit.reject}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleSkip}>
+            <SkipForward className="h-4 w-4 mr-1" />{de.reviewCockpit.skip}
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-1" />
+
+          <Button size="sm" variant="ghost" onClick={openTaskDialog}>
+            <ClipboardList className="h-4 w-4 mr-1" />{de.reviewCockpit.createTask}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={openMessageDialog}>
+            <MessageSquare className="h-4 w-4 mr-1" />{de.reviewCockpit.askClient}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={openRuleDialog}>
+            <Lightbulb className="h-4 w-4 mr-1" />{de.reviewCockpit.createRule}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={openKnowledgeDialog}>
+            <BookOpen className="h-4 w-4 mr-1" />{de.reviewCockpit.createKnowledge}
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-start justify-between">
         <div>
@@ -168,6 +423,126 @@ export default function DocumentDetailPage() {
 
       {/* Decision Transparency */}
       <DecisionReasonsPanel reasons={doc.decisionReasons} />
+
+      {/* Similar Documents Panel (Task 4) */}
+      <SimilarDocsPanel similarDocs={similarDocs} currentDoc={doc} />
+
+      {/* Reject dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{de.review.rejectDialogTitle}</DialogTitle>
+            <DialogDescription>{de.review.rejectDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={de.review.rejectReasonRequired} rows={3} />
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleToolbarReject} disabled={!rejectReason.trim() || rejecting} variant="destructive">
+              {rejecting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {de.review.reject}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task creation dialog */}
+      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{de.reviewCockpit.createTask}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Titel</Label>
+              <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Typ</Label>
+              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+                {Object.entries(de.tasksMgmt.taskTypes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">Priorität</Label>
+              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)}>
+                {Object.entries(de.tasksMgmt.priorities).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleCreateTask} disabled={!taskTitle.trim()}>{de.common.save}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message dialog */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{de.reviewCockpit.askClient}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">{de.messages.body}</Label>
+              <Textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={5} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleSendMessage} disabled={!messageBody.trim()}>{de.messages.send}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rule from correction dialog (Task 3) */}
+      <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{de.reviewCockpit.createRuleFromDoc}</DialogTitle>
+            <DialogDescription>
+              Condition: supplierName contains &quot;{doc.supplierNameNormalized || doc.supplierNameRaw}&quot;
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Name</Label>
+              <Input value={ruleName} onChange={(e) => setRuleName(e.target.value)} />
+            </div>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>Action: set_category = &quot;{doc.expenseCategory || "—"}&quot;</p>
+              {doc.accountCode && <p>Action: set_account_code = &quot;{doc.accountCode}&quot;</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleCreateRule}>{de.reviewCockpit.createRule}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Knowledge entry dialog (Task 3) */}
+      <Dialog open={knowledgeDialogOpen} onOpenChange={setKnowledgeDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{de.reviewCockpit.createKnowledge}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Titel</Label>
+              <Input value={knowledgeTitle} onChange={(e) => setKnowledgeTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Kategorie</Label>
+              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={knowledgeCategory} onChange={(e) => setKnowledgeCategory(e.target.value)}>
+                {Object.entries(de.knowledge.categories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">{de.knowledge.content}</Label>
+              <Textarea value={knowledgeContent} onChange={(e) => setKnowledgeContent(e.target.value)} rows={4} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleCreateKnowledge} disabled={!knowledgeContent.trim()}>{de.common.save}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <Tabs defaultValue="validation">
@@ -260,7 +635,82 @@ export default function DocumentDetailPage() {
           </CardContent></Card>
         </TabsContent>
       </Tabs>
+
+      {/* Keyboard shortcuts hint (Task 5) */}
+      {isReviewable && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+          <Keyboard className="h-3.5 w-3.5" />
+          <span>{de.reviewCockpit.keyboardShortcuts} | S Zurückstellen</span>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SimilarDocsPanel({ similarDocs, currentDoc }: { similarDocs: any[]; currentDoc: any }) {
+  if (similarDocs.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{de.reviewCockpit.similarDocs}</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">{de.reviewCockpit.noSimilar}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Check for consistent booking pattern
+  const sameSupplierDocs = similarDocs.filter(
+    (d) => d.supplierName === (currentDoc.supplierNameNormalized || currentDoc.supplierNameRaw)
+  );
+  const accountCodes = new Set(sameSupplierDocs.map((d) => d.accountCode).filter(Boolean));
+  const hasConsistentPattern = sameSupplierDocs.length >= 5 && accountCodes.size === 1;
+  const hasVaryingPattern = sameSupplierDocs.length >= 2 && accountCodes.size > 1;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm">{de.reviewCockpit.similarDocs}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {hasConsistentPattern && (
+          <div className="text-xs px-2 py-1.5 rounded bg-green-50 text-green-700 border border-green-200">
+            {de.reviewCockpit.consistentPattern}
+          </div>
+        )}
+        {hasVaryingPattern && (
+          <div className="text-xs px-2 py-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+            {de.reviewCockpit.varyingPattern}
+          </div>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs">Belegnr.</TableHead>
+              <TableHead className="text-xs">{de.documents.supplier}</TableHead>
+              <TableHead className="text-xs">{de.documents.amount}</TableHead>
+              <TableHead className="text-xs">Konto</TableHead>
+              <TableHead className="text-xs">{de.documents.status}</TableHead>
+              <TableHead className="text-xs">{de.documents.date}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {similarDocs.map((d) => (
+              <TableRow key={d.id}>
+                <TableCell className="text-xs font-mono">
+                  <Link href={`/documents/${d.id}`} className="text-blue-600 hover:underline">
+                    {d.documentNumber || "—"}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-xs max-w-[120px] truncate">{d.supplierName || "—"}</TableCell>
+                <TableCell className="text-xs whitespace-nowrap">{formatCurrency(d.grossAmount, "CHF")}</TableCell>
+                <TableCell className="text-xs">{d.accountCode || "—"}</TableCell>
+                <TableCell><DocumentStatusBadge status={d.status} /></TableCell>
+                <TableCell className="text-xs text-muted-foreground">{formatDate(d.createdAt)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

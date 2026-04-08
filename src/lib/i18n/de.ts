@@ -629,6 +629,30 @@ export const de = {
     } as Record<string, string>,
   },
 
+  // Review cockpit
+  reviewCockpit: {
+    previous: "Vorheriger",
+    next: "Nächster",
+    position: "Beleg",
+    of: "von",
+    inQueue: "zur Prüfung",
+    approve: "Genehmigen",
+    reject: "Ablehnen",
+    skip: "Zurückstellen",
+    createTask: "Task erstellen",
+    askClient: "Mandant anfragen",
+    createRule: "Regel erstellen",
+    createRuleFromDoc: "Regel aus diesem Beleg",
+    createKnowledge: "Wissenseintrag erstellen",
+    ruleCreated: "Regel erstellt",
+    knowledgeCreated: "Wissenseintrag erstellt",
+    similarDocs: "Ähnliche Belege",
+    noSimilar: "Keine ähnlichen Belege gefunden",
+    consistentPattern: "Konsistentes Buchungsmuster",
+    varyingPattern: "Wechselnde Kontierung bei diesem Lieferanten",
+    keyboardShortcuts: "Tastenkürzel: ← Vorheriger, → Nächster, A Genehmigen, R Ablehnen",
+  },
+
   // Document list
   documentList: {
     escalation: "Eskalation",
