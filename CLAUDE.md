@@ -19,4 +19,5 @@ Buchhaltungsautomatisierung für Schweizer KMU. Verarbeitet Eingangsrechnungen v
 - `.env` niemals committen
 
 ## Aktueller Stand
-Phase 6.9 abgeschlossen. 14 Prisma-Models, 35+ API-Routes, 34 Unit-Tests, 8 Seiten.
+Phase 7 komplett. 22 Prisma-Models, 63 API-Routes, 40 Tests, 24 Seiten.
+Nächste Phase: Phase 8 (Autopilot + Intelligence).

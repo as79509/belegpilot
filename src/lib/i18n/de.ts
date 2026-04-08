@@ -289,7 +289,7 @@ export const de = {
     taskTypes: {
       missing_document: "Fehlender Beleg", review_needed: "Review nötig",
       check_private_use: "Privatanteil prüfen", check_asset: "Anlageverdacht",
-      check_vat: "MwSt prüfen", upload_contract: "Vertrag hochladen", custom: "Individuell",
+      check_vat: "MwSt prüfen", upload_contract: "Vertrag hochladen", message: "Nachricht", custom: "Individuell",
     } as Record<string, string>,
     priorities: { low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend" } as Record<string, string>,
     statusLabels: { open: "Offen", in_progress: "In Bearbeitung", done: "Erledigt", cancelled: "Abgebrochen" } as Record<string, string>,
@@ -731,6 +731,48 @@ export const de = {
     noData: "—",
     system: "System",
     all: "Alle",
+  },
+
+  // Messages
+  messages: {
+    send: "Nachricht senden",
+    templates: {
+      missing_document: "Fehlender Beleg",
+      unclear_receipt: "Unklarer Beleg",
+      missing_contract: "Fehlender Vertrag",
+      check_private_use: "Privatanteil prüfen",
+      confirmation_needed: "Bestätigung nötig",
+      custom: "Freie Nachricht",
+    } as Record<string, string>,
+    recipient: "Empfänger",
+    subject: "Betreff",
+    body: "Nachricht",
+    sent: "Gesendet",
+    notSent: "Nicht gesendet",
+  },
+
+  // Reports
+  reports: {
+    title: "Berichte",
+    monthlyOverview: "Monatsübersicht",
+    vatSummary: "MwSt-Zusammenfassung",
+    clientComparison: "Mandantenvergleich",
+    documentsTotal: "Belege gesamt",
+    autoApproved: "Automatisch genehmigt",
+    manualReview: "Manuell geprüft",
+    failed: "Fehlgeschlagen",
+    avgConfidence: "Ø Konfidenz",
+    totalAmount: "Gesamtbetrag",
+    topSuppliers: "Top Lieferanten",
+    quarter: "Quartal",
+    vatRate: "MwSt-Satz",
+    netAmount: "Netto",
+    vatAmount: "MwSt",
+    grossAmount: "Brutto",
+    documentCount: "Belege",
+    noData: "Keine Daten für diesen Zeitraum",
+    openTasks: "Offene Pendenzen",
+    monthStatus: "Monatsstatus",
   },
 
   // Relative time

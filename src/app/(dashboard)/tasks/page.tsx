@@ -13,7 +13,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, ListTodo, Loader2 } from "lucide-react";
+import { Plus, ListTodo, Loader2, Send, Mail } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { de } from "@/lib/i18n/de";
 import { formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
@@ -23,13 +24,24 @@ const PRIO_COLORS: Record<string, string> = {
   medium: "bg-blue-100 text-blue-800", low: "bg-gray-100 text-gray-800",
 };
 
+const MESSAGE_TEMPLATES: Record<string, { subject: string; body: string }> = {
+  missing_document: { subject: "Fehlender Beleg", body: "Guten Tag, für den Monat {monat} fehlt uns noch die Rechnung von {lieferant}. Könnten Sie diese bitte hochladen?" },
+  unclear_receipt: { subject: "Unklarer Beleg", body: "Guten Tag, der Beleg {belegnr} von {lieferant} ist unklar. Bitte prüfen Sie: {grund}" },
+  missing_contract: { subject: "Fehlender Vertrag", body: "Guten Tag, uns fehlt der Vertrag zu {lieferant}. Bitte laden Sie diesen hoch." },
+  check_private_use: { subject: "Privatanteil prüfen", body: "Guten Tag, bitte bestätigen Sie den Privatanteil für {beschreibung}." },
+  confirmation_needed: { subject: "Bestätigung nötig", body: "Guten Tag, bitte bestätigen Sie die Buchung {beschreibung} über {betrag}." },
+  custom: { subject: "", body: "" },
+};
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [msgDialogOpen, setMsgDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("open");
   const [form, setForm] = useState({ title: "", description: "", taskType: "custom", priority: "medium", dueDate: "" });
+  const [msgForm, setMsgForm] = useState({ templateType: "missing_document", recipientEmail: "", subject: "", body: "" });
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -63,11 +75,34 @@ export default function TasksPage() {
     fetchTasks();
   }
 
+  function selectTemplate(templateType: string) {
+    const tpl = MESSAGE_TEMPLATES[templateType];
+    setMsgForm((p) => ({ ...p, templateType, subject: tpl?.subject || "", body: tpl?.body || "" }));
+  }
+
+  async function handleSendMessage() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(msgForm),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.messages.sent);
+      setMsgDialogOpen(false);
+      setMsgForm({ templateType: "missing_document", recipientEmail: "", subject: "", body: "" });
+      fetchTasks();
+    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{de.tasksMgmt.title}</h1>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />{de.tasksMgmt.newTask}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { selectTemplate("missing_document"); setMsgDialogOpen(true); }}><Send className="h-4 w-4 mr-2" />{de.messages.send}</Button>
+          <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />{de.tasksMgmt.newTask}</Button>
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -91,6 +126,7 @@ export default function TasksPage() {
                 <TableHead>Priorität</TableHead>
                 <TableHead>{de.tasksMgmt.dueDate}</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {tasks.map((t: any) => (
@@ -105,6 +141,9 @@ export default function TasksPage() {
                           {de.tasksMgmt.statusLabels[t.status] || t.status}
                         </Badge>
                       </button>
+                    </TableCell>
+                    <TableCell>
+                      {t.messageBody && <span title={t.messageSentAt ? de.messages.sent : de.messages.notSent}><Mail className="h-3.5 w-3.5 text-blue-500" /></span>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -134,6 +173,40 @@ export default function TasksPage() {
           <DialogFooter>
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button onClick={handleSave} disabled={saving || !form.title}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{de.common.save}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Dialog */}
+      <Dialog open={msgDialogOpen} onOpenChange={setMsgDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{de.messages.send}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Template</Label>
+              <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={msgForm.templateType} onChange={(e) => selectTemplate(e.target.value)}>
+                {Object.entries(de.messages.templates).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">{de.messages.recipient}</Label>
+              <Input type="email" placeholder="email@beispiel.ch" value={msgForm.recipientEmail} onChange={(e) => setMsgForm((p) => ({ ...p, recipientEmail: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">{de.messages.subject}</Label>
+              <Input value={msgForm.subject} onChange={(e) => setMsgForm((p) => ({ ...p, subject: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">{de.messages.body}</Label>
+              <Textarea rows={5} value={msgForm.body} onChange={(e) => setMsgForm((p) => ({ ...p, body: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={handleSendMessage} disabled={saving || !msgForm.body}>
+              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+              {de.messages.send}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

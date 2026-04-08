@@ -647,6 +647,8 @@ model Task {
   assignedTo         String?   @map("assigned_to") @db.Uuid
   dueDate            DateTime? @map("due_date")
   source             String    @default("manual")
+  messageBody        String?   @map("message_body") @db.Text
+  messageSentAt      DateTime? @map("message_sent_at")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

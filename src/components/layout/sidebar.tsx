@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo,
+  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -54,6 +54,7 @@ const baseNavGroups: NavGroup[] = [
     items: [
       { href: "/periods", label: de.periods.title, icon: CalendarCheck },
       { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+      { href: "/reports", label: de.reports.title, icon: BarChart3 },
     ],
   },
   {
