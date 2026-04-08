@@ -1,23 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { logAudit } from "@/lib/services/audit/audit-service";
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  open: ["incomplete", "review_ready"],
+  incomplete: ["open", "review_ready"],
+  review_ready: ["closing", "incomplete"],
+  closing: ["closed", "review_ready"],
+  closed: ["locked"],
+  locked: ["closed"],
+};
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     const { id } = await params;
+
+    const period = await prisma.monthlyPeriod.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!period) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
     const body = await req.json();
-    const fields = ["status", "documentsExpected", "recurringGenerated", "depreciationGenerated", "vatChecked", "exportCompleted", "notes"];
     const data: Record<string, any> = {};
-    for (const f of fields) { if (body[f] !== undefined) data[f] = body[f]; }
-    if (body.status === "locked") {
-      if (!["admin", "trustee"].includes(ctx.session.user.role))
-        return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
-      data.closedAt = new Date();
-      data.closedBy = ctx.session.user.id;
+
+    // Handle status transition
+    if (body.status && body.status !== period.status) {
+      const currentStatus = period.status;
+      const newStatus = body.status;
+
+      // Check if transition is valid
+      const allowed = VALID_TRANSITIONS[currentStatus];
+      if (!allowed || !allowed.includes(newStatus)) {
+        return NextResponse.json(
+          { error: `Ungültiger Status-Übergang: ${currentStatus} → ${newStatus}` },
+          { status: 400 }
+        );
+      }
+
+      // locked/closed transitions require admin/trustee
+      if (currentStatus === "locked" || newStatus === "locked" || newStatus === "closed") {
+        if (!["admin", "trustee"].includes(ctx.session.user.role)) {
+          return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+        }
+      }
+
+      data.status = newStatus;
+
+      if (newStatus === "locked" || newStatus === "closed") {
+        data.closedAt = new Date();
+        data.closedBy = ctx.session.user.id;
+      }
+
+      // Audit log for status change
+      const action = newStatus === "locked"
+        ? "period_locked"
+        : currentStatus === "locked"
+          ? "period_unlocked"
+          : "period_status_changed";
+
+      await logAudit({
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
+        action,
+        entityType: "monthly_period",
+        entityId: id,
+        changes: { status: { before: currentStatus, after: newStatus } },
+      });
     }
+
+    // Allow updating other fields
+    const otherFields = ["documentsExpected", "recurringGenerated", "depreciationGenerated", "vatChecked", "exportCompleted", "notes"];
+    for (const f of otherFields) {
+      if (body[f] !== undefined) data[f] = body[f];
+    }
+
     const updated = await prisma.monthlyPeriod.update({ where: { id }, data });
     return NextResponse.json(updated);
-  } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

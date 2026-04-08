@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
 
 export async function POST(
   _request: NextRequest,
@@ -23,6 +24,14 @@ export async function POST(
 
     if (!document) {
       return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    // Check period lock
+    if (document.invoiceDate) {
+      const lock = await checkPeriodLock(ctx.companyId, new Date(document.invoiceDate));
+      if (lock.locked) {
+        return NextResponse.json({ error: lock.message }, { status: 409 });
+      }
     }
 
     const updated = await prisma.document.update({

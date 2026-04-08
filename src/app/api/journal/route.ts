@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
 
 export async function GET(request: NextRequest) {
   const ctx = await getActiveCompany();
@@ -41,6 +42,15 @@ export async function POST(request: NextRequest) {
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
     const body = await request.json();
+
+    // Check period lock
+    if (body.entryDate) {
+      const lock = await checkPeriodLock(ctx.companyId, new Date(body.entryDate));
+      if (lock.locked) {
+        return NextResponse.json({ error: lock.message }, { status: 409 });
+      }
+    }
+
     const entry = await prisma.journalEntry.create({
       data: {
         companyId: ctx.companyId,

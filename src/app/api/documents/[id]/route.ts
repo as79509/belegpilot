@@ -8,6 +8,7 @@ import {
   computeCompositeConfidence,
 } from "@/lib/services/validation/confidence";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
+import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
 
 const EDITABLE_FIELDS = [
   "supplierNameRaw",
@@ -79,6 +80,14 @@ export async function PATCH(
     });
     if (!document) {
       return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    // Check period lock
+    if (document.invoiceDate) {
+      const lock = await checkPeriodLock(ctx.companyId, new Date(document.invoiceDate));
+      if (lock.locked) {
+        return NextResponse.json({ error: lock.message }, { status: 409 });
+      }
     }
 
     // Build update from allowed fields only

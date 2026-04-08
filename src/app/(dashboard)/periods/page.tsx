@@ -5,9 +5,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarCheck, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogClose,
+} from "@/components/ui/dialog";
+import {
+  CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle,
+  MessageSquare, Loader2, Unlock,
+} from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
+import Link from "next/link";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-100 text-blue-800", incomplete: "bg-amber-100 text-amber-800",
@@ -21,6 +30,12 @@ export default function PeriodsPage() {
   const [periods, setPeriods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<any>(null);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const fetchPeriods = useCallback(async () => {
     setLoading(true);
@@ -32,17 +47,76 @@ export default function PeriodsPage() {
 
   useEffect(() => { fetchPeriods(); }, [fetchPeriods]);
 
-  async function lockPeriod(period: any) {
-    if (!confirm(de.periods.lockConfirm)) return;
-    if (!period.id) {
-      const createRes = await fetch("/api/periods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year: period.year, month: period.month }) });
-      if (!createRes.ok) return;
-      const created = await createRes.json();
-      period = created;
-    }
-    await fetch(`/api/periods/${period.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "locked" }) });
-    toast.success(`${MONTHS[period.month - 1]} gesperrt`);
-    fetchPeriods();
+  async function openDetail(p: any) {
+    setSelectedPeriod(p);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setNote(p.notes || "");
+    try {
+      // Ensure period exists in DB
+      let periodId = p.id;
+      if (!periodId) {
+        const createRes = await fetch("/api/periods", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ year: p.year, month: p.month }),
+        });
+        if (createRes.ok) {
+          const created = await createRes.json();
+          periodId = created.id;
+          setSelectedPeriod(created);
+        }
+      }
+      if (periodId) {
+        const res = await fetch(`/api/periods/${periodId}/detail`);
+        if (res.ok) setDetail(await res.json());
+      }
+    } catch (err) {
+      console.error("[Periods] Detail load error:", err);
+    } finally { setDetailLoading(false); }
+  }
+
+  async function changeStatus(newStatus: string) {
+    if (!selectedPeriod?.id) return;
+    if (newStatus === "locked" && !confirm(de.periods.lockConfirm)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/periods/${selectedPeriod.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || de.errors.serverError);
+        return;
+      }
+      const updated = await res.json();
+      setSelectedPeriod(updated);
+      toast.success(de.periodDetail.statusChanged);
+      fetchPeriods();
+      // Reload detail
+      const detailRes = await fetch(`/api/periods/${updated.id}/detail`);
+      if (detailRes.ok) setDetail(await detailRes.json());
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  }
+
+  async function saveNote() {
+    if (!selectedPeriod?.id) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/periods/${selectedPeriod.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: note }),
+      });
+      if (res.ok) {
+        toast.success(de.settings.saved);
+        const updated = await res.json();
+        setSelectedPeriod(updated);
+      }
+    } catch {} finally { setSaving(false); }
   }
 
   return (
@@ -59,7 +133,11 @@ export default function PeriodsPage() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {periods.map((p: any) => (
-            <Card key={p.month} className={p.status === "locked" ? "opacity-60" : ""}>
+            <Card
+              key={p.month}
+              className={`cursor-pointer hover:ring-2 hover:ring-blue-300 transition-shadow ${p.status === "locked" ? "opacity-60" : ""}`}
+              onClick={() => openDetail(p)}
+            >
               <CardContent className="pt-3 pb-2 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{MONTHS[p.month - 1]}</span>
@@ -89,17 +167,191 @@ export default function PeriodsPage() {
                 <div className="text-xs text-muted-foreground">
                   {de.periods.documentsProgress}: {p.documentsReceived}/{p.documentsExpected || "?"}
                 </div>
-
-                {p.status !== "locked" && (
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => lockPeriod(p)}>
-                    <Lock className="h-3 w-3 mr-1" />{de.periods.lock}
-                  </Button>
-                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Period Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <CalendarCheck className="h-5 w-5" />
+              {selectedPeriod && `${MONTHS[selectedPeriod.month - 1]} ${selectedPeriod.year}`}
+              {selectedPeriod && (
+                <Badge variant="secondary" className={`text-xs ${STATUS_COLORS[selectedPeriod.status] || ""}`}>
+                  {selectedPeriod.status === "locked" && <Lock className="h-3 w-3 mr-0.5" />}
+                  {de.periods.status[selectedPeriod.status] || selectedPeriod.status}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : detail ? (
+            <div className="space-y-5">
+              {/* Doc stats bar */}
+              <div>
+                <p className="text-xs font-medium mb-1.5">{de.periodDetail.docStats}</p>
+                <div className="flex gap-3 text-xs">
+                  <span className="text-green-700">{detail.stats.readyDocs} {de.periodDetail.allReady}</span>
+                  <span className="text-orange-700">{detail.stats.needsReviewDocs} Prüfung</span>
+                  <span className="text-red-700">{detail.stats.failedDocs} Fehler</span>
+                  <span className="text-blue-700">{detail.stats.exportedDocs} exportiert</span>
+                </div>
+                {detail.stats.totalDocs > 0 && (
+                  <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 mt-1.5">
+                    <div className="bg-green-500" style={{ width: `${(detail.stats.readyDocs / detail.stats.totalDocs) * 100}%` }} />
+                    <div className="bg-orange-400" style={{ width: `${(detail.stats.needsReviewDocs / detail.stats.totalDocs) * 100}%` }} />
+                    <div className="bg-red-400" style={{ width: `${(detail.stats.failedDocs / detail.stats.totalDocs) * 100}%` }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Live checklist */}
+              <div>
+                <p className="text-xs font-medium mb-1.5">{de.periodDetail.checklist}</p>
+                <div className="space-y-1.5">
+                  {detail.checklist.map((item: any) => (
+                    <div key={item.key} className={`flex items-center gap-2 text-sm p-1.5 rounded ${!item.done ? "bg-red-50" : ""}`}>
+                      {item.done
+                        ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        : <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                      <span className={!item.done ? "text-red-700" : ""}>{item.label}</span>
+                      {item.detail && (
+                        <span className="text-xs text-muted-foreground ml-auto">{item.detail}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Blockers */}
+              {detail.blockers.length > 0 ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-800">
+                      {detail.blockers.length} {de.periodDetail.blockerCount}: {de.periodDetail.blockers}
+                    </span>
+                  </div>
+                  <ul className="text-xs text-red-700 space-y-1 ml-6 list-disc">
+                    {detail.blockers.map((b: string, i: number) => <li key={i}>{b}</li>)}
+                  </ul>
+                </div>
+              ) : (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-800">{de.periodDetail.noBlockers}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Missing contract docs */}
+              {detail.missingContractDocs.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium mb-1.5">{de.periodDetail.missingDocs}</p>
+                  <div className="space-y-1">
+                    {detail.missingContractDocs.map((mc: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between text-sm p-1.5 bg-amber-50 rounded">
+                        <span className="text-amber-800">{mc.contractName} ({mc.counterparty})</span>
+                        <Link href={`/tasks/new?title=${encodeURIComponent(mc.contractName + " fehlt")}`}>
+                          <Button variant="ghost" size="sm" className="text-xs h-6">
+                            <MessageSquare className="h-3 w-3 mr-1" />{de.periodDetail.askClient}
+                          </Button>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Open tasks */}
+              {detail.openTasks.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium mb-1.5">{de.periodDetail.openTasksForPeriod}</p>
+                  <div className="space-y-1">
+                    {detail.openTasks.map((t: any) => (
+                      <Link key={t.id} href={`/tasks`} className="flex items-center gap-2 text-sm p-1.5 hover:bg-muted rounded">
+                        <Badge variant="outline" className="text-xs">{de.tasksMgmt.priorities[t.priority] || t.priority}</Badge>
+                        <span>{t.title}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <p className="text-xs font-medium mb-1.5">{de.periodDetail.addNote}</p>
+                <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={de.periods.notes} />
+                <Button variant="outline" size="sm" className="mt-1.5" onClick={saveNote} disabled={saving}>
+                  {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                  {de.common.save}
+                </Button>
+              </div>
+
+              {/* Status change dropdown */}
+              <div>
+                <p className="text-xs font-medium mb-1.5">Status ändern</p>
+                <select
+                  className="border rounded-md px-3 py-1.5 text-sm bg-white w-full"
+                  value={selectedPeriod?.status || "open"}
+                  onChange={(e) => changeStatus(e.target.value)}
+                  disabled={saving}
+                >
+                  {Object.entries(de.periods.status).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                {detail.blockers.length === 0 && selectedPeriod?.status !== "closed" && selectedPeriod?.status !== "locked" && (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => changeStatus("closed")}
+                    disabled={saving}
+                  >
+                    {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                    <CheckCircle2 className="h-4 w-4 mr-1" />{de.periodDetail.closePeriod}
+                  </Button>
+                )}
+                {selectedPeriod?.status === "closed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => changeStatus("locked")}
+                    disabled={saving}
+                  >
+                    <Lock className="h-4 w-4 mr-1" />{de.periodDetail.lockPeriod}
+                  </Button>
+                )}
+                {selectedPeriod?.status === "locked" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => changeStatus("closed")}
+                    disabled={saving}
+                  >
+                    <Unlock className="h-4 w-4 mr-1" />{de.periodDetail.unlockPeriod}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

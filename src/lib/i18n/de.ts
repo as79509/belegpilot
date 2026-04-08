@@ -282,6 +282,32 @@ export const de = {
     notes: "Notizen",
   },
 
+  // Period detail
+  periodDetail: {
+    title: "Monatsdetail",
+    checklist: "Abschluss-Checkliste",
+    blockers: "Blocker verhindern den Abschluss",
+    missingDocs: "Fehlende Standardbelege",
+    askClient: "Mandant anfragen",
+    openTasksForPeriod: "Offene Pendenzen",
+    docStats: "Beleg-Statistik",
+    closePeriod: "Periode abschliessen",
+    closeConfirm: "Periode abschliessen? Alle Checklisten-Punkte sind erfüllt.",
+    lockPeriod: "Periode sperren",
+    unlockPeriod: "Periode entsperren",
+    addNote: "Notiz hinzufügen",
+    periodLocked: "Periode ist gesperrt — Änderungen nicht möglich",
+    invalidTransition: "Ungültiger Status-Übergang",
+    allReady: "bereit",
+    docsReady: "Belege bereit",
+    noBlockers: "Keine Blocker — bereit zum Abschluss",
+    blockerCount: "Blocker",
+    statusChanged: "Status geändert",
+    generated: "erzeugt",
+    missing: "fehlen",
+    escalated: "eskaliert",
+  },
+
   // Tasks
   tasksMgmt: {
     title: "Pendenzen",
@@ -625,6 +651,9 @@ export const de = {
       company_settings_updated: "Firmeneinstellungen aktualisiert",
       document_exported_bexio: "Beleg an Bexio exportiert",
       document_bulk_approved: "Beleg per Bulk-Aktion genehmigt",
+      period_status_changed: "Periodenstatus geändert",
+      period_locked: "Periode gesperrt",
+      period_unlocked: "Periode entsperrt",
       system_error: "Systemfehler",
     } as Record<string, string>,
   },
