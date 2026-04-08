@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET(request: NextRequest) {
   const ctx = await getActiveCompany();
@@ -51,6 +52,8 @@ export async function POST(request: NextRequest) {
         reminderDays: body.reminderDays ?? 30,
       },
     });
+
+    await logAudit({ companyId: ctx.companyId, userId: ctx.session.user.id, action: "contract_created", entityType: "contract", entityId: contract.id });
 
     return NextResponse.json(contract, { status: 201 });
   } catch (error: any) {

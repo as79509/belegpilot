@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap } from "lucide-react";
+import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
@@ -46,6 +46,10 @@ export default function RulesPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRuleName, setHistoryRuleName] = useState("");
 
   // Quick rule state
   const [quickSupplier, setQuickSupplier] = useState("");
@@ -150,6 +154,19 @@ export default function RulesPage() {
     if (!deleteId) return;
     await fetch(`/api/rules/${deleteId}`, { method: "DELETE" });
     toast.success(de.rules.deleteSuccess); setDeleteId(null); fetchData();
+  }
+
+  async function openHistory(rule: Rule) {
+    setHistoryRuleName(rule.name);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/audit-log/entity?entityType=rule&entityId=${rule.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryEntries(data.entries || []);
+      }
+    } catch {} finally { setHistoryLoading(false); }
   }
 
   async function toggleActive(rule: Rule) {
@@ -291,6 +308,9 @@ export default function RulesPage() {
                       </Badge>
                     </button>
                     <div className="flex-1" />
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(rule)} title={de.auditLogExtended.history}>
+                      <History className="h-3 w-3" />
+                    </Button>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openExpertEdit(rule)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
@@ -380,6 +400,48 @@ export default function RulesPage() {
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button variant="destructive" onClick={handleDelete}>{de.common.delete}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{de.auditLogExtended.history}: {historyRuleName}</DialogTitle>
+          </DialogHeader>
+          {historyLoading ? (
+            <div className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
+          ) : historyEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">{de.auditLogExtended.noChanges}</p>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {historyEntries.map((entry: any) => (
+                <div key={entry.id} className="border rounded p-2 text-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(entry.createdAt).toLocaleString("de-CH")}
+                    </span>
+                    <span className="text-xs">{entry.user?.name || "System"}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs mb-1">
+                    {de.auditLog.actions[entry.action] || entry.action}
+                  </Badge>
+                  {entry.changes && (
+                    <div className="mt-1 space-y-0.5">
+                      {Object.entries(entry.changes).map(([field, change]: [string, any]) => (
+                        <div key={field} className="text-xs">
+                          <span className="font-medium">{field}: </span>
+                          <span className="text-red-600">{JSON.stringify(change.before)}</span>
+                          <span className="text-muted-foreground"> → </span>
+                          <span className="text-green-600">{JSON.stringify(change.after)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

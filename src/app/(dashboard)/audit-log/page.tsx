@@ -9,6 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { de } from "@/lib/i18n/de";
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, ScrollText } from "lucide-react";
 
@@ -20,6 +21,7 @@ export default function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [actionFilter, setActionFilter] = useState("");
+  const [entityTypeFilter, setEntityTypeFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -29,6 +31,7 @@ export default function AuditLogPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: "50" });
     if (actionFilter) params.set("action", actionFilter);
+    if (entityTypeFilter) params.set("entityType", entityTypeFilter);
     if (userFilter) params.set("userId", userFilter);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
@@ -46,12 +49,12 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter, userFilter, dateFrom, dateTo]);
+  }, [page, actionFilter, entityTypeFilter, userFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   function clearFilters() {
-    setActionFilter(""); setUserFilter(""); setDateFrom(""); setDateTo(""); setPage(1);
+    setActionFilter(""); setEntityTypeFilter(""); setUserFilter(""); setDateFrom(""); setDateTo(""); setPage(1);
   }
 
   function formatTimestamp(ts: string) {
@@ -59,7 +62,7 @@ export default function AuditLogPage() {
     return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   }
 
-  const hasFilters = actionFilter || userFilter || dateFrom || dateTo;
+  const hasFilters = actionFilter || entityTypeFilter || userFilter || dateFrom || dateTo;
 
   return (
     <div className="space-y-6">
@@ -83,9 +86,18 @@ export default function AuditLogPage() {
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">{de.auditLog.action}</label>
+          <label className="text-xs text-muted-foreground">{de.auditLogExtended.filterEntity}</label>
+          <select value={entityTypeFilter} onChange={(e) => { setEntityTypeFilter(e.target.value); setPage(1); }} className="border rounded-md px-3 py-1.5 text-sm bg-white w-44">
+            <option value="">{de.auditLogExtended.allEntities}</option>
+            {Object.entries(de.auditLogExtended.entityTypes).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground">{de.auditLogExtended.filterAction}</label>
           <select value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(1); }} className="border rounded-md px-3 py-1.5 text-sm bg-white w-48">
-            <option value="">Alle Aktionen</option>
+            <option value="">{de.auditLogExtended.allActions}</option>
             {Object.entries(de.auditLog.actions).map(([key, label]) => (
               <option key={key} value={key}>{label}</option>
             ))}
@@ -127,7 +139,7 @@ export default function AuditLogPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{de.auditLog.timestamp}</TableHead>
-                  <TableHead>Belegnr.</TableHead>
+                  <TableHead>{de.auditLogExtended.filterEntity}</TableHead>
                   <TableHead>{de.auditLog.user}</TableHead>
                   <TableHead>{de.auditLog.action}</TableHead>
                   <TableHead>{de.auditLog.details}</TableHead>
@@ -138,17 +150,15 @@ export default function AuditLogPage() {
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="text-xs whitespace-nowrap">{formatTimestamp(entry.createdAt)}</TableCell>
-                    <TableCell className="text-xs font-mono">
-                      {entry.documentNumber ? (
-                        <button type="button" className="text-blue-600 hover:underline" onClick={() => router.push(`/documents/${entry.entityId}`)}>
-                          {entry.documentNumber}
-                        </button>
-                      ) : de.common.noData}
+                    <TableCell className="text-xs">
+                      <Badge variant="outline" className="text-xs">
+                        {de.auditLogExtended.entityTypes[entry.entityType] || entry.entityType}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{entry.user?.name || "System"}</TableCell>
                     <TableCell className="text-xs">{de.auditLog.actions[entry.action] || entry.action}</TableCell>
                     <TableCell className="text-xs max-w-[200px] truncate">
-                      {entry.changes ? `${Object.keys(entry.changes).length} Felder` : ""}
+                      {entry.changes ? `${Object.keys(entry.changes).length} ${de.auditLogExtended.changes}` : ""}
                     </TableCell>
                     <TableCell>
                       {entry.changes && (

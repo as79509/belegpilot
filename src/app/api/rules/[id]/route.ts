@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
+import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
 
 export async function GET(
   _request: NextRequest,
@@ -39,7 +40,9 @@ export async function PATCH(
       if (body[f] !== undefined) updateData[f] = body[f];
     }
 
+    const changes = computeChanges(rule as any, updateData, Object.keys(updateData));
     const updated = await prisma.rule.update({ where: { id }, data: updateData });
+    await logAudit({ companyId: ctx.companyId, userId: ctx.session.user.id, action: "rule_updated", entityType: "rule", entityId: id, changes });
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -62,5 +65,6 @@ export async function DELETE(
   if (!rule) return NextResponse.json({ error: "Regel nicht gefunden" }, { status: 404 });
 
   await prisma.rule.delete({ where: { id } });
+  await logAudit({ companyId: ctx.companyId, userId: ctx.session.user.id, action: "rule_deleted", entityType: "rule", entityId: id });
   return NextResponse.json({ success: true });
 }

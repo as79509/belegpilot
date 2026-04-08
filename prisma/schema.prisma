@@ -163,6 +163,7 @@ model User {
   journalEntries     JournalEntry[] @relation("JournalEntryCreator")
   closedPeriods      MonthlyPeriod[] @relation("PeriodClosedBy")
   assignedTasks      Task[]         @relation("TaskAssignee")
+  editedKnowledge    KnowledgeItem[] @relation("KnowledgeEditor")
   userCompanies     UserCompany[]
 
   @@map("users")
@@ -567,10 +568,17 @@ model KnowledgeItem {
   priority        Int      @default(0)
   isActive        Boolean  @default(true) @map("is_active")
   usableByAi      Boolean  @default(true) @map("usable_by_ai")
+  validFrom       DateTime?  @map("valid_from")
+  validUntil      DateTime?  @map("valid_until")
+  documentType    String?    @map("document_type")
+  isGlobal        Boolean    @default(false) @map("is_global")
+  version         Int        @default(1)
+  lastEditedBy    String?    @map("last_edited_by") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id])
+  editor  User?   @relation("KnowledgeEditor", fields: [lastEditedBy], references: [id])
 
   @@index([companyId, category])
   @@map("knowledge_items")

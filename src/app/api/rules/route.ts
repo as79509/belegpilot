@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
   const ctx = await getActiveCompany();
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
       },
     });
+
+    await logAudit({ companyId: ctx2.companyId, userId: ctx2.session.user.id, action: "rule_created", entityType: "rule", entityId: rule.id });
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error: any) {

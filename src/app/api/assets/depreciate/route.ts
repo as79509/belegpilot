@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST() {
   try {
@@ -61,6 +62,14 @@ export async function POST() {
 
       count++;
       totalAmount += monthly;
+    }
+
+    if (count > 0) {
+      await logAudit({
+        companyId: ctx.companyId, userId: ctx.session.user.id,
+        action: "depreciation_generated", entityType: "asset", entityId: "batch",
+        changes: { count: { before: null, after: count }, totalAmount: { before: null, after: Math.round(totalAmount * 100) / 100 } },
+      });
     }
 
     return NextResponse.json({ depreciated: count, totalAmount: Math.round(totalAmount * 100) / 100 });
