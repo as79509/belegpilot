@@ -137,6 +137,7 @@ model Company {
   assets            Asset[]
   escalationRules   EscalationRule[]
   knowledgeItems    KnowledgeItem[]
+  contracts         Contract[]
 
   @@map("companies")
 }
@@ -320,6 +321,7 @@ model Supplier {
 
   company   Company    @relation(fields: [companyId], references: [id])
   documents Document[]
+  contracts Contract[]
 
   @@index([companyId, nameNormalized])
   @@index([companyId, vatNumber])
@@ -520,7 +522,8 @@ model Asset {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id])
+  company   Company    @relation(fields: [companyId], references: [id])
+  contracts Contract[]
 
   @@index([companyId, status])
   @@index([companyId, category])
@@ -561,4 +564,38 @@ model KnowledgeItem {
 
   @@index([companyId, category])
   @@map("knowledge_items")
+}
+
+model Contract {
+  id               String    @id @default(uuid()) @db.Uuid
+  companyId        String    @map("company_id") @db.Uuid
+  name             String
+  contractType     String    @map("contract_type")
+  counterparty     String
+  startDate        DateTime  @map("start_date")
+  endDate          DateTime? @map("end_date")
+  noticePeriod     String?   @map("notice_period")
+  autoRenew        Boolean   @default(false) @map("auto_renew")
+  monthlyAmount    Decimal   @map("monthly_amount") @db.Decimal(12, 2)
+  currency         String    @default("CHF") @db.VarChar(3)
+  frequency        String
+  debitAccount     String?   @map("debit_account")
+  vatRate          Float?    @map("vat_rate")
+  linkedSupplierId String?   @map("linked_supplier_id") @db.Uuid
+  linkedAssetId    String?   @map("linked_asset_id") @db.Uuid
+  depositAmount    Decimal?  @map("deposit_amount") @db.Decimal(12, 2)
+  notes            String?   @db.Text
+  status           String    @default("active")
+  reminderDays     Int       @default(30) @map("reminder_days")
+  lastInvoiceDate  DateTime? @map("last_invoice_date")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  supplier Supplier? @relation(fields: [linkedSupplierId], references: [id])
+  asset    Asset?    @relation(fields: [linkedAssetId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, contractType])
+  @@map("contracts")
 }

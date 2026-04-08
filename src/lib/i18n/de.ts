@@ -232,6 +232,38 @@ export const de = {
     totalBookValue: "Total Buchwert",
   },
 
+  // Contracts
+  contracts: {
+    title: "Verträge & Fristen",
+    newContract: "Neuer Vertrag",
+    name: "Bezeichnung",
+    contractType: "Vertragstyp",
+    types: {
+      rent: "Miete", lease: "Leasing", insurance: "Versicherung",
+      software: "Software-Abo", telecom: "Telekommunikation",
+      maintenance: "Wartung", cleaning: "Reinigung", loan: "Darlehen", other: "Sonstiges",
+    } as Record<string, string>,
+    counterparty: "Vertragspartner",
+    startDate: "Beginn",
+    endDate: "Ende",
+    noticePeriod: "Kündigungsfrist",
+    autoRenew: "Auto-Verlängerung",
+    monthlyAmount: "Monatsbetrag",
+    frequency: "Frequenz",
+    reminderDays: "Erinnerung (Tage vor Ablauf)",
+    checkCompleteness: "Vollständigkeit prüfen",
+    overdue: "überfällige Rechnungen",
+    expiring: "Verträge laufen aus",
+    allComplete: "Alles vollständig",
+    noContracts: "Noch keine Verträge erfasst",
+    lastInvoice: "Letzte Rechnung",
+    received: "Erhalten",
+    pending: "Ausstehend",
+    daysOverdue: "Tage überfällig",
+    expiringIn: "Läuft ab in",
+    saveSuccess: "Vertrag gespeichert",
+  },
+
   // Journal
   journal: {
     title: "Buchungsjournal",
