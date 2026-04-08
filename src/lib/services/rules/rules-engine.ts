@@ -54,10 +54,29 @@ function matchCondition(docValue: string | number | null, operator: RuleConditio
 export async function applyRules(
   companyId: string,
   documentId: string,
-  docData: Record<string, any>
+  docData: Record<string, any>,
+  userId?: string
 ): Promise<{ matches: RuleMatch[]; updates: Record<string, any>; shouldAutoApprove: boolean }> {
+  // Load local rules + global rules from all companies the user has access to
+  let globalCompanyIds: string[] = [];
+  if (userId) {
+    const userCompanies = await prisma.userCompany.findMany({
+      where: { userId },
+      select: { companyId: true },
+    });
+    globalCompanyIds = userCompanies.map((uc) => uc.companyId).filter((id) => id !== companyId);
+  }
+
   const rules = await prisma.rule.findMany({
-    where: { companyId, isActive: true },
+    where: {
+      isActive: true,
+      OR: [
+        { companyId },
+        ...(globalCompanyIds.length > 0
+          ? [{ companyId: { in: globalCompanyIds }, isGlobal: true }]
+          : []),
+      ],
+    },
     orderBy: { priority: "desc" },
   });
 

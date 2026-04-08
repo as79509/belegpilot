@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         actions,
         priority: priority ?? 0,
         isActive: isActive ?? true,
+        isGlobal: body.isGlobal ?? false,
       },
     });
 

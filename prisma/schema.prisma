@@ -421,6 +421,7 @@ model Rule {
   actions    Json
   priority   Int      @default(0)
   isActive   Boolean  @default(true) @map("is_active")
+  isGlobal   Boolean  @default(false) @map("is_global")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

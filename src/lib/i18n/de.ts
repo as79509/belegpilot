@@ -729,6 +729,33 @@ export const de = {
     version: "Version",
   },
 
+  // Rule templates
+  ruleTemplates: {
+    title: "Regel-Vorlagen",
+    description: "Vordefinierte Regeln mit einem Klick aktivieren",
+    activate: "Aktivieren",
+    alreadyActive: "Bereits aktiv",
+    activated: "Regel aktiviert",
+    category: { supplier: "Lieferant", amount: "Betrag", document_type: "Belegtyp", vat: "MwSt" } as Record<string, string>,
+  },
+
+  // Escalation defaults
+  escalationDefaults: {
+    activateDefaults: "Standard-Eskalationen aktivieren",
+    activated: "Standard-Eskalationen aktiviert",
+    alreadyExist: "bereits vorhanden",
+    created: "neu erstellt",
+  },
+
+  // Global rules
+  globalRules: {
+    global: "Global",
+    localOnly: "Nur lokal",
+    globalOnly: "Nur global",
+    allRules: "Alle Regeln",
+    globalHint: "Gilt für alle Mandanten des Treuhänders",
+  },
+
   // Review cockpit
   reviewCockpit: {
     previous: "Vorheriger",

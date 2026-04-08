@@ -36,7 +36,7 @@ export async function PATCH(
 
     const body = await request.json();
     const updateData: Record<string, any> = {};
-    for (const f of ["name", "conditions", "actions", "priority", "isActive"]) {
+    for (const f of ["name", "conditions", "actions", "priority", "isActive", "isGlobal"]) {
       if (body[f] !== undefined) updateData[f] = body[f];
     }
 

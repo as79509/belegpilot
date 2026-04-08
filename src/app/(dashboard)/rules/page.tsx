@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History } from "lucide-react";
+import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History, Globe, BookTemplate } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
@@ -58,11 +58,19 @@ export default function RulesPage() {
   const [quickCreating, setQuickCreating] = useState(false);
   const [supplierOptions, setSupplierOptions] = useState<{ id: string; name: string }[]>([]);
 
+  // Global filter
+  const [globalFilter, setGlobalFilter] = useState<"all" | "global" | "local">("all");
+
+  // Template dialog
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+
   // Expert form state
   const [formName, setFormName] = useState("");
   const [formType, setFormType] = useState("category_mapping");
   const [formPriority, setFormPriority] = useState(0);
   const [formActive, setFormActive] = useState(true);
+  const [formGlobal, setFormGlobal] = useState(false);
   const [formConditions, setFormConditions] = useState<any[]>([{ field: "supplierName", operator: "contains", value: "" }]);
   const [formActions, setFormActions] = useState<any[]>([{ type: "set_category", value: "" }]);
 
@@ -124,6 +132,7 @@ export default function RulesPage() {
   function openExpertEdit(rule: Rule) {
     setEditingId(rule.id);
     setFormName(rule.name); setFormType(rule.ruleType); setFormPriority(rule.priority); setFormActive(rule.isActive);
+    setFormGlobal((rule as any).isGlobal || false);
     setFormConditions(rule.conditions.length > 0 ? [...rule.conditions] : [{ field: "supplierName", operator: "contains", value: "" }]);
     setFormActions(rule.actions.length > 0 ? [...rule.actions] : [{ type: "set_category", value: "" }]);
     setDialogOpen(true);
@@ -131,7 +140,7 @@ export default function RulesPage() {
 
   function openExpertNew() {
     setEditingId(null);
-    setFormName(""); setFormType("category_mapping"); setFormPriority(0); setFormActive(true);
+    setFormName(""); setFormType("category_mapping"); setFormPriority(0); setFormActive(true); setFormGlobal(false);
     setFormConditions([{ field: "supplierName", operator: "contains", value: "" }]);
     setFormActions([{ type: "set_category", value: "" }]);
     setDialogOpen(true);
@@ -140,7 +149,7 @@ export default function RulesPage() {
   async function handleExpertSave() {
     setSaving(true);
     try {
-      const body = { name: formName, ruleType: formType, priority: formPriority, isActive: formActive, conditions: formConditions, actions: formActions };
+      const body = { name: formName, ruleType: formType, priority: formPriority, isActive: formActive, isGlobal: formGlobal, conditions: formConditions, actions: formActions };
       const url = editingId ? `/api/rules/${editingId}` : "/api/rules";
       const res = await fetch(url, { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -167,6 +176,27 @@ export default function RulesPage() {
         setHistoryEntries(data.entries || []);
       }
     } catch {} finally { setHistoryLoading(false); }
+  }
+
+  async function openTemplates() {
+    setTemplateDialogOpen(true);
+    try {
+      const res = await fetch("/api/rules/templates");
+      if (res.ok) setTemplates(await res.json());
+    } catch {}
+  }
+
+  async function activateTemplate(templateId: string) {
+    try {
+      const res = await fetch("/api/rules/templates", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.ruleTemplates.activated);
+      openTemplates(); // Refresh
+      fetchData();
+    } catch (err: any) { toast.error(err.message); }
   }
 
   async function toggleActive(rule: Rule) {
@@ -277,9 +307,19 @@ export default function RulesPage() {
             <Workflow className="h-4 w-4" />{de.rules.activeRules}
             <Badge variant="secondary" className="text-xs">{rules.length}</Badge>
           </h2>
-          <Button variant="outline" size="sm" onClick={openExpertNew}>
-            {de.rules.expertMode}
-          </Button>
+          <div className="flex gap-2 items-center">
+            <select className="border rounded-md px-2 py-1 text-xs bg-white" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value as any)}>
+              <option value="all">{de.globalRules.allRules}</option>
+              <option value="global">{de.globalRules.globalOnly}</option>
+              <option value="local">{de.globalRules.localOnly}</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={openTemplates}>
+              <BookTemplate className="h-3.5 w-3.5 mr-1" />{de.ruleTemplates.title}
+            </Button>
+            <Button variant="outline" size="sm" onClick={openExpertNew}>
+              {de.rules.expertMode}
+            </Button>
+          </div>
         </div>
 
         {rules.length === 0 ? (
@@ -291,14 +331,17 @@ export default function RulesPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {rules.map((rule) => (
+            {rules.filter((r) => globalFilter === "all" ? true : globalFilter === "global" ? (r as any).isGlobal : !(r as any).isGlobal).map((rule) => (
               <Card key={rule.id} className={rule.isActive ? "" : "opacity-50"}>
                 <CardContent className="py-3">
                   <div className="flex items-start justify-between mb-1">
                     <span className="font-medium text-sm">{rule.name}</span>
-                    <Badge variant="secondary" className="text-xs shrink-0 ml-2">
-                      {de.rules.types[rule.ruleType] || rule.ruleType}
-                    </Badge>
+                    <div className="flex gap-1 shrink-0 ml-2">
+                      {(rule as any).isGlobal && <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800"><Globe className="h-2.5 w-2.5 mr-0.5" />{de.globalRules.global}</Badge>}
+                      <Badge variant="secondary" className="text-xs">
+                        {de.rules.types[rule.ruleType] || rule.ruleType}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">{readableRule(rule)}</p>
                   <div className="flex items-center gap-2">
@@ -342,9 +385,15 @@ export default function RulesPage() {
               <div><Label className="text-xs">{de.rules.priority}</Label>
                 <Input type="number" value={formPriority} onChange={(e) => setFormPriority(parseInt(e.target.value) || 0)} /></div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={formActive} onCheckedChange={(c) => setFormActive(!!c)} />{de.rules.active}
-            </label>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={formActive} onCheckedChange={(c) => setFormActive(!!c)} />{de.rules.active}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={formGlobal} onCheckedChange={(c) => setFormGlobal(!!c)} />
+                <Globe className="h-3.5 w-3.5 text-blue-600" />{de.globalRules.global}
+              </label>
+            </div>
             <div>
               <Label className="text-xs font-medium">{de.rules.conditions}</Label>
               <div className="space-y-2 mt-1">
@@ -400,6 +449,34 @@ export default function RulesPage() {
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button variant="destructive" onClick={handleDelete}>{de.common.delete}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{de.ruleTemplates.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{de.ruleTemplates.description}</p>
+          <div className="space-y-2">
+            {templates.map((t: any) => (
+              <div key={t.id} className="flex items-center justify-between p-3 border rounded-md">
+                <div>
+                  <p className="text-sm font-medium">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.description}</p>
+                  <Badge variant="outline" className="text-xs mt-1">
+                    {de.ruleTemplates.category[t.category] || t.category}
+                  </Badge>
+                </div>
+                {t.alreadyActive ? (
+                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">{de.ruleTemplates.alreadyActive}</Badge>
+                ) : (
+                  <Button size="sm" onClick={() => activateTemplate(t.id)}>{de.ruleTemplates.activate}</Button>
+                )}
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
 
