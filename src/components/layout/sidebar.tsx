@@ -54,6 +54,7 @@ const baseNavGroups: NavGroup[] = [
     items: [
       { href: "/periods", label: de.periods.title, icon: CalendarCheck },
       { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+      { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
       { href: "/reports", label: de.reports.title, icon: BarChart3 },
     ],
   },

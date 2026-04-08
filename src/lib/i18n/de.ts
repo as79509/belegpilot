@@ -308,6 +308,29 @@ export const de = {
     escalated: "eskaliert",
   },
 
+  // Expected documents
+  expectedDocs: {
+    title: "Erwartete Unterlagen",
+    checkTitle: "Monatliche Vollständigkeit",
+    check: "Prüfen",
+    newExpected: "Neue erwartete Unterlage",
+    importFromContracts: "Aus Verträgen importieren",
+    imported: "importiert",
+    name: "Bezeichnung",
+    counterparty: "Lieferant/Vertragspartner",
+    expectedAmount: "Erwarteter Betrag",
+    tolerance: "Toleranz (%)",
+    status: { received: "Erhalten", missing: "Fehlend", amount_mismatch: "Betrag abweichend", not_expected: "Nicht erwartet" } as Record<string, string>,
+    actualAmount: "Tatsächlicher Betrag",
+    deviation: "Abweichung",
+    summary: "Zusammenfassung",
+    receivedCount: "erhalten",
+    missingCount: "fehlend",
+    noExpected: "Keine erwarteten Unterlagen definiert",
+    askClient: "Mandant anfragen",
+    linkedContract: "Verknüpfter Vertrag",
+  },
+
   // Tasks
   tasksMgmt: {
     title: "Pendenzen",

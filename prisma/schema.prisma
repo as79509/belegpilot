@@ -137,9 +137,10 @@ model Company {
   assets            Asset[]
   escalationRules   EscalationRule[]
   knowledgeItems    KnowledgeItem[]
-  contracts         Contract[]
-  monthlyPeriods    MonthlyPeriod[]
-  tasks             Task[]
+  contracts          Contract[]
+  expectedDocuments  ExpectedDocument[]
+  monthlyPeriods     MonthlyPeriod[]
+  tasks              Task[]
 
   @@map("companies")
 }
@@ -603,11 +604,33 @@ model Contract {
   company  Company   @relation(fields: [companyId], references: [id])
   supplier     Supplier? @relation(fields: [linkedSupplierId], references: [id])
   asset        Asset?    @relation(fields: [linkedAssetId], references: [id])
-  relatedTasks Task[]    @relation("TaskContract")
+  relatedTasks      Task[]              @relation("TaskContract")
+  expectedDocuments ExpectedDocument[]
 
   @@index([companyId, status])
   @@index([companyId, contractType])
   @@map("contracts")
+}
+
+model ExpectedDocument {
+  id               String    @id @default(uuid()) @db.Uuid
+  companyId        String    @map("company_id") @db.Uuid
+  name             String
+  counterparty     String
+  frequency        String
+  expectedAmount   Decimal?  @map("expected_amount") @db.Decimal(12, 2)
+  tolerancePercent Float?    @default(20) @map("tolerance_percent")
+  debitAccount     String?   @map("debit_account")
+  linkedContractId String?   @map("linked_contract_id") @db.Uuid
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  contract Contract? @relation(fields: [linkedContractId], references: [id])
+
+  @@index([companyId, isActive])
+  @@map("expected_documents")
 }
 
 model MonthlyPeriod {

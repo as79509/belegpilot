@@ -227,7 +227,25 @@ async function main() {
     );
   }
 
-  console.log("Seed complete: 2 companies, 3 users, 3 user-company links, 5 suppliers, 3 rules, 5 contracts, 4 assets, 5 recurring, 3 escalation rules, 3 knowledge items, 5 tasks");
+  // Expected Documents (Demo AG)
+  const expDocCount = await pool.query(`SELECT COUNT(*) FROM expected_documents WHERE company_id = $1`, [companyId]);
+  if (parseInt(expDocCount.rows[0].count) === 0) {
+    for (const ed of [
+      { name: "Swisscom-Rechnung", party: "Swisscom", freq: "monthly", amount: 89.00 },
+      { name: "Mietrechnung Büro", party: "Vermieter", freq: "monthly", amount: 2500.00 },
+      { name: "Microsoft 365", party: "Microsoft", freq: "monthly", amount: 45.00 },
+      { name: "Gebäudeversicherung", party: "Versicherung", freq: "quarterly", amount: 375.00 },
+      { name: "Leasingrate Tesla", party: "Leasing", freq: "monthly", amount: 450.00 },
+    ]) {
+      await pool.query(
+        `INSERT INTO expected_documents (id, company_id, name, counterparty, frequency, expected_amount, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW())`,
+        [companyId, ed.name, ed.party, ed.freq, ed.amount]
+      );
+    }
+  }
+
+  console.log("Seed complete: 2 companies, 3 users, 3 user-company links, 5 suppliers, 3 rules, 5 contracts, 4 assets, 5 recurring, 3 escalation rules, 3 knowledge items, 5 tasks, 5 expected documents");
 }
 
 main()

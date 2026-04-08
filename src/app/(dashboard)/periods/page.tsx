@@ -15,6 +15,7 @@ import {
   MessageSquare, Loader2, Unlock,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
+import { formatCurrency } from "@/lib/i18n/format";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -255,8 +256,33 @@ export default function PeriodsPage() {
                 </div>
               )}
 
-              {/* Missing contract docs */}
-              {detail.missingContractDocs.length > 0 && (
+              {/* Expected documents — missing or mismatched */}
+              {detail.expectedDocs?.details?.filter((d: any) => d.status === "missing" || d.status === "amount_mismatch").length > 0 && (
+                <div>
+                  <p className="text-xs font-medium mb-1.5">{de.periodDetail.missingDocs}</p>
+                  <div className="space-y-1">
+                    {detail.expectedDocs.details
+                      .filter((d: any) => d.status === "missing" || d.status === "amount_mismatch")
+                      .map((ed: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between text-sm p-1.5 bg-amber-50 rounded">
+                          <div>
+                            <span className="text-amber-800">{ed.name} ({ed.counterparty})</span>
+                            {ed.expectedAmount && <span className="text-xs text-muted-foreground ml-2">{formatCurrency(ed.expectedAmount, "CHF")}</span>}
+                            {ed.status === "amount_mismatch" && <Badge variant="secondary" className="ml-2 text-xs bg-amber-100 text-amber-800">Betrag abweichend</Badge>}
+                          </div>
+                          <Link href={`/tasks/new?title=${encodeURIComponent(ed.name + " fehlt")}`}>
+                            <Button variant="ghost" size="sm" className="text-xs h-6">
+                              <MessageSquare className="h-3 w-3 mr-1" />{de.periodDetail.askClient}
+                            </Button>
+                          </Link>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback: Missing contract docs (for companies without expected docs) */}
+              {(!detail.expectedDocs || detail.expectedDocs.total === 0) && detail.missingContractDocs.length > 0 && (
                 <div>
                   <p className="text-xs font-medium mb-1.5">{de.periodDetail.missingDocs}</p>
                   <div className="space-y-1">
