@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { generateCsvExport } from "@/lib/services/export/csv-export";
 import { generateXlsxExport } from "@/lib/services/export/xlsx-export";
@@ -7,8 +7,8 @@ import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
     const body = await request.json();
     const format = body.format || "csv-excel";
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Build document query
     const where: Record<string, any> = {
-      companyId: session.user.companyId,
+      companyId: ctx.companyId,
       status: "ready",
     };
 
@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
 
     if (format === "xlsx") {
       const result = await generateXlsxExport(
-        session.user.companyId,
-        session.user.id,
+        ctx.companyId,
+        ctx.session.user.id,
         documentIds,
         columns
       );
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
     } else {
       const separator = format === "csv-standard" ? "," : ";";
       const result = await generateCsvExport(
-        session.user.companyId,
-        session.user.id,
+        ctx.companyId,
+        ctx.session.user.id,
         documentIds,
         separator
       );
@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
     }
 
     await logAudit({
-      companyId: session.user.companyId,
-      userId: session.user.id,
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
       action: "documents_exported",
       entityType: "export",
       entityId: batchId,

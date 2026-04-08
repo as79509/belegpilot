@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const company = await prisma.company.findUnique({
-    where: { id: session.user.companyId },
+    where: { id: ctx.companyId },
     select: {
       id: true, name: true, legalName: true, vatNumber: true, currency: true, settings: true,
       legalForm: true, uid: true, industry: true, subIndustry: true, businessModel: true,
@@ -24,12 +24,12 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (session.user.role !== "admin") return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  if (ctx.session.user.role !== "admin") return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
   const body = await request.json();
-  const old = await prisma.company.findUnique({ where: { id: session.user.companyId } });
+  const old = await prisma.company.findUnique({ where: { id: ctx.companyId } });
 
   const allowedFields = [
     "name", "legalName", "vatNumber", "currency", "legalForm", "uid", "industry",
@@ -44,15 +44,15 @@ export async function PATCH(request: NextRequest) {
   }
 
   const company = await prisma.company.update({
-    where: { id: session.user.companyId },
+    where: { id: ctx.companyId },
     data: updateData,
   });
 
   const changes = computeChanges(old as any, body, ["name", "legalName", "vatNumber", "currency"]);
   if (changes) {
     await logAudit({
-      companyId: session.user.companyId,
-      userId: session.user.id,
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
       action: "company_settings_updated",
       entityType: "company",
       entityId: company.id,

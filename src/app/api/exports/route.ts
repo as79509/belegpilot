@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   // Group export records by externalId (batch ID)
   const records = await prisma.exportRecord.findMany({
     where: {
-      document: { companyId: session.user.companyId },
+      document: { companyId: ctx.companyId },
     },
     include: {
       document: {

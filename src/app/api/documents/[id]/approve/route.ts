@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
@@ -8,17 +8,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const ctx = await getActiveCompany();
+    if (!ctx) {
       return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
-    if (!["admin", "reviewer"].includes(session.user.role)) {
+    if (!["admin", "reviewer"].includes(ctx.session.user.role)) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
     const { id } = await params;
     const document = await prisma.document.findFirst({
-      where: { id, companyId: session.user.companyId },
+      where: { id, companyId: ctx.companyId },
     });
 
     if (!document) {
@@ -30,14 +30,14 @@ export async function POST(
       data: {
         status: "ready",
         reviewStatus: "approved",
-        reviewedBy: session.user.id,
+        reviewedBy: ctx.session.user.id,
         reviewedAt: new Date(),
       },
     });
 
     await logAudit({
-      companyId: session.user.companyId,
-      userId: session.user.id,
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
       action: "document_approved",
       entityType: "document",
       entityId: id,

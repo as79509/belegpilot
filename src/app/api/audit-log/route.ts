@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
   const action = searchParams.get("action");
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "50");
 
-  const where: Record<string, any> = { companyId: session.user.companyId };
+  const where: Record<string, any> = { companyId: ctx.companyId };
   if (action) where.action = action;
   if (userId) where.userId = userId;
   if (entityType) where.entityType = entityType;
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
   // Also return users for the filter dropdown
   const users = await prisma.user.findMany({
-    where: { companyId: session.user.companyId },
+    where: { companyId: ctx.companyId },
     select: { id: true, name: true },
   });
 

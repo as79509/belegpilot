@@ -53,4 +53,20 @@ describe("makeProcessingDecision", () => {
     const result = makeProcessingDecision(makeResult(), 0.85, undefined);
     expect(result).toBe("auto_ready");
   });
+
+  // Custom threshold tests
+  it("custom threshold 0.8 → needs_review bei 0.75", () => {
+    const result = makeProcessingDecision(makeResult(), 0.75, [], 0.8);
+    expect(result).toBe("needs_review");
+  });
+
+  it("custom threshold 0.8 → auto_ready bei 0.85", () => {
+    const result = makeProcessingDecision(makeResult(), 0.85, [], 0.8);
+    expect(result).toBe("auto_ready");
+  });
+
+  it("default threshold 0.65 used when not specified", () => {
+    const result = makeProcessingDecision(makeResult(), 0.6);
+    expect(result).toBe("needs_review");
+  });
 });

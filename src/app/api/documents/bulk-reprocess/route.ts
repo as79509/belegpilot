@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { inngest } from "@/lib/inngest/client";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "reviewer"].includes(session.user.role))
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!["admin", "reviewer"].includes(ctx.session.user.role))
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
-    const { allowed } = rateLimit(`bulk-reprocess:${session.user.id}`, 5, 60_000);
+    const { allowed } = rateLimit(`bulk-reprocess:${ctx.session.user.id}`, 5, 60_000);
     if (!allowed) {
       return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
     }
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const docs = await prisma.document.findMany({
       where: {
         id: { in: documentIds },
-        companyId: session.user.companyId,
+        companyId: ctx.companyId,
         status: { in: ["uploaded", "failed", "needs_review"] },
       },
       select: { id: true },

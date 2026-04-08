@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { id } = await params;
   const rule = await prisma.rule.findFirst({
-    where: { id, companyId: session.user.companyId },
+    where: { id, companyId: ctx.companyId },
   });
   if (!rule) return NextResponse.json({ error: "Regel nicht gefunden" }, { status: 404 });
   return NextResponse.json(rule);
@@ -22,14 +22,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (session.user.role !== "admin")
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (ctx.session.user.role !== "admin")
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { id } = await params;
     const rule = await prisma.rule.findFirst({
-      where: { id, companyId: session.user.companyId },
+      where: { id, companyId: ctx.companyId },
     });
     if (!rule) return NextResponse.json({ error: "Regel nicht gefunden" }, { status: 404 });
 
@@ -50,14 +50,14 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (session.user.role !== "admin")
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  if (ctx.session.user.role !== "admin")
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
   const { id } = await params;
   const rule = await prisma.rule.findFirst({
-    where: { id, companyId: session.user.companyId },
+    where: { id, companyId: ctx.companyId },
   });
   if (!rule) return NextResponse.json({ error: "Regel nicht gefunden" }, { status: 404 });
 

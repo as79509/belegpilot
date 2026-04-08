@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (session.user.role !== "admin")
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (ctx.session.user.role !== "admin")
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { primaryId, secondaryId } = await request.json();
@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Primärer und sekundärer Lieferant erforderlich" }, { status: 400 });
 
     const [primary, secondary] = await Promise.all([
-      prisma.supplier.findFirst({ where: { id: primaryId, companyId: session.user.companyId } }),
-      prisma.supplier.findFirst({ where: { id: secondaryId, companyId: session.user.companyId } }),
+      prisma.supplier.findFirst({ where: { id: primaryId, companyId: ctx.companyId } }),
+      prisma.supplier.findFirst({ where: { id: secondaryId, companyId: ctx.companyId } }),
     ]);
 
     if (!primary || !secondary)
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
     });
 
     await logAudit({
-      companyId: session.user.companyId,
-      userId: session.user.id,
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
       action: "supplier_merged",
       entityType: "supplier",
       entityId: primaryId,

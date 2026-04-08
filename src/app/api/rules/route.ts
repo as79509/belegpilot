@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 
@@ -19,9 +18,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (session.user.role !== "admin")
+    const ctx2 = await getActiveCompany();
+    if (!ctx2) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (ctx2.session.user.role !== "admin")
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const body = await request.json();
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const rule = await prisma.rule.create({
       data: {
-        companyId: session.user.companyId,
+        companyId: ctx2.companyId,
         name,
         ruleType,
         conditions,

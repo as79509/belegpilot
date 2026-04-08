@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { getMonthlyUsage } from "@/lib/services/ai/cost-tracker";
 
 const USD_TO_CHF = 0.88;
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const now = new Date();
   const usage = await getMonthlyUsage(
-    session.user.companyId,
+    ctx.companyId,
     now.getFullYear(),
     now.getMonth() + 1
   );

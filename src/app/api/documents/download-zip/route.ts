@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import archiver from "archiver";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "reviewer"].includes(session.user.role))
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!["admin", "reviewer"].includes(ctx.session.user.role))
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const body = await request.json();
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // If no specific IDs, use filter
     if (!documentIds.length) {
       const where: Record<string, any> = {
-        companyId: session.user.companyId,
+        companyId: ctx.companyId,
         status: { in: ["ready", "exported"] },
         file: { isNot: null },
       };
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Load documents with files
     const documents = await prisma.document.findMany({
-      where: { id: { in: documentIds }, companyId: session.user.companyId },
+      where: { id: { in: documentIds }, companyId: ctx.companyId },
       include: { file: true },
     });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { DbNull } from "@/generated/prisma/internal/prismaNamespace";
 import { inngest } from "@/lib/inngest/client";
@@ -11,15 +11,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const ctx = await getActiveCompany();
+    if (!ctx) {
       return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
-    if (!["admin", "reviewer"].includes(session.user.role)) {
+    if (!["admin", "reviewer"].includes(ctx.session.user.role)) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
-    const { allowed } = rateLimit(`reprocess:${session.user.id}`, 10, 60_000);
+    const { allowed } = rateLimit(`reprocess:${ctx.session.user.id}`, 10, 60_000);
     if (!allowed) {
       return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
     }
@@ -27,7 +27,7 @@ export async function POST(
     const { id } = await params;
 
     const document = await prisma.document.findFirst({
-      where: { id, companyId: session.user.companyId },
+      where: { id, companyId: ctx.companyId },
     });
 
     if (!document) {
@@ -62,8 +62,8 @@ export async function POST(
     }
 
     await logAudit({
-      companyId: session.user.companyId,
-      userId: session.user.id,
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
       action: "document_reprocessed",
       entityType: "document",
       entityId: id,

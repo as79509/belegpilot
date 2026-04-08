@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { inngest } from "@/lib/inngest/client";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (session.user.role !== "admin")
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (ctx.session.user.role !== "admin")
       return NextResponse.json({ error: "Nur Administratoren" }, { status: 403 });
 
-    const { allowed } = rateLimit(`reset-stuck:${session.user.id}`, 5, 60_000);
+    const { allowed } = rateLimit(`reset-stuck:${ctx.session.user.id}`, 5, 60_000);
     if (!allowed) {
       return NextResponse.json({ error: "Zu viele Anfragen. Bitte warten Sie einen Moment." }, { status: 429 });
     }
@@ -21,7 +21,7 @@ export async function POST() {
     // Find documents stuck at 'processing' for more than 30 minutes
     const stuck = await prisma.document.findMany({
       where: {
-        companyId: session.user.companyId,
+        companyId: ctx.companyId,
         status: "processing",
         updatedAt: { lt: thirtyMinAgo },
       },

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { BexioClient } from "@/lib/services/bexio/bexio-client";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const integration = await prisma.integration.findFirst({
-    where: { companyId: session.user.companyId, providerType: "export", providerName: "bexio", isEnabled: true },
+    where: { companyId: ctx.companyId, providerType: "export", providerName: "bexio", isEnabled: true },
   });
 
   if (!integration?.credentials) {

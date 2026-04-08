@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
 
@@ -7,12 +7,12 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   const { id } = await params;
   const supplier = await prisma.supplier.findFirst({
-    where: { id, companyId: session.user.companyId },
+    where: { id, companyId: ctx.companyId },
     include: {
       documents: {
         orderBy: { createdAt: "desc" },
@@ -34,15 +34,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "reviewer"].includes(session.user.role))
+    const ctx = await getActiveCompany();
+    if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!["admin", "reviewer"].includes(ctx.session.user.role))
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
 
     const { id } = await params;
     const body = await request.json();
     const supplier = await prisma.supplier.findFirst({
-      where: { id, companyId: session.user.companyId },
+      where: { id, companyId: ctx.companyId },
     });
     if (!supplier) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
 
@@ -63,8 +63,8 @@ export async function PATCH(
 
     if (changes) {
       await logAudit({
-        companyId: session.user.companyId,
-        userId: session.user.id,
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
         action: "supplier_edited",
         entityType: "supplier",
         entityId: id,

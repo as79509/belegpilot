@@ -440,10 +440,12 @@ export const processDocument = inngest.createFunction(
       );
       const compositeConfidence = computeCompositeConfidence(factors);
 
+      const threshold = companySettings?.aiConfidenceThreshold || 0.65;
       let processingDecision = makeProcessingDecision(
         validationResult,
         compositeConfidence,
-        escalations
+        escalations,
+        threshold
       );
 
       // Override: rules-based auto-approve (only if no escalations)

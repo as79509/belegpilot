@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 
 interface SystemAlert {
@@ -10,10 +10,10 @@ interface SystemAlert {
 }
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const ctx = await getActiveCompany();
+  if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
-  const companyId = session.user.companyId;
+  const companyId = ctx.companyId;
   const h24ago = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const h1ago = new Date(Date.now() - 60 * 60 * 1000);
 

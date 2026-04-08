@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { fromCanonical, toCanonical } from "@/lib/types/canonical";
 import { validateDocument } from "@/lib/services/validation/validation-engine";
@@ -32,15 +32,15 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
+  const ctx = await getActiveCompany();
+  if (!ctx) {
     return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
   }
 
   const { id } = await params;
 
   const document = await prisma.document.findFirst({
-    where: { id, companyId: session.user.companyId },
+    where: { id, companyId: ctx.companyId },
     include: {
       file: true,
       ocrResult: true,
@@ -63,11 +63,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const ctx = await getActiveCompany();
+    if (!ctx) {
       return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
-    if (!["admin", "reviewer"].includes(session.user.role)) {
+    if (!["admin", "reviewer"].includes(ctx.session.user.role)) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
@@ -75,7 +75,7 @@ export async function PATCH(
     const body = await request.json();
 
     const document = await prisma.document.findFirst({
-      where: { id, companyId: session.user.companyId },
+      where: { id, companyId: ctx.companyId },
     });
     if (!document) {
       return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
@@ -127,8 +127,8 @@ export async function PATCH(
     // Audit log
     if (changes) {
       await logAudit({
-        companyId: session.user.companyId,
-        userId: session.user.id,
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
         action: "document_fields_edited",
         entityType: "document",
         entityId: id,
