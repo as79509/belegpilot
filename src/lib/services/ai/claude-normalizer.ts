@@ -59,7 +59,8 @@ export class ClaudeNormalizer implements AiNormalizerService {
 
   async normalize(
     buffers: Buffer[],
-    mimeType: string
+    mimeType: string,
+    metadata?: Record<string, unknown>
   ): Promise<AiNormalizerResult> {
     const contentBlocks: any[] = [];
 
@@ -96,7 +97,9 @@ export class ClaudeNormalizer implements AiNormalizerService {
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       betas: ["pdfs-2024-09-25"],
-      system: SYSTEM_PROMPT,
+      system: metadata?.context
+        ? `${SYSTEM_PROMPT}\n\nAdditional context about this company:\n${metadata.context}`
+        : SYSTEM_PROMPT,
       messages: [{ role: "user", content: contentBlocks }],
     });
 

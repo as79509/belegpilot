@@ -155,6 +155,42 @@ export const de = {
     documentsTab: "Belege",
   },
 
+  // Escalation
+  escalation: {
+    title: "Eskalationsregeln",
+    newRule: "Neue Eskalationsregel",
+    conditions: {
+      new_supplier: "Neuer/unverifizierter Lieferant",
+      amount_above: "Betrag über Schwellwert",
+      foreign_document: "Auslandsbeleg (Fremdwährung)",
+      missing_invoice_number: "Rechnungsnummer fehlt",
+      vehicle_cost: "Fahrzeugkosten",
+      asset_suspected: "Anlageverdacht (Betrag > Aktivierungsgrenze)",
+      mixed_vat: "Gemischte MwSt-Sätze",
+      manual_always: "Immer manuelle Prüfung",
+    } as Record<string, string>,
+    threshold: "Schwellwert",
+    noRules: "Keine Eskalationsregeln definiert",
+  },
+
+  // Knowledge
+  knowledge: {
+    title: "Mandantenwissen",
+    newItem: "Neuer Eintrag",
+    categories: {
+      supplier_note: "Lieferanten-Hinweis",
+      booking_rule: "Buchungsregel",
+      exception: "Ausnahme",
+      process_hint: "Prozess-Hinweis",
+      warning: "Warnung",
+    } as Record<string, string>,
+    content: "Inhalt",
+    relatedSupplier: "Bezug Lieferant",
+    relatedAccount: "Bezug Konto",
+    usableByAi: "Von KI nutzbar",
+    noItems: "Noch keine Wissenseinträge",
+  },
+
   // Assets
   assets: {
     title: "Anlagenbuchhaltung",

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark,
+  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark, Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -58,6 +58,7 @@ const baseNavGroups: NavGroup[] = [
     label: de.nav.system,
     items: [
       { href: "/settings", label: de.nav.settings, icon: Settings },
+      { href: "/settings/ai", label: "KI-Einstellungen", icon: Brain },
       { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
     ],
   },

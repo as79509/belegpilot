@@ -75,6 +75,7 @@ enum RuleType {
   auto_approve
   category_mapping
   vat_logic
+  escalation
 }
 
 // ── Models ──
@@ -132,8 +133,10 @@ model Company {
   aiUsages        AiUsage[]
   userCompanies   UserCompany[]
   journalEntries   JournalEntry[]
-  recurringEntries RecurringEntry[]
-  assets           Asset[]
+  recurringEntries  RecurringEntry[]
+  assets            Asset[]
+  escalationRules   EscalationRule[]
+  knowledgeItems    KnowledgeItem[]
 
   @@map("companies")
 }
@@ -522,4 +525,40 @@ model Asset {
   @@index([companyId, status])
   @@index([companyId, category])
   @@map("assets")
+}
+
+model EscalationRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  condition String
+  threshold Float?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, isActive])
+  @@map("escalation_rules")
+}
+
+model KnowledgeItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  category        String
+  title           String
+  content         String   @db.Text
+  relatedSupplier String?  @map("related_supplier")
+  relatedAccount  String?  @map("related_account")
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true) @map("is_active")
+  usableByAi      Boolean  @default(true) @map("usable_by_ai")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, category])
+  @@map("knowledge_items")
 }

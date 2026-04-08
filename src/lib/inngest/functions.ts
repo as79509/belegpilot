@@ -14,6 +14,7 @@ import {
   createSupplierFromDocument,
 } from "@/lib/services/supplier-matching/supplier-matcher";
 import { recordAiUsage } from "@/lib/services/ai/cost-tracker";
+import { checkEscalations } from "@/lib/services/rules/escalation-engine";
 
 export const processDocument = inngest.createFunction(
   {
@@ -118,10 +119,20 @@ export const processDocument = inngest.createFunction(
       // Deserialize file buffer from base64
       const fileBuffer = Buffer.from(imageData.fileBase64, "base64");
 
+      // Load company AI context + knowledge items for the prompt
+      const [companyCtx, knowledgeItems] = await Promise.all([
+        prisma.company.findUnique({ where: { id: doc.companyId }, select: { aiContext: true } }),
+        prisma.knowledgeItem.findMany({ where: { companyId: doc.companyId, isActive: true, usableByAi: true } }),
+      ]);
+      const extraContext = [
+        companyCtx?.aiContext,
+        ...knowledgeItems.map((k) => `${k.title}: ${k.content}`),
+      ].filter(Boolean).join("\n");
+
       const aiResult = await normalizer.normalize(
         [fileBuffer],
         imageData.mimeType,
-        { fileName: doc.fileName }
+        { fileName: doc.fileName, context: extraContext || undefined }
       );
 
       const result = aiResult.data;
@@ -408,6 +419,18 @@ export const processDocument = inngest.createFunction(
 
       const validationResult = validateDocument(canonical, dupCheckDocs);
 
+      // Check escalation rules
+      const supplier = updatedDoc.supplierId
+        ? await prisma.supplier.findUnique({ where: { id: updatedDoc.supplierId } })
+        : null;
+      const escalations = await checkEscalations(doc.companyId, updatedDoc, supplier);
+
+      // Use company-specific confidence threshold
+      const companySettings = await prisma.company.findUnique({
+        where: { id: doc.companyId },
+        select: { aiConfidenceThreshold: true },
+      });
+
       const aiConfidence = normalizedData.confidence || 0;
       const factors = buildConfidenceFactors(
         aiConfidence,
@@ -419,11 +442,12 @@ export const processDocument = inngest.createFunction(
 
       let processingDecision = makeProcessingDecision(
         validationResult,
-        compositeConfidence
+        compositeConfidence,
+        escalations
       );
 
-      // Override: rules-based auto-approve
-      if (rulesResult.shouldAutoApprove && validationResult.errorCount === 0) {
+      // Override: rules-based auto-approve (only if no escalations)
+      if (rulesResult.shouldAutoApprove && validationResult.errorCount === 0 && escalations.length === 0) {
         processingDecision = "auto_ready";
       }
 

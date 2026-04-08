@@ -37,4 +37,20 @@ describe("makeProcessingDecision", () => {
     const result = makeProcessingDecision(makeResult({ warningCount: 3 }), 0.65);
     expect(result).toBe("auto_ready");
   });
+
+  // Escalation tests
+  it("escalations nicht leer → immer needs_review (auch bei hoher Confidence)", () => {
+    const result = makeProcessingDecision(makeResult(), 0.95, ["Neuer Lieferant"]);
+    expect(result).toBe("needs_review");
+  });
+
+  it("escalations leer + hohe Confidence → auto_ready", () => {
+    const result = makeProcessingDecision(makeResult(), 0.85, []);
+    expect(result).toBe("auto_ready");
+  });
+
+  it("escalations undefined + hohe Confidence → auto_ready", () => {
+    const result = makeProcessingDecision(makeResult(), 0.85, undefined);
+    expect(result).toBe("auto_ready");
+  });
 });
