@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
         isActive: true,
       },
     });
+
+    await logAudit({ companyId: ctx.companyId, userId: ctx.session.user.id, action: "rule_created", entityType: "rule", entityId: rule.id });
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error: any) {
