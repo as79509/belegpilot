@@ -129,8 +129,10 @@ model Company {
   auditLogs    AuditLog[]
   integrations Integration[]
   rules         Rule[]
-  aiUsages      AiUsage[]
-  userCompanies UserCompany[]
+  aiUsages        AiUsage[]
+  userCompanies   UserCompany[]
+  journalEntries  JournalEntry[]
+  recurringEntries RecurringEntry[]
 
   @@map("companies")
 }
@@ -147,9 +149,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  company           Company        @relation(fields: [companyId], references: [id])
+  company            Company        @relation(fields: [companyId], references: [id])
   reviewedDocuments  Document[]    @relation("ReviewedBy")
-  auditLogs         AuditLog[]
+  auditLogs          AuditLog[]
+  journalEntries     JournalEntry[] @relation("JournalEntryCreator")
   userCompanies     UserCompany[]
 
   @@map("users")
@@ -223,6 +226,7 @@ model Document {
   processingSteps ProcessingStep[]
   exportRecords   ExportRecord[]
   aiUsages        AiUsage[]
+  journalEntries  JournalEntry[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -426,4 +430,59 @@ model AiUsage {
 
   @@index([companyId, createdAt])
   @@map("ai_usage")
+}
+
+model JournalEntry {
+  id            String    @id @default(uuid()) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  entryDate     DateTime  @map("entry_date")
+  debitAccount  String    @map("debit_account")
+  creditAccount String    @map("credit_account")
+  amount        Decimal   @db.Decimal(12, 2)
+  currency      String    @default("CHF") @db.VarChar(3)
+  vatAmount     Decimal?  @map("vat_amount") @db.Decimal(12, 2)
+  vatRate       Float?    @map("vat_rate")
+  description   String
+  reference     String?
+  documentId    String?   @map("document_id") @db.Uuid
+  entryType     String    @map("entry_type")
+  isRecurring   Boolean   @default(false) @map("is_recurring")
+  recurringId   String?   @map("recurring_id") @db.Uuid
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+  user     User?     @relation("JournalEntryCreator", fields: [createdBy], references: [id])
+
+  @@index([companyId, entryDate])
+  @@index([companyId, entryType])
+  @@index([documentId])
+  @@map("journal_entries")
+}
+
+model RecurringEntry {
+  id              String    @id @default(uuid()) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  name            String
+  debitAccount    String    @map("debit_account")
+  creditAccount   String    @map("credit_account")
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("CHF") @db.VarChar(3)
+  vatAmount       Decimal?  @map("vat_amount") @db.Decimal(12, 2)
+  description     String
+  frequency       String
+  dayOfMonth      Int       @default(1) @map("day_of_month")
+  startDate       DateTime  @map("start_date")
+  endDate         DateTime? @map("end_date")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastGeneratedAt DateTime? @map("last_generated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, isActive])
+  @@map("recurring_entries")
 }
