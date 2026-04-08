@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat,
+  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen, Repeat, Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -42,6 +42,7 @@ const baseNavGroups: NavGroup[] = [
     items: [
       { href: "/journal", label: de.journal.title, icon: BookOpen },
       { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
+      { href: "/assets", label: de.assets.title, icon: Landmark },
       { href: "/exports", label: de.nav.exports, icon: Download },
       { href: "/rules", label: de.nav.rules, icon: Workflow },
       { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },

@@ -131,8 +131,9 @@ model Company {
   rules         Rule[]
   aiUsages        AiUsage[]
   userCompanies   UserCompany[]
-  journalEntries  JournalEntry[]
+  journalEntries   JournalEntry[]
   recurringEntries RecurringEntry[]
+  assets           Asset[]
 
   @@map("companies")
 }
@@ -485,4 +486,40 @@ model RecurringEntry {
 
   @@index([companyId, isActive])
   @@map("recurring_entries")
+}
+
+model Asset {
+  id                  String    @id @default(uuid()) @db.Uuid
+  companyId           String    @map("company_id") @db.Uuid
+  name                String
+  category            String
+  acquisitionDate     DateTime  @map("acquisition_date")
+  acquisitionCost     Decimal   @map("acquisition_cost") @db.Decimal(12, 2)
+  residualValue       Decimal   @default(0) @map("residual_value") @db.Decimal(12, 2)
+  usefulLifeMonths    Int       @map("useful_life_months")
+  depreciationMethod  String    @default("linear") @map("depreciation_method")
+  degressiveRate      Float?    @map("degressive_rate")
+  assetAccount        String    @map("asset_account")
+  depreciationAccount String    @map("depreciation_account")
+  location            String?
+  costCenter          String?   @map("cost_center")
+  assignedTo          String?   @map("assigned_to")
+  description         String?   @db.Text
+  serialNumber        String?   @map("serial_number")
+  supplier            String?
+  licensePlate        String?   @map("license_plate")
+  privateUsePercent   Float?    @map("private_use_percent")
+  status              String    @default("active")
+  disposalDate        DateTime? @map("disposal_date")
+  disposalAmount      Decimal?  @map("disposal_amount") @db.Decimal(12, 2)
+  totalDepreciated    Decimal   @default(0) @map("total_depreciated") @db.Decimal(12, 2)
+  bookValue           Decimal   @default(0) @map("book_value") @db.Decimal(12, 2)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, category])
+  @@map("assets")
 }
