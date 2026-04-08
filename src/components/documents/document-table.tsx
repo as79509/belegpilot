@@ -40,6 +40,7 @@ interface Document {
   exportStatus: string | null;
   createdAt: string;
   file?: { fileName: string; mimeType: string } | null;
+  bookingSuggestions?: Array<{ confidenceLevel: string; suggestedAccount: string | null; confidenceScore: number; status: string }>;
 }
 
 interface DocumentTableProps {
@@ -259,6 +260,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                 {de.documents.confidence}
               </SortHeader>
               <TableHead className="whitespace-nowrap">Export</TableHead>
+              <TableHead className="whitespace-nowrap">{de.suggestions.title}</TableHead>
               <SortHeader column="createdAt">
                 {de.documents.uploadedAt}
               </SortHeader>
@@ -277,11 +279,12 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                 </TableRow>
               ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-12">
+                <TableCell colSpan={11} className="text-center py-12">
                   <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">{de.documents.noDocuments}</p>
                 </TableCell>
@@ -335,6 +338,19 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {(() => {
+                      const s = doc.bookingSuggestions?.[0];
+                      if (!s) return <span className="text-muted-foreground">—</span>;
+                      if (s.status !== "pending") return <span className="text-green-600">✓</span>;
+                      const color = s.confidenceLevel === "high" ? "text-green-600" : s.confidenceLevel === "medium" ? "text-amber-600" : "text-gray-400";
+                      return (
+                        <span className={color} title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || "—"} (${Math.round(s.confidenceScore * 100)}%)`}>
+                          ●
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatRelativeTime(doc.createdAt)}

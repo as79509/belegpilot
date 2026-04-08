@@ -75,6 +75,7 @@ interface CockpitData {
   periods: { current: PeriodInfo | null; last: PeriodInfo | null };
   clientRiskBoard?: ClientRisk[];
   waitingOnClient?: WaitingTask[];
+  suggestionStats?: { total: number; accepted: number; rejected: number; modified: number; acceptRate: number };
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -166,7 +167,7 @@ export default function DashboardPage() {
       )}
 
       {/* Bereich 3: Heute-Panel */}
-      <TodayPanel stats={data.todayStats} />
+      <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} />
 
       {/* Bereich 4: Zwei-Spalten Arbeitsbereich */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -254,7 +255,7 @@ function ClientRiskBoard({ clients, onSwitch }: { clients: ClientRisk[]; onSwitc
 }
 
 /* ---------- Bereich 3: Heute-Panel ---------- */
-function TodayPanel({ stats }: { stats: CockpitData["todayStats"] }) {
+function TodayPanel({ stats, suggestionStats }: { stats: CockpitData["todayStats"]; suggestionStats?: CockpitData["suggestionStats"] }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] text-sm">
       <span><strong>{stats.uploaded}</strong> {de.cockpit.todayUploaded}</span>
@@ -264,6 +265,12 @@ function TodayPanel({ stats }: { stats: CockpitData["todayStats"] }) {
       <span><strong>{stats.tasksDue}</strong> {de.cockpit.tasksDueToday}</span>
       <span className="text-[var(--text-muted)]">&middot;</span>
       <span>{de.cockpit.autoQuote}: <strong>{stats.autoQuote}%</strong></span>
+      {suggestionStats && suggestionStats.total > 0 && (
+        <>
+          <span className="text-[var(--text-muted)]">&middot;</span>
+          <span>{de.suggestions.panel.acceptRate}: <strong>{suggestionStats.acceptRate}%</strong></span>
+        </>
+      )}
     </div>
   );
 }

@@ -149,6 +149,18 @@ export async function GET() {
     }),
   ]);
 
+  // Suggestion Stats (last 30 days)
+  const [totalSuggestions, acceptedSuggestions, rejectedSuggestions, modifiedSuggestions] = await Promise.all([
+    prisma.bookingSuggestion.count({ where: { companyId, createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.bookingSuggestion.count({ where: { companyId, status: "accepted", createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.bookingSuggestion.count({ where: { companyId, status: "rejected", createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.bookingSuggestion.count({ where: { companyId, status: "modified", createdAt: { gte: thirtyDaysAgo } } }),
+  ]);
+
+  const suggestionAcceptRate = totalSuggestions > 0
+    ? Math.round(((acceptedSuggestions + modifiedSuggestions) / totalSuggestions) * 100)
+    : 0;
+
   // Contract overdue counts
   const { overdueCount: overdueContractCount, expiringCount: expiringContractCount } = countOverdueContracts(contractsRaw, now);
 
@@ -260,9 +272,17 @@ export async function GET() {
     clientRiskBoard.sort((a, b) => b.riskScore - a.riskScore);
   }
 
+  const suggestionStats = {
+    total: totalSuggestions,
+    accepted: acceptedSuggestions,
+    rejected: rejectedSuggestions,
+    modified: modifiedSuggestions,
+    acceptRate: suggestionAcceptRate,
+  };
+
   return NextResponse.json({
     alerts, todayStats, statusCounts: { ...counts, total },
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
-    periods, clientRiskBoard, waitingOnClient,
+    periods, clientRiskBoard, waitingOnClient, suggestionStats,
   });
 }

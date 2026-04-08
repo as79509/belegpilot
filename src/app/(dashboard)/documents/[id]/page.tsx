@@ -44,6 +44,15 @@ export default function DocumentDetailPage() {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
+  // Suggestion
+  const [suggestion, setSuggestion] = useState<any>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
+  const [modifyAccount, setModifyAccount] = useState("");
+  const [modifyCategory, setModifyCategory] = useState("");
+  const [modifyCostCenter, setModifyCostCenter] = useState("");
+  const [modifyVatCode, setModifyVatCode] = useState("");
+
   // Dialogs
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
@@ -89,6 +98,13 @@ export default function DocumentDetailPage() {
           const data = await similarRes.json();
           setSimilarDocs(data.similar || []);
         }
+
+        // Fetch booking suggestion
+        const suggRes = await fetch(`/api/documents/${params.id}/suggestion`).catch(() => null);
+        if (suggRes?.ok) {
+          const suggData = await suggRes.json();
+          if (suggData && suggData.id) setSuggestion(suggData);
+        }
       } catch (err) {
         console.error("[DocumentDetail] Load error:", err);
       } finally {
@@ -107,11 +123,19 @@ export default function DocumentDetailPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       const updated = await res.json();
       setDoc(updated);
+      // Auto-accept pending suggestion on approve
+      if (suggestion?.status === "pending") {
+        fetch(`/api/documents/${doc.id}/suggestion`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "accepted" }),
+        }).then(r => r.ok ? r.json() : null).then(s => { if (s) setSuggestion(s); }).catch(() => {});
+      }
       toast.success(de.review.approveSuccess);
       if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
     } catch (err: any) { toast.error(err.message || de.errors.serverError); }
     finally { setApproving(false); }
-  }, [doc, nextDocId, approving, router]);
+  }, [doc, nextDocId, approving, router, suggestion]);
 
   const handleToolbarReject = useCallback(async () => {
     if (!rejectReason.trim() || !doc) return;
@@ -124,13 +148,49 @@ export default function DocumentDetailPage() {
       });
       if (!res.ok) throw new Error((await res.json()).error);
       setDoc(await res.json());
+      // Auto-reject pending suggestion on reject
+      if (suggestion?.status === "pending") {
+        fetch(`/api/documents/${doc.id}/suggestion`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "rejected" }),
+        }).then(r => r.ok ? r.json() : null).then(s => { if (s) setSuggestion(s); }).catch(() => {});
+      }
       toast.success(de.review.rejectSuccess);
       setRejectDialogOpen(false);
       setRejectReason("");
       if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
     } catch (err: any) { toast.error(err.message); }
     finally { setRejecting(false); }
-  }, [doc, rejectReason, nextDocId, router]);
+  }, [doc, rejectReason, nextDocId, router, suggestion]);
+
+  const handleSuggestionAction = useCallback(async (action: "accepted" | "rejected" | "modified", modifiedTo?: any) => {
+    if (!doc || suggestionLoading) return;
+    setSuggestionLoading(true);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/suggestion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, modifiedTo }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const updated = await res.json();
+      setSuggestion(updated);
+      if (action === "accepted") {
+        toast.success(de.suggestions.accepted);
+        const docRes = await fetch(`/api/documents/${doc.id}`);
+        if (docRes.ok) setDoc(await docRes.json());
+      } else if (action === "rejected") {
+        toast.success(de.suggestions.rejected);
+      } else if (action === "modified") {
+        toast.success(de.suggestions.accepted);
+        const docRes = await fetch(`/api/documents/${doc.id}`);
+        if (docRes.ok) setDoc(await docRes.json());
+        setModifyDialogOpen(false);
+      }
+    } catch (err: any) { toast.error(err.message || de.errors.serverError); }
+    finally { setSuggestionLoading(false); }
+  }, [doc, suggestionLoading]);
 
   const handleSkip = useCallback(() => {
     if (nextDocId) router.push(`/documents/${nextDocId}`);
@@ -347,6 +407,60 @@ export default function DocumentDetailPage() {
           </Button>
         </div>
       )}
+
+      {/* Suggestion Panel */}
+      <SuggestionPanel
+        suggestion={suggestion}
+        loading={suggestionLoading}
+        onAccept={() => handleSuggestionAction("accepted")}
+        onReject={() => handleSuggestionAction("rejected")}
+        onModify={() => {
+          if (suggestion) {
+            setModifyAccount(suggestion.suggestedAccount || "");
+            setModifyCategory(suggestion.suggestedCategory || "");
+            setModifyCostCenter(suggestion.suggestedCostCenter || "");
+            setModifyVatCode(suggestion.suggestedVatCode || "");
+            setModifyDialogOpen(true);
+          }
+        }}
+      />
+
+      {/* Modify suggestion dialog */}
+      <Dialog open={modifyDialogOpen} onOpenChange={setModifyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{de.suggestions.panel.adjustDialog}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">{de.suggestions.panel.account}</Label>
+              <Input value={modifyAccount} onChange={(e) => setModifyAccount(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">{de.suggestions.panel.category}</Label>
+              <Input value={modifyCategory} onChange={(e) => setModifyCategory(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">{de.suggestions.panel.costCenter}</Label>
+              <Input value={modifyCostCenter} onChange={(e) => setModifyCostCenter(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">{de.suggestions.panel.vatCode}</Label>
+              <Input value={modifyVatCode} onChange={(e) => setModifyVatCode(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <Button onClick={() => handleSuggestionAction("modified", {
+              account: modifyAccount, category: modifyCategory,
+              costCenter: modifyCostCenter, vatCode: modifyVatCode,
+            })} disabled={suggestionLoading}>
+              {suggestionLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {de.suggestions.accept}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-start justify-between">
         <div>
@@ -709,6 +823,99 @@ function SimilarDocsPanel({ similarDocs, currentDoc }: { similarDocs: any[]; cur
             ))}
           </TableBody>
         </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+const sourceIcons: Record<string, string> = {
+  history: "🟢",
+  rule: "🔵",
+  knowledge: "🟣",
+  supplier_default: "⚪",
+};
+
+function SuggestionPanel({
+  suggestion,
+  loading,
+  onAccept,
+  onReject,
+  onModify,
+}: {
+  suggestion: any;
+  loading: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  onModify: () => void;
+}) {
+  if (!suggestion) return null;
+
+  // Already handled
+  if (suggestion.status !== "pending") {
+    const statusText = suggestion.status === "accepted" ? de.suggestions.accepted
+      : suggestion.status === "rejected" ? de.suggestions.rejected
+      : de.suggestions.accepted;
+    const handledDate = suggestion.acceptedAt || suggestion.rejectedAt || suggestion.updatedAt;
+    return (
+      <div className="text-xs text-muted-foreground px-3 py-1.5 bg-muted/50 rounded-md">
+        {statusText} {handledDate ? `am ${new Date(handledDate).toLocaleDateString("de-CH")}` : ""}
+      </div>
+    );
+  }
+
+  const level = suggestion.confidenceLevel as "high" | "medium" | "low";
+  const borderColor = level === "high" ? "border-green-300" : level === "medium" ? "border-amber-300" : "border-gray-300";
+  const badgeColor = level === "high" ? "bg-green-100 text-green-800" : level === "medium" ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700";
+  const sources = suggestion.reasoning?.sources || [];
+
+  return (
+    <Card className={`border-2 ${borderColor}`}>
+      <CardContent className="py-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">💡</span>
+            <span className="text-sm font-medium">{de.suggestions.title}</span>
+          </div>
+          <Badge className={`text-xs ${badgeColor}`}>
+            {de.suggestions.confidence[level]} ({Math.round(suggestion.confidenceScore * 100)}%)
+          </Badge>
+        </div>
+
+        <div className="text-sm text-foreground">
+          {suggestion.suggestedAccount && <span>{de.suggestions.panel.account}: <strong>{suggestion.suggestedAccount}</strong></span>}
+          {suggestion.suggestedCategory && <><span className="text-muted-foreground mx-1">·</span><span>{de.suggestions.panel.category}: <strong>{suggestion.suggestedCategory}</strong></span></>}
+          {suggestion.suggestedVatCode && <><span className="text-muted-foreground mx-1">·</span><span>{de.suggestions.panel.vatCode}: <strong>{suggestion.suggestedVatCode}%</strong></span></>}
+          {suggestion.suggestedCostCenter && <><span className="text-muted-foreground mx-1">·</span><span>{de.suggestions.panel.costCenter}: <strong>{suggestion.suggestedCostCenter}</strong></span></>}
+        </div>
+
+        {sources.length > 0 && (
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">{de.suggestions.reasoning}:</span>
+            {sources.map((s: any, i: number) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-foreground">
+                <span>{sourceIcons[s.type] || "•"}</span>
+                <span>{s.detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground">
+          {de.suggestions.consistencyRate}: {Math.round(suggestion.consistencyRate * 100)}% · {de.suggestions.basedOn} {suggestion.matchedDocCount} {de.suggestions.matchedDocs}
+        </div>
+
+        <div className="flex gap-2">
+          <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={loading} onClick={onAccept}>
+            {loading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle className="h-3 w-3 mr-1" />}
+            {de.suggestions.accept}
+          </Button>
+          <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" disabled={loading} onClick={onReject}>
+            <XCircle className="h-3 w-3 mr-1" />{de.suggestions.reject}
+          </Button>
+          <Button size="sm" variant="outline" disabled={loading} onClick={onModify}>
+            {de.suggestions.modify}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

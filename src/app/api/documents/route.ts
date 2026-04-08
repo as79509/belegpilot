@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       include: {
         file: { select: { fileName: true, mimeType: true } },
         supplier: { select: { id: true, nameNormalized: true } },
+        bookingSuggestions: { take: 1, orderBy: { createdAt: "desc" as const }, select: { confidenceLevel: true, suggestedAccount: true, confidenceScore: true, status: true } },
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * pageSize,

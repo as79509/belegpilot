@@ -1013,6 +1013,16 @@ export const de = {
     matchedDocs: "ähnliche Belege",
     consistencyRate: "Konsistenz",
     reasoning: "Begründung",
+    panel: {
+      title: "Buchungsvorschlag",
+      account: "Konto",
+      category: "Kategorie",
+      vatCode: "MwSt-Code",
+      costCenter: "Kostenstelle",
+      acceptRate: "Vorschlagsquote",
+      alreadyHandled: "Vorschlag wurde {status} am {date}",
+      adjustDialog: "Vorschlag anpassen",
+    },
   },
 
   // Relative time
