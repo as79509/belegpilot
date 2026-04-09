@@ -144,6 +144,8 @@ model Company {
   bookingSuggestions BookingSuggestion[]
   correctionEvents   CorrectionEvent[]
   correctionPatterns CorrectionPattern[]
+  autopilotConfig    AutopilotConfig?
+  autopilotEvents    AutopilotEvent[]
 
   @@map("companies")
 }
@@ -247,6 +249,7 @@ model Document {
   relatedTasks    Task[]         @relation("TaskDocument")
   bookingSuggestions BookingSuggestion[]
   correctionEvents   CorrectionEvent[]
+  autopilotEvents    AutopilotEvent[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -801,4 +804,67 @@ model CorrectionPattern {
   @@unique([companyId, supplierId, field, fromValue, toValue])
   @@index([companyId, status])
   @@map("correction_patterns")
+}
+
+model AutopilotConfig {
+  id                  String   @id @default(uuid()) @db.Uuid
+  companyId           String   @unique @map("company_id") @db.Uuid
+
+  // Steuerung
+  enabled             Boolean  @default(false)
+  mode                String   @default("shadow")  // "shadow", "prefill", "auto_ready"
+
+  // Safety Gates
+  minHistoryMatches   Int      @default(5)  @map("min_history_matches")
+  minStabilityScore   Float    @default(0.8) @map("min_stability_score")
+  maxAmount           Float?   @map("max_amount")
+  minConfidence       Float    @default(0.85) @map("min_confidence")
+
+  // Einschränkungen
+  allowedDocTypes     Json?    @map("allowed_doc_types")
+  allowedCurrencies   Json?    @map("allowed_currencies")
+  supplierAllowlist   Json?    @map("supplier_allowlist")
+
+  // Kill Switch
+  killSwitchActive    Boolean   @default(false) @map("kill_switch_active")
+  killSwitchBy        String?   @map("kill_switch_by") @db.Uuid
+  killSwitchAt        DateTime? @map("kill_switch_at")
+  killSwitchReason    String?   @map("kill_switch_reason")
+
+  // Meta
+  updatedBy           String?  @map("updated_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("autopilot_configs")
+}
+
+model AutopilotEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  documentId        String   @map("document_id") @db.Uuid
+
+  // Entscheidung
+  mode              String   // "shadow", "prefill", "auto_ready"
+  decision          String   // "eligible", "blocked"
+
+  // Safety Check Ergebnis
+  safetyChecks      Json     @map("safety_checks")
+  blockedBy         String?  @map("blocked_by")
+
+  // Kontext
+  confidenceScore   Float    @map("confidence_score")
+  suggestedAccount  String?  @map("suggested_account")
+  supplierName      String?  @map("supplier_name")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, decision])
+  @@index([companyId, createdAt])
+  @@map("autopilot_events")
 }

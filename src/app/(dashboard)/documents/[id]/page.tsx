@@ -47,6 +47,9 @@ export default function DocumentDetailPage() {
   // Suggestion
   const [suggestion, setSuggestion] = useState<any>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+
+  // Correction patterns for this supplier
+  const [correctionPattern, setCorrectionPattern] = useState<any>(null);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
   const [modifyAccount, setModifyAccount] = useState("");
   const [modifyCategory, setModifyCategory] = useState("");
@@ -73,7 +76,11 @@ export default function DocumentDetailPage() {
     async function loadData() {
       try {
         const docRes = await fetch(`/api/documents/${params.id}`);
-        if (docRes.ok) setDoc(await docRes.json());
+        let loadedDoc: any = null;
+        if (docRes.ok) {
+          loadedDoc = await docRes.json();
+          setDoc(loadedDoc);
+        }
 
         const auditRes = await fetch(`/api/documents/${params.id}/audit`).catch(() => null);
         if (auditRes?.ok) {
@@ -104,6 +111,20 @@ export default function DocumentDetailPage() {
         if (suggRes?.ok) {
           const suggData = await suggRes.json();
           if (suggData && suggData.id) setSuggestion(suggData);
+        }
+
+        // Fetch correction patterns for this supplier
+        const supplierIdForPatterns = loadedDoc?.supplierId;
+        if (supplierIdForPatterns) {
+          const patternsRes = await fetch(`/api/corrections/patterns?supplierId=${supplierIdForPatterns}&status=open`).catch(() => null);
+          if (patternsRes?.ok) {
+            const patternsData = await patternsRes.json();
+            const patterns = patternsData.patterns || [];
+            if (patterns.length > 0) {
+              const top = patterns.sort((a: any, b: any) => b.occurrences - a.occurrences)[0];
+              setCorrectionPattern(top);
+            }
+          }
         }
       } catch (err) {
         console.error("[DocumentDetail] Load error:", err);
@@ -191,6 +212,34 @@ export default function DocumentDetailPage() {
     } catch (err: any) { toast.error(err.message || de.errors.serverError); }
     finally { setSuggestionLoading(false); }
   }, [doc, suggestionLoading]);
+
+  const handlePromoteCorrection = useCallback(async () => {
+    if (!correctionPattern) return;
+    try {
+      const res = await fetch(`/api/corrections/patterns/${correctionPattern.id}/promote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoteTo: "rule" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.correctionsDashboard.ruleCreated);
+      setCorrectionPattern(null);
+    } catch (err: any) { toast.error(err.message); }
+  }, [correctionPattern]);
+
+  const handleDismissCorrection = useCallback(async () => {
+    if (!correctionPattern) return;
+    try {
+      const res = await fetch(`/api/corrections/patterns/${correctionPattern.id}/dismiss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(de.correctionsDashboard.patternDismissed);
+      setCorrectionPattern(null);
+    } catch (err: any) { toast.error(err.message); }
+  }, [correctionPattern]);
 
   const handleSkip = useCallback(() => {
     if (nextDocId) router.push(`/documents/${nextDocId}`);
@@ -405,6 +454,27 @@ export default function DocumentDetailPage() {
           <Button size="sm" variant="ghost" onClick={openKnowledgeDialog}>
             <BookOpen className="h-4 w-4 mr-1" />{de.reviewCockpit.createKnowledge}
           </Button>
+        </div>
+      )}
+
+      {/* Correction Pattern Hint */}
+      {correctionPattern && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm">
+          <div className="flex items-start gap-2">
+            <span>⚡</span>
+            <div>
+              <strong>{de.correctionsDashboard.patternHint}:</strong>{" "}
+              Bei {correctionPattern.supplierName || "diesem Lieferanten"} wurde &quot;{correctionPattern.field}&quot; {correctionPattern.occurrences}× von {correctionPattern.fromValue || "—"} auf {correctionPattern.toValue} korrigiert.
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button size="sm" variant="outline" onClick={handlePromoteCorrection}>
+              {de.correctionsDashboard.promoteRule}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDismissCorrection}>
+              {de.correctionsDashboard.dismiss}
+            </Button>
+          </div>
         </div>
       )}
 
