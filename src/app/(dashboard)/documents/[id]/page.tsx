@@ -505,6 +505,9 @@ export default function DocumentDetailPage() {
         }}
       />
 
+      {/* Autopilot Event Hint */}
+      <AutopilotEventBox event={autopilotEvent} />
+
       {/* Modify suggestion dialog */}
       <Dialog open={modifyDialogOpen} onOpenChange={setModifyDialogOpen}>
         <DialogContent>
@@ -999,6 +1002,104 @@ function SuggestionPanel({
       </CardContent>
     </Card>
   );
+}
+
+function AutopilotEventBox({ event }: { event: any }) {
+  if (!event) return null;
+
+  // Snapshot kann das alte Format ({checkName: {...}}) oder neue Format
+  // ({checks, suggestion, action, mode, ...}) haben.
+  const snapshot = event.safetyChecks || {};
+  const isNewFormat =
+    snapshot && typeof snapshot === "object" && "checks" in snapshot;
+  const checks = isNewFormat ? snapshot.checks : snapshot;
+  const checksArray = checks && typeof checks === "object" ? Object.values(checks) : [];
+  const passedCount = checksArray.filter((c: any) => c?.passed).length;
+  const totalCount = checksArray.length;
+
+  const action = isNewFormat ? snapshot.action : null;
+  const mode = event.mode as string;
+  const eligible = event.decision === "eligible";
+  const blockedByKey = event.blockedBy as string | null;
+
+  const suggestionSnap = isNewFormat ? snapshot.suggestion : null;
+  const suggestedAccount = suggestionSnap?.suggestedAccount || event.suggestedAccount;
+  const suggestedCategory = suggestionSnap?.suggestedCategory;
+
+  // Auto-Ready
+  if (action === "auto_ready" || (mode === "auto_ready" && eligible)) {
+    return (
+      <div className="px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-sm flex items-start gap-2">
+        <span>✅</span>
+        <div>
+          <strong>{de.autopilot.title}: {de.autopilot.pipeline.autoReady}</strong>
+          <span className="text-xs text-muted-foreground ml-2">
+            ({de.autopilot.pipeline.allChecksPassed}: {passedCount}/{totalCount})
+          </span>
+          {(suggestedAccount || suggestedCategory) && (
+            <div className="text-xs mt-0.5">
+              {suggestedAccount && <>Konto <strong>{suggestedAccount}</strong></>}
+              {suggestedAccount && suggestedCategory && <span className="text-muted-foreground"> · </span>}
+              {suggestedCategory && <>Kategorie <strong>{suggestedCategory}</strong></>}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Prefill
+  if (action === "prefill" || (mode === "prefill" && eligible)) {
+    return (
+      <div className="px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm flex items-start gap-2">
+        <span>⚡</span>
+        <div>
+          <strong>{de.autopilot.title}: {de.autopilot.pipeline.prefilled}</strong>
+          {(suggestedAccount || suggestedCategory) && (
+            <span className="text-xs text-muted-foreground ml-2">
+              ({suggestedAccount ? `Konto ${suggestedAccount}` : ""}
+              {suggestedAccount && suggestedCategory ? ", " : ""}
+              {suggestedCategory ? `Kategorie ${suggestedCategory}` : ""})
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Shadow + eligible
+  if (mode === "shadow" && eligible) {
+    return (
+      <div className="px-3 py-2 rounded-lg border border-purple-200 bg-purple-50 text-sm flex items-start gap-2">
+        <span>👁</span>
+        <div>
+          <strong>{de.autopilot.title} ({de.autopilot.pipeline.shadow}):</strong>{" "}
+          {de.autopilot.pipeline.wouldBeEligible}
+          <span className="text-xs text-muted-foreground ml-2">
+            ({de.autopilot.pipeline.allChecksPassed})
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Blocked
+  if (!eligible && blockedByKey) {
+    const blockedDetail = (checks as any)?.[blockedByKey]?.detail || blockedByKey;
+    return (
+      <div className="px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm flex items-start gap-2">
+        <span>🔒</span>
+        <div>
+          <strong>{de.autopilot.title}: {de.autopilot.pipeline.blocked}</strong>
+          <span className="text-xs text-muted-foreground ml-2">
+            {de.autopilot.pipeline.blockedByCheck} &quot;{blockedDetail}&quot;
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function DecisionReasonsPanel({ reasons }: { reasons: any }) {
