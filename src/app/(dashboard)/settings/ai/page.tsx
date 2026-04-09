@@ -12,13 +12,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Plus, Shield, Brain, Loader2, Trash2, Pencil, Globe, Zap } from "lucide-react";
+import { Plus, Shield, Brain, Loader2, Trash2, Pencil, Globe, Zap, TrendingUp } from "lucide-react";
 import { de } from "@/lib/i18n/de";
+import { formatRelativeTime } from "@/lib/i18n/format";
 import { toast } from "sonner";
+
+interface KnowledgeUsage {
+  timesReferenced: number;
+  lastUsed: string | null;
+  version: number;
+  lastEditedBy: string | null;
+  updatedAt: string;
+}
 
 export default function AiSettingsPage() {
   const [escRules, setEscRules] = useState<any[]>([]);
   const [knowledge, setKnowledge] = useState<any[]>([]);
+  const [usageByItem, setUsageByItem] = useState<Record<string, KnowledgeUsage>>({});
   const [loading, setLoading] = useState(true);
   const [escDialogOpen, setEscDialogOpen] = useState(false);
   const [knDialogOpen, setKnDialogOpen] = useState(false);
@@ -37,7 +47,20 @@ export default function AiSettingsPage() {
         fetch("/api/knowledge").then((r) => r.json()),
       ]);
       setEscRules(Array.isArray(escRes) ? escRes : []);
-      setKnowledge(Array.isArray(knRes) ? knRes : []);
+      const knList: any[] = Array.isArray(knRes) ? knRes : [];
+      setKnowledge(knList);
+
+      // Verwendungs-Statistiken parallel laden
+      const usageMap: Record<string, KnowledgeUsage> = {};
+      await Promise.all(
+        knList.map(async (k: any) => {
+          try {
+            const res = await fetch(`/api/knowledge/${k.id}/usage`);
+            if (res.ok) usageMap[k.id] = await res.json();
+          } catch {}
+        })
+      );
+      setUsageByItem(usageMap);
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -191,6 +214,26 @@ export default function AiSettingsPage() {
                   {(k.validFrom || k.validUntil) && (
                     <p className="text-xs text-muted-foreground mb-1">
                       {k.validFrom ? new Date(k.validFrom).toLocaleDateString("de-CH") : "—"} – {k.validUntil ? new Date(k.validUntil).toLocaleDateString("de-CH") : "Unbefristet"}
+                    </p>
+                  )}
+                  {usageByItem[k.id] && usageByItem[k.id].timesReferenced > 0 && (
+                    <div className="text-[0.7rem] text-muted-foreground mb-1 flex items-center gap-1 flex-wrap">
+                      <TrendingUp className="h-2.5 w-2.5 text-emerald-600" />
+                      <span>{usageByItem[k.id].timesReferenced}{de.knowledgeDeep.timesReferenced}</span>
+                      {usageByItem[k.id].lastUsed && (
+                        <span>· {de.knowledgeDeep.lastUsed}: {formatRelativeTime(usageByItem[k.id].lastUsed!)}</span>
+                      )}
+                    </div>
+                  )}
+                  {(k.version > 1 || (usageByItem[k.id] && usageByItem[k.id].lastEditedBy)) && (
+                    <p className="text-[0.7rem] text-muted-foreground mb-1">
+                      {de.knowledgeDeep.version} {k.version}
+                      {usageByItem[k.id]?.lastEditedBy && (
+                        <> · {de.knowledgeDeep.editedBy} {usageByItem[k.id].lastEditedBy}</>
+                      )}
+                      {usageByItem[k.id]?.updatedAt && (
+                        <> ({new Date(usageByItem[k.id].updatedAt).toLocaleDateString("de-CH")})</>
+                      )}
                     </p>
                   )}
                   <div className="flex items-center justify-between">

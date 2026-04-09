@@ -15,7 +15,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, FileSignature, Loader2, Search, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Plus, FileSignature, Loader2, Search, CheckCircle2, AlertTriangle, XCircle, Clock, FileText, ListTodo } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatCurrency } from "@/lib/i18n/format";
 import { toast } from "sonner";
@@ -48,7 +48,20 @@ export default function ContractsPage() {
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchContracts(); }, [fetchContracts]);
+  // Auto-load completeness check, sodass Lifecycle-Status & fehlende Rechnungen sofort sichtbar sind
+  const autoCheck = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contracts/check");
+      if (res.ok) setCheckResult(await res.json());
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchContracts(); autoCheck(); }, [fetchContracts, autoCheck]);
+
+  // Map contractId → check entry für schnellen Lookup
+  const checkByContract = new Map<string, any>(
+    (checkResult?.contracts || []).map((c: any) => [c.id, c])
+  );
 
   function set(f: string, v: any) { setForm((p) => ({ ...p, [f]: v })); }
 
@@ -123,22 +136,79 @@ export default function ContractsPage() {
                 <TableHead>{de.contracts.contractType}</TableHead>
                 <TableHead>{de.contracts.counterparty}</TableHead>
                 <TableHead>{de.contracts.monthlyAmount}</TableHead>
-                <TableHead>{de.contracts.frequency}</TableHead>
+                <TableHead>{de.contractsDeep.paymentCycle}</TableHead>
                 <TableHead>Laufzeit</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{de.contractsDeep.lifecycle}</TableHead>
+                <TableHead>{de.contractsDeep.linkedExpectedDocs}</TableHead>
+                <TableHead>{de.contractsDeep.linkedTasks}</TableHead>
+                <TableHead>{de.contractsDeep.missingInvoiceShort}</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {contracts.map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium text-sm">{c.name}</TableCell>
-                    <TableCell><Badge variant="secondary" className="text-xs">{de.contracts.types[c.contractType] || c.contractType}</Badge></TableCell>
-                    <TableCell className="text-xs">{c.counterparty}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">{formatCurrency(c.monthlyAmount, c.currency || "CHF")}</TableCell>
-                    <TableCell className="text-xs">{de.recurring.frequencies[c.frequency] || c.frequency}</TableCell>
-                    <TableCell className="text-xs">{formatDate(c.startDate)}{c.endDate ? ` – ${formatDate(c.endDate)}` : " – unbefristet"}</TableCell>
-                    <TableCell><Badge variant="secondary" className={`text-xs ${STATUS_COLORS[c.status] || ""}`}>{c.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
+                {contracts.map((c: any) => {
+                  const check = checkByContract.get(c.id);
+                  const lifecycleStatus = c.lifecycleStatus || c.status;
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium text-sm">{c.name}</TableCell>
+                      <TableCell><Badge variant="secondary" className="text-xs">{de.contracts.types[c.contractType] || c.contractType}</Badge></TableCell>
+                      <TableCell className="text-xs">{c.counterparty}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{formatCurrency(c.monthlyAmount, c.currency || "CHF")}</TableCell>
+                      <TableCell className="text-xs">{de.recurring.frequencies[c.frequency] || c.frequency}</TableCell>
+                      <TableCell className="text-xs">{formatDate(c.startDate)}{c.endDate ? ` – ${formatDate(c.endDate)}` : " – unbefristet"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="secondary" className={`text-xs ${STATUS_COLORS[lifecycleStatus] || ""}`}>{lifecycleStatus}</Badge>
+                          {c.daysUntilExpiry != null && c.daysUntilExpiry > 0 && c.daysUntilExpiry <= c.reminderDays && (
+                            <span className="text-[0.65rem] text-amber-700 inline-flex items-center gap-0.5">
+                              <Clock className="h-2.5 w-2.5" />
+                              {de.contractsDeep.expiringIn.replace("{days}", String(c.daysUntilExpiry))}
+                            </span>
+                          )}
+                          {c.daysUntilExpiry != null && c.daysUntilExpiry < 0 && (
+                            <span className="text-[0.65rem] text-red-700">{de.contractsDeep.expired}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {c.expectedDocumentCount > 0 ? (
+                          <Badge variant="secondary" className="text-xs">
+                            <FileText className="h-2.5 w-2.5 mr-0.5" />{c.expectedDocumentCount}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {c.openTaskCount > 0 ? (
+                          <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
+                            <ListTodo className="h-2.5 w-2.5 mr-0.5" />{c.openTaskCount}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {check?.invoiceStatus === "overdue" ? (
+                          <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">
+                            <XCircle className="h-2.5 w-2.5 mr-0.5" />
+                            {de.contractsDeep.missingInvoice.replace(
+                              "{period}",
+                              check.expectedDate
+                                ? new Date(check.expectedDate).toLocaleDateString("de-CH", { month: "short", year: "numeric" })
+                                : ""
+                            )}
+                          </Badge>
+                        ) : check?.invoiceStatus === "received" ? (
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />OK
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

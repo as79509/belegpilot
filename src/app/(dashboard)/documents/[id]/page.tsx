@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { PdfViewer } from "@/components/documents/pdf-viewer";
 import { ReviewForm } from "@/components/review/review-form";
+import { ConfidenceBadge } from "@/components/ds/confidence-badge";
+import { StatusBadge } from "@/components/ds/status-badge";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
@@ -55,6 +57,9 @@ export default function DocumentDetailPage() {
 
   // Next Actions
   const [nextActions, setNextActions] = useState<any[]>([]);
+
+  // Supplier context (Phase 8.8.1: Review-Kontext)
+  const [supplierContext, setSupplierContext] = useState<any>(null);
 
   // Correction patterns for this supplier
   const [correctionPattern, setCorrectionPattern] = useState<any>(null);
@@ -146,6 +151,13 @@ export default function DocumentDetailPage() {
               const top = patterns.sort((a: any, b: any) => b.occurrences - a.occurrences)[0];
               setCorrectionPattern(top);
             }
+          }
+
+          // Fetch supplier context (defaults / pattern) for Review-Kontext panel
+          const ctxRes = await fetch(`/api/suppliers/${supplierIdForPatterns}/suggest-defaults`).catch(() => null);
+          if (ctxRes?.ok) {
+            const ctxData = await ctxRes.json();
+            if (ctxData?.pattern) setSupplierContext(ctxData);
           }
         }
       } catch (err) {
@@ -633,6 +645,13 @@ export default function DocumentDetailPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Review-Kontext Panel (Phase 8.8.1) */}
+      <ReviewContextPanel
+        doc={doc}
+        supplierContext={supplierContext}
+        similarDocs={similarDocs}
+      />
 
       {/* Main layout: PDF + Review Form */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -1237,6 +1256,184 @@ function DecisionReasonsPanel({ reasons }: { reasons: any }) {
             <span key={`know-${i}`} className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-800">{k}</span>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Phase 8.8.1: Review-Kontext Panel — supplier history at a glance
+function ReviewContextPanel({
+  doc,
+  supplierContext,
+  similarDocs,
+}: {
+  doc: any;
+  supplierContext: any;
+  similarDocs: any[];
+}) {
+  if (!doc?.supplierId && !supplierContext) {
+    return null;
+  }
+
+  const pattern = supplierContext?.pattern;
+  const supplierName = doc?.supplierNameNormalized || doc?.supplierNameRaw || "—";
+
+  // Build "last 3 decisions" from similar docs filtered to same supplier
+  const sameSupplierDocs = (similarDocs || [])
+    .filter((d) => d.supplierName === (doc?.supplierNameNormalized || doc?.supplierNameRaw))
+    .filter((d) => ["approved", "rejected", "modified"].includes(d.reviewStatus || ""))
+    .slice(0, 3);
+
+  // Compute deviations vs pattern
+  const currentAmount = doc?.grossAmount != null ? Number(doc.grossAmount) : null;
+  const typicalAmount = pattern?.typicalAmount != null ? Number(pattern.typicalAmount) : null;
+  const amountDeviationPct =
+    currentAmount != null && typicalAmount != null && typicalAmount > 0
+      ? Math.round(((currentAmount - typicalAmount) / typicalAmount) * 100)
+      : null;
+  const amountDeviates =
+    amountDeviationPct != null && Math.abs(amountDeviationPct) >= 50;
+
+  // Detect VAT deviation
+  const docVatRates = Array.isArray(doc?.vatRatesDetected)
+    ? (doc.vatRatesDetected as any[])
+    : [];
+  const currentVatRate =
+    docVatRates.length > 0 && typeof docVatRates[0]?.rate === "number"
+      ? Number(docVatRates[0].rate)
+      : null;
+  const dominantVatRate = pattern?.dominantVatRate != null ? Number(pattern.dominantVatRate) : null;
+  const vatDeviates =
+    currentVatRate != null && dominantVatRate != null && currentVatRate !== dominantVatRate;
+
+  function daysSince(dateStr: string | Date | null | undefined): number | null {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return null;
+    const diff = Date.now() - d.getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  const lastBookingDays = daysSince(pattern?.lastBookingDate);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{de.reviewContext.title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Supplier context line */}
+        {pattern ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
+            <span className="font-medium">{supplierName}</span>
+            <StatusBadge type="supplier" value={pattern.isVerified} size="sm" />
+            <span className="text-muted-foreground">·</span>
+            <span>
+              <strong>{pattern.totalApprovedDocs}</strong> {de.reviewContext.approvedDocs}
+            </span>
+            {pattern.accountStability != null && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  {de.reviewContext.stability}: <strong>{Math.round(pattern.accountStability * 100)}%</strong>
+                </span>
+              </>
+            )}
+            {pattern.dominantAccount && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  {de.reviewContext.dominantAccount}: <strong>{pattern.dominantAccount}</strong>
+                </span>
+              </>
+            )}
+            {dominantVatRate != null && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  MwSt: <strong>{dominantVatRate}%</strong>
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">{de.reviewContext.noContext}</p>
+        )}
+
+        {pattern && (typicalAmount != null || lastBookingDays != null) && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {lastBookingDays != null && (
+              <span>
+                {de.reviewContext.lastBooking}: {de.reviewContext.daysAgo.replace("{n}", String(lastBookingDays))}
+              </span>
+            )}
+            {typicalAmount != null && (
+              <>
+                {lastBookingDays != null && <span>·</span>}
+                <span>
+                  {de.reviewContext.typicalAmount}: <strong>{formatCurrency(typicalAmount, doc?.currency || "CHF")}</strong>
+                  {pattern.amountStdDeviation != null && pattern.isAmountStable && (
+                    <> ± {formatCurrency(Number(pattern.amountStdDeviation), doc?.currency || "CHF")}</>
+                  )}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Deviation hints */}
+        {amountDeviates && (
+          <div className="text-xs px-2 py-1.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+            ⚠ {de.reviewContext.amountDeviation}: {formatCurrency(currentAmount!, doc?.currency || "CHF")} {de.reviewContext.typicalAmount.toLowerCase()} {formatCurrency(typicalAmount!, doc?.currency || "CHF")} ({amountDeviationPct! > 0 ? "+" : ""}{amountDeviationPct}%)
+          </div>
+        )}
+        {vatDeviates && (
+          <div className="text-xs px-2 py-1.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+            ⚠ {de.reviewContext.vatDeviation}: {currentVatRate}% — {de.reviewContext.typicalVat}: {dominantVatRate}%
+          </div>
+        )}
+
+        {/* Last decisions */}
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{de.reviewContext.lastDocs}</p>
+          {sameSupplierDocs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{de.reviewContext.noDecisions}</p>
+          ) : (
+            <ul className="space-y-1">
+              {sameSupplierDocs.map((d) => {
+                const days = daysSince(d.createdAt);
+                return (
+                  <li key={d.id} className="flex items-center gap-2 text-xs">
+                    <Link
+                      href={`/documents/${d.id}`}
+                      className="font-mono text-blue-600 hover:underline"
+                    >
+                      {d.documentNumber || d.id.slice(0, 8)}
+                    </Link>
+                    <StatusBadge type="review" value={d.reviewStatus || ""} size="sm" />
+                    {d.accountCode && (
+                      <span className="text-muted-foreground">
+                        {de.reviewContext.dominantAccount} {d.accountCode}
+                      </span>
+                    )}
+                    {days != null && (
+                      <span className="text-muted-foreground ml-auto">
+                        {de.reviewContext.daysAgo.replace("{n}", String(days))}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Confidence dot */}
+        {doc?.confidenceScore != null && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ConfidenceBadge score={doc.confidenceScore} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

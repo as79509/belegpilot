@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
   const [entries, total] = await Promise.all([
     prisma.journalEntry.findMany({
       where: where as any,
-      include: { user: { select: { name: true } } },
+      include: {
+        user: { select: { name: true } },
+        document: { select: { id: true, documentNumber: true } },
+      },
       orderBy: { entryDate: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,

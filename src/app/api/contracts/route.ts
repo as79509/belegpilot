@@ -17,11 +17,39 @@ export async function GET(request: NextRequest) {
 
   const contracts = await prisma.contract.findMany({
     where: where as any,
-    include: { supplier: { select: { nameNormalized: true } } },
+    include: {
+      supplier: { select: { nameNormalized: true } },
+      _count: {
+        select: {
+          relatedTasks: { where: { status: { in: ["open", "in_progress"] } } },
+          expectedDocuments: { where: { isActive: true } },
+        },
+      },
+    },
     orderBy: { startDate: "desc" },
   });
 
-  return NextResponse.json(contracts);
+  // Lifecycle berechnen: expiring wenn endDate innerhalb reminderDays
+  const now = Date.now();
+  const enriched = contracts.map((c) => {
+    let lifecycleStatus = c.status;
+    let daysUntilExpiry: number | null = null;
+    if (c.endDate) {
+      const days = Math.floor((c.endDate.getTime() - now) / 86400000);
+      daysUntilExpiry = days;
+      if (days < 0) lifecycleStatus = "expired";
+      else if (days <= c.reminderDays) lifecycleStatus = "expiring";
+    }
+    return {
+      ...c,
+      lifecycleStatus,
+      daysUntilExpiry,
+      openTaskCount: (c as any)._count?.relatedTasks ?? 0,
+      expectedDocumentCount: (c as any)._count?.expectedDocuments ?? 0,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: NextRequest) {

@@ -19,11 +19,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, AlertTriangle, Save, Sparkles } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Save, Sparkles, Activity, BookOpen, Workflow, AlertCircle, History } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
+import { SectionCard } from "@/components/ds/section-card";
+import { AuditPanel } from "@/components/ds/audit-panel";
 
 export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
@@ -40,6 +42,7 @@ export default function SupplierDetailPage() {
   });
   const [loading, setLoading] = useState(true);
   const [patternData, setPatternData] = useState<any>(null);
+  const [intelligence, setIntelligence] = useState<any>(null);
   const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
   const [acceptAccount, setAcceptAccount] = useState(true);
   const [acceptCategory, setAcceptCategory] = useState(true);
@@ -48,6 +51,11 @@ export default function SupplierDetailPage() {
     fetch(`/api/suppliers/${params.id}/suggest-defaults`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) setPatternData(d); })
+      .catch(() => {});
+
+    fetch(`/api/suppliers/${params.id}/intelligence`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setIntelligence(d); })
       .catch(() => {});
 
     fetch(`/api/suppliers/${params.id}`)
@@ -164,8 +172,8 @@ export default function SupplierDetailPage() {
     <div className="space-y-4">
       <Link href="/suppliers" className="text-sm text-muted-foreground hover:text-foreground">← {de.suppliers.title}</Link>
 
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">{supplier.nameNormalized}</h1>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="text-xl font-semibold mr-1">{supplier.nameNormalized}</h1>
         {supplier.isVerified ? (
           <Badge variant="secondary" className="bg-green-100 text-green-800">
             <CheckCircle2 className="h-3 w-3 mr-1" />{de.suppliers.verified}
@@ -178,11 +186,44 @@ export default function SupplierDetailPage() {
             <Button variant="outline" size="sm" onClick={handleVerify}>{de.suppliers.verify}</Button>
           </>
         )}
+        <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+          {supplier.documentCount} {de.suppliers.documentCount}
+        </Badge>
+        {patternData?.pattern?.accountStability != null && (
+          <Badge
+            variant="secondary"
+            className={
+              patternData.pattern.accountStability >= 0.8
+                ? "bg-green-100 text-green-800"
+                : "bg-amber-100 text-amber-800"
+            }
+          >
+            {de.supplierIntelligence.stabilityScore}: {Math.round(patternData.pattern.accountStability * 100)}%
+          </Badge>
+        )}
+        {intelligence?.correctionCount != null && intelligence.correctionCount > 0 && (
+          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+            {de.supplierIntelligence.correctionHistory}: {intelligence.correctionCount}
+          </Badge>
+        )}
+        {intelligence?.escalations && (
+          <Badge
+            variant="secondary"
+            className={
+              intelligence.escalations.length > 0
+                ? "bg-red-100 text-red-800"
+                : "bg-slate-100 text-slate-700"
+            }
+          >
+            {de.supplierIntelligence.escalationHistory}: {intelligence.escalations.length}
+          </Badge>
+        )}
       </div>
 
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="analysis">{de.supplierIntelligence.analysis}</TabsTrigger>
           <TabsTrigger value="documents">{de.suppliers.documentCount} ({supplier.documentCount})</TabsTrigger>
         </TabsList>
 
@@ -372,6 +413,200 @@ export default function SupplierDetailPage() {
           </Card>
 
           <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />{de.suppliers.save}</Button>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="mt-4 space-y-4">
+          {/* Stabilitäts-Score Card */}
+          <SectionCard title={de.supplierIntelligence.stabilityScore} icon={Activity} iconColor="text-blue-600">
+            {patternData?.pattern ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.accountStability}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs">{patternData.pattern.dominantAccount || "—"}</span>
+                    <Badge
+                      variant="secondary"
+                      className={patternData.pattern.accountStability >= 0.8 ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
+                    >
+                      {Math.round(patternData.pattern.accountStability * 100)}%
+                      {" "}({Math.round(patternData.pattern.accountStability * patternData.pattern.totalApprovedDocs)} von {patternData.pattern.totalApprovedDocs})
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.amountStability}</span>
+                  <div className="flex items-center gap-2">
+                    {patternData.pattern.typicalAmount != null && (
+                      <span className="text-xs">
+                        {formatCurrency(patternData.pattern.typicalAmount, "CHF")}
+                        {patternData.pattern.amountStdDeviation != null && (
+                          <span className="text-muted-foreground"> ± {formatCurrency(patternData.pattern.amountStdDeviation, "CHF")}</span>
+                        )}
+                      </span>
+                    )}
+                    <Badge variant="secondary" className={patternData.pattern.isAmountStable ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}>
+                      {patternData.pattern.isAmountStable ? de.supplierPatterns.amountStable : de.supplierPatterns.amountUnstable}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.vatConsistency}</span>
+                  <div className="flex items-center gap-2">
+                    {patternData.pattern.dominantVatRate != null && (
+                      <span className="text-xs">{patternData.pattern.dominantVatRate}%</span>
+                    )}
+                    <Badge variant="secondary" className={patternData.pattern.vatStability >= 0.8 ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}>
+                      {Math.round(patternData.pattern.vatStability * 100)}%
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="font-medium">{de.supplierIntelligence.overallScore}</span>
+                  <Badge
+                    variant="secondary"
+                    className={
+                      patternData.pattern.accountStability >= 0.8 && patternData.pattern.vatStability >= 0.8 && patternData.pattern.isAmountStable
+                        ? "bg-green-100 text-green-800"
+                        : patternData.pattern.accountStability >= 0.6
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-red-100 text-red-800"
+                    }
+                  >
+                    {patternData.pattern.accountStability >= 0.8 && patternData.pattern.vatStability >= 0.8 && patternData.pattern.isAmountStable
+                      ? "Hoch"
+                      : patternData.pattern.accountStability >= 0.6
+                        ? "Mittel"
+                        : "Niedrig"}
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">{de.supplierPatterns.notEligible}</p>
+            )}
+          </SectionCard>
+
+          {/* Häufigste Kontierungen */}
+          {intelligence?.topAccounts && intelligence.topAccounts.length > 0 && (
+            <SectionCard title={de.supplierIntelligence.topAccounts} icon={Activity} iconColor="text-indigo-600">
+              <div className="space-y-1.5">
+                {intelligence.topAccounts.map((a: any) => (
+                  <div key={a.account} className="flex items-center justify-between text-sm">
+                    <span className="font-mono text-xs">{a.account}</span>
+                    <span className="text-xs text-muted-foreground">{a.count}× ({a.percent}%)</span>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Regelbezug */}
+          <SectionCard title={de.supplierIntelligence.relatedRules} icon={Workflow} iconColor="text-purple-600">
+            {intelligence?.rules && intelligence.rules.length > 0 ? (
+              <ul className="space-y-2">
+                {intelligence.rules.map((r: any) => (
+                  <li key={r.id} className="flex items-center justify-between text-sm">
+                    <Link href="/rules" className="hover:underline">
+                      {r.name}
+                    </Link>
+                    <div className="flex gap-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {(de.rules.types as any)[r.ruleType] || r.ruleType}
+                      </Badge>
+                      {!r.isActive && <Badge variant="secondary" className="text-xs bg-gray-100">{de.rules.inactive}</Badge>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">{de.common.noData}</p>
+            )}
+          </SectionCard>
+
+          {/* Knowledge-Bezug */}
+          <SectionCard title={de.supplierIntelligence.relatedKnowledge} icon={BookOpen} iconColor="text-emerald-600">
+            {intelligence?.knowledge && intelligence.knowledge.length > 0 ? (
+              <ul className="space-y-2">
+                {intelligence.knowledge.map((k: any) => (
+                  <li key={k.id} className="flex items-center justify-between text-sm">
+                    <Link href="/settings/ai" className="hover:underline">
+                      {k.title}
+                    </Link>
+                    {k.version > 1 && <Badge variant="outline" className="text-xs">v{k.version}</Badge>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">{de.common.noData}</p>
+            )}
+          </SectionCard>
+
+          {/* Korrekturen */}
+          <SectionCard title={de.supplierIntelligence.correctionHistory} icon={History} iconColor="text-amber-600">
+            {intelligence?.corrections && intelligence.corrections.length > 0 ? (
+              <ul className="space-y-1.5">
+                {intelligence.corrections.map((c: any) => (
+                  <li key={c.id} className="text-sm flex items-center justify-between">
+                    <span className="text-xs">
+                      <span className="font-mono">{c.field}</span>:{" "}
+                      <span className="text-red-600">{c.originalValue || "—"}</span>
+                      {" → "}
+                      <span className="text-green-600">{c.correctedValue}</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">{formatDate(c.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">{de.common.noData}</p>
+            )}
+          </SectionCard>
+
+          {/* Eskalationen */}
+          <SectionCard title={de.supplierIntelligence.escalationHistory} icon={AlertCircle} iconColor="text-red-600">
+            {intelligence?.escalations && intelligence.escalations.length > 0 ? (
+              <ul className="space-y-2">
+                {intelligence.escalations.map((e: any) => (
+                  <li key={e.id} className="flex items-center justify-between text-sm">
+                    <span>{e.title}</span>
+                    <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">{e.priority}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">{de.supplierIntelligence.noEscalations}</p>
+            )}
+          </SectionCard>
+
+          {/* Lieferantenhistorie */}
+          <SectionCard title={de.supplierIntelligence.timeline} icon={History} iconColor="text-slate-600">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{de.supplierIntelligence.createdAt}</span>
+                <span>{formatDate(supplier.createdAt)}</span>
+              </div>
+              {intelligence?.timeline?.verifiedAt && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.verifiedAt}</span>
+                  <span>{formatDate(intelligence.timeline.verifiedAt)}</span>
+                </div>
+              )}
+              {intelligence?.timeline?.defaultsSetAt && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.defaultsSetAt}</span>
+                  <span>{formatDate(intelligence.timeline.defaultsSetAt)}</span>
+                </div>
+              )}
+              {intelligence?.timeline?.lastDocumentAt && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{de.supplierIntelligence.lastDocument}</span>
+                  <span>{formatDate(intelligence.timeline.lastDocumentAt)}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 border-t pt-3">
+              <AuditPanel entityType="supplier" entityId={supplier.id} maxEntries={5} />
+            </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4">

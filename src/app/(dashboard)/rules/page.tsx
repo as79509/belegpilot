@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History, Globe, BookTemplate } from "lucide-react";
+import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History, Globe, BookTemplate, TrendingUp } from "lucide-react";
 import { de } from "@/lib/i18n/de";
+import { formatRelativeTime } from "@/lib/i18n/format";
 import { toast } from "sonner";
 
 interface Rule {
@@ -38,8 +39,16 @@ const QUICK_ACTIONS = [
   { value: "auto_approve", label: "Auto-Genehmigung" },
 ];
 
+interface RuleImpact {
+  docsAffected: number;
+  lastApplied: string | null;
+  successRate: number | null;
+  approvedCount: number;
+}
+
 export default function RulesPage() {
   const [rules, setRules] = useState<Rule[]>([]);
+  const [impactByRule, setImpactByRule] = useState<Record<string, RuleImpact>>({});
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,9 +89,22 @@ export default function RulesPage() {
       fetch("/api/rules").then((r) => r.json()).catch(() => []),
       fetch("/api/rules/suggestions").then((r) => r.json()).catch(() => ({ suggestions: [] })),
     ]);
-    setRules(Array.isArray(rulesRes) ? rulesRes : []);
+    const ruleList: Rule[] = Array.isArray(rulesRes) ? rulesRes : [];
+    setRules(ruleList);
     setSuggestions(sugRes.suggestions || []);
     setLoading(false);
+
+    // Wirkungsanalyse parallel laden — non-blocking
+    const impactMap: Record<string, RuleImpact> = {};
+    await Promise.all(
+      ruleList.map(async (r) => {
+        try {
+          const res = await fetch(`/api/rules/${r.id}/impact`);
+          if (res.ok) impactMap[r.id] = await res.json();
+        } catch {}
+      })
+    );
+    setImpactByRule(impactMap);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -343,7 +365,21 @@ export default function RulesPage() {
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">{readableRule(rule)}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{readableRule(rule)}</p>
+                  {impactByRule[rule.id] && impactByRule[rule.id].docsAffected > 0 && (
+                    <div className="flex items-center gap-2 text-[0.7rem] text-muted-foreground mb-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1">
+                        <TrendingUp className="h-2.5 w-2.5 text-blue-600" />
+                        {impactByRule[rule.id].docsAffected} {de.rulesDeep.docsAffected}
+                      </span>
+                      {impactByRule[rule.id].lastApplied && (
+                        <span>· {de.rulesDeep.lastApplied}: {formatRelativeTime(impactByRule[rule.id].lastApplied!)}</span>
+                      )}
+                      {impactByRule[rule.id].successRate != null && (
+                        <span>· {de.rulesDeep.successRate} {impactByRule[rule.id].successRate}% ({impactByRule[rule.id].approvedCount} {de.rulesDeep.approvedAfter})</span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => toggleActive(rule)}>
                       <Badge variant="secondary" className={`text-xs cursor-pointer ${rule.isActive ? "bg-green-100 text-green-800" : "bg-gray-100"}`}>
