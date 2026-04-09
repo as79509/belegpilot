@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap,
+  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
 import { useCompany } from "@/lib/contexts/company-context";
 import { EntityHeader, StatusBadge, InfoPanel } from "@/components/ds";
+import { useRecentItems } from "@/lib/hooks/use-recent-items";
 
 interface Alert {
   type: "error" | "warning";
@@ -77,6 +78,19 @@ interface NextAction {
   targetUrl: string;
 }
 
+interface ReviewSpeed {
+  todayReviewed: number;
+  todayMinutes: number;
+  avgSecondsPerDoc: number;
+}
+
+interface PersonalToday {
+  reviewed: number;
+  rulesCreated: number;
+  suppliersVerified: number;
+  suggestionsAccepted: number;
+}
+
 interface CockpitData {
   alerts: Alert[];
   todayStats: { uploaded: number; reviewed: number; tasksDue: number; autoQuote: number };
@@ -92,6 +106,8 @@ interface CockpitData {
     config: { enabled: boolean; mode: string; killSwitchActive: boolean };
   };
   nextActions?: NextAction[];
+  reviewSpeed?: ReviewSpeed;
+  personalToday?: PersonalToday;
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -140,6 +156,7 @@ interface AutopilotHealth {
 export default function DashboardPage() {
   const router = useRouter();
   const { switchCompany, isMultiCompany } = useCompany();
+  const { items: recentItems } = useRecentItems();
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
@@ -192,17 +209,28 @@ export default function DashboardPage() {
       {/* Bereich 3: Heute-Panel */}
       <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} autopilotStats={data.autopilotStats} />
 
+      {/* Bereich 3a': Review Speed Meter */}
+      {data.reviewSpeed && <ReviewSpeedMeter speed={data.reviewSpeed} />}
+
       {/* Bereich 3a: Autopilot Health Indikator */}
       {autopilotHealth && <AutopilotHealthIndicator health={autopilotHealth} />}
 
       {/* Bereich 3b: Empfohlene Aktionen */}
       <NextActionsPanel actions={data.nextActions || []} onNavigate={(url) => router.push(url)} />
 
+      {/* Bereich 3c: Weiter wo du aufgehört hast */}
+      {recentItems.length > 0 && (
+        <RecentItemsPanel items={recentItems.slice(0, 3)} onNavigate={(url) => router.push(url)} />
+      )}
+
       {/* Bereich 4: Zwei-Spalten Arbeitsbereich */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <HighRiskDocsPanel docs={data.highRiskDocs} />
         <OpenTasksPanel tasks={data.openTasks} />
       </div>
+
+      {/* Persönliches Cockpit */}
+      {data.personalToday && <PersonalTodayCard today={data.personalToday} />}
 
       {/* Wartet auf Mandant */}
       {data.waitingOnClient && data.waitingOnClient.length > 0 && (
@@ -407,6 +435,44 @@ function NextActionsPanel({ actions, onNavigate }: { actions: NextAction[]; onNa
   );
 }
 
+/* ---------- Bereich 3c: Weiter wo du aufgehört hast ---------- */
+function RecentItemsPanel({
+  items,
+  onNavigate,
+}: {
+  items: { type: string; id: string; title: string; url: string; timestamp: number }[];
+  onNavigate: (url: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Clock className="h-4 w-4 text-blue-500" />
+          {de.recentItems.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          {items.map((item) => (
+            <button
+              key={`${item.type}-${item.id}`}
+              type="button"
+              onClick={() => onNavigate(item.url)}
+              className="w-full flex items-center gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-secondary)] transition-colors text-left"
+            >
+              <span className="text-xs text-muted-foreground uppercase tracking-wide w-16 shrink-0">
+                {item.type === "document" ? "Beleg" : item.type === "supplier" ? "Lieferant" : item.type}
+              </span>
+              <span className="text-xs flex-1 min-w-0 truncate">{item.title}</span>
+              <ArrowRight className="h-3 w-3 text-blue-600" />
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ---------- Bereich 4a: Hochrisiko-Belege ---------- */
 function HighRiskDocsPanel({ docs }: { docs: HighRiskDoc[] }) {
   return (
@@ -578,6 +644,65 @@ function PeriodCard({ label, period }: { label: string; period: PeriodInfo | nul
         <Link href="/periods" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors">
           {de.periods.title} <ArrowRight className="h-3 w-3" />
         </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------- Review Speed Meter ---------- */
+function ReviewSpeedMeter({ speed }: { speed: ReviewSpeed }) {
+  if (speed.todayReviewed === 0) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] text-sm text-[var(--text-muted)]">
+        <Gauge className="h-4 w-4" />
+        <span>{de.reviewSpeed.nothingYet}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm">
+      <Gauge className="h-4 w-4 text-blue-600" />
+      <span className="font-semibold text-blue-900">{de.reviewSpeed.todayLine}:</span>
+      <span>
+        <strong>{speed.todayReviewed}</strong> {de.reviewSpeed.docs}
+      </span>
+      <span className="text-[var(--text-muted)]">·</span>
+      <span>
+        {de.reviewSpeed.reviewedIn} <strong>{speed.todayMinutes}</strong> {de.reviewSpeed.minutes}
+      </span>
+      <span className="text-[var(--text-muted)]">·</span>
+      <span>{de.reviewSpeed.avgPerDoc.replace("{sec}", String(speed.avgSecondsPerDoc))}</span>
+    </div>
+  );
+}
+
+/* ---------- Personal Today Cockpit ---------- */
+function PersonalTodayCard({ today }: { today: PersonalToday }) {
+  const items: Array<{ label: string; value: number }> = [
+    { label: de.reviewSpeed.reviewed, value: today.reviewed },
+    { label: de.reviewSpeed.rulesCreated, value: today.rulesCreated },
+    { label: de.reviewSpeed.suppliersVerified, value: today.suppliersVerified },
+    { label: de.reviewSpeed.suggestionsAccepted, value: today.suggestionsAccepted },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          {de.reviewSpeed.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {items.map((it) => (
+            <div key={it.label} className="rounded-md bg-[var(--surface-secondary)] px-3 py-2">
+              <p className="text-xs text-[var(--text-muted)]">{it.label}</p>
+              <p className="text-lg font-semibold mt-0.5">{it.value}</p>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

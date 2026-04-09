@@ -177,6 +177,77 @@ export async function GET() {
     ? Math.round((autopilotEligible / autopilotTotal) * 100)
     : 0;
 
+  // Personal Review Speed (today, current user)
+  const reviewActions = await prisma.auditLog.findMany({
+    where: {
+      companyId,
+      userId: session.user.id,
+      createdAt: { gte: todayStart },
+      action: { in: ["document_approved", "document_bulk_approved", "document_rejected", "document_bulk_rejected"] },
+    },
+    select: { action: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const reviewedToday = reviewActions.length;
+  let todayMinutes = 0;
+  let avgSecondsPerDoc = 0;
+  if (reviewedToday >= 2) {
+    const first = reviewActions[0].createdAt.getTime();
+    const last = reviewActions[reviewActions.length - 1].createdAt.getTime();
+    const spanMs = Math.max(0, last - first);
+    todayMinutes = Math.max(1, Math.round(spanMs / 60000));
+    avgSecondsPerDoc = Math.max(1, Math.round(spanMs / 1000 / reviewedToday));
+  } else if (reviewedToday === 1) {
+    todayMinutes = 1;
+    avgSecondsPerDoc = 60;
+  }
+
+  const reviewSpeed = {
+    todayReviewed: reviewedToday,
+    todayMinutes,
+    avgSecondsPerDoc,
+  };
+
+  // Personal Today (current user counters)
+  const [
+    personalRulesCreated,
+    personalSuppliersVerified,
+    personalSuggestionsAccepted,
+  ] = await Promise.all([
+    prisma.auditLog.count({
+      where: {
+        companyId,
+        userId: session.user.id,
+        createdAt: { gte: todayStart },
+        action: "rule_created",
+      },
+    }),
+    prisma.auditLog.count({
+      where: {
+        companyId,
+        userId: session.user.id,
+        createdAt: { gte: todayStart },
+        action: "supplier_verified",
+      },
+    }),
+    prisma.auditLog.count({
+      where: {
+        companyId,
+        userId: session.user.id,
+        createdAt: { gte: todayStart },
+        action: "suggestion_accepted",
+      },
+    }),
+  ]);
+
+  const personalToday = {
+    reviewed: reviewedToday,
+    rulesCreated: personalRulesCreated,
+    suppliersVerified: personalSuppliersVerified,
+    suggestionsAccepted: personalSuggestionsAccepted,
+  };
+
   // Contract overdue counts
   const { overdueCount: overdueContractCount, expiringCount: expiringContractCount } = countOverdueContracts(contractsRaw, now);
 
@@ -318,5 +389,6 @@ export async function GET() {
     alerts, todayStats, statusCounts: { ...counts, total },
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
     periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats, nextActions,
+    reviewSpeed, personalToday,
   });
 }

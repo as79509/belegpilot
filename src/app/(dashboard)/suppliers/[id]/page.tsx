@@ -23,10 +23,12 @@ import { CheckCircle2, AlertTriangle, Save, Sparkles } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
+import { useRecentItems } from "@/lib/hooks/use-recent-items";
 
 export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { addRecent } = useRecentItems();
   const [supplier, setSupplier] = useState<any>(null);
   const [form, setForm] = useState<Record<string, any>>({
     nameNormalized: "", vatNumber: "", iban: "", country: "",
@@ -77,6 +79,18 @@ export default function SupplierDetailPage() {
       .catch((err) => console.error("[SupplierDetail] Fetch error:", err))
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    if (supplier?.id) {
+      addRecent(
+        "supplier",
+        supplier.id,
+        supplier.nameNormalized || "Lieferant",
+        `/suppliers/${supplier.id}`
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplier?.id]);
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));

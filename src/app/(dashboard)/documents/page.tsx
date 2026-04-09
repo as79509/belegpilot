@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
+import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 
 const QUICK_FILTERS = [
   { key: "", label: "Alle" },
@@ -68,6 +69,23 @@ export default function DocumentsPage() {
     setAmountTo(""); setSupplierId(""); setCurrency(""); setExportStatus("");
     setConfidence(""); setDocumentType("");
   }
+
+  // Seiten-spezifische Shortcuts
+  usePageShortcuts([
+    {
+      key: "n",
+      handler: () => setShowUpload((v) => !v),
+      description: "Neuer Upload",
+    },
+    {
+      key: "f",
+      handler: () => {
+        const el = document.querySelector<HTMLInputElement>("[data-search-input]");
+        el?.focus();
+      },
+      description: "Suche fokussieren",
+    },
+  ]);
 
   const hasAdvancedFilters = dateFrom || dateTo || amountFrom || amountTo || supplierId || currency || exportStatus || confidence || documentType;
 

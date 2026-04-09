@@ -29,10 +29,12 @@ import { PdfViewer } from "@/components/documents/pdf-viewer";
 import { ReviewForm } from "@/components/review/review-form";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
+import { useRecentItems } from "@/lib/hooks/use-recent-items";
 
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { addRecent } = useRecentItems();
   const [doc, setDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [nextDocId, setNextDocId] = useState<string | null>(null);
@@ -154,6 +156,17 @@ export default function DocumentDetailPage() {
     }
     loadData();
   }, [params.id]);
+
+  // Track in recent items when doc loads
+  useEffect(() => {
+    if (doc?.id) {
+      const title = doc.documentNumber || doc.invoiceNumber || "Beleg";
+      const supplierName = doc.supplierNameNormalized || doc.supplierNameRaw;
+      const fullTitle = supplierName ? `${title} · ${supplierName}` : title;
+      addRecent("document", doc.id, fullTitle, `/documents/${doc.id}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc?.id]);
 
   // --- Review toolbar actions ---
   const handleToolbarApprove = useCallback(async () => {

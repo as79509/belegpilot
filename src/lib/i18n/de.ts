@@ -821,6 +821,62 @@ export const de = {
     selected: "Belege ausgewählt",
   },
 
+  // Inline editing
+  inlineEdit: {
+    saving: "Speichern…",
+    saved: "Gespeichert",
+    error: "Fehler beim Speichern",
+    cancel: "Abbrechen",
+    placeholder: "—",
+    edit: "Bearbeiten",
+  },
+
+  // Quick actions context menu
+  quickActions: {
+    title: "Aktionen",
+    open: "Öffnen",
+    review: "Beleg prüfen",
+    approve: "Genehmigen",
+    reject: "Ablehnen",
+    acceptSuggestion: "Vorschlag übernehmen",
+    openSupplier: "Lieferant öffnen",
+    createRule: "Regel anlegen",
+    reprocess: "Erneut verarbeiten",
+    verify: "Verifizieren",
+    suggestDefaults: "Defaults vorschlagen",
+    supplierDocs: "Belege dieses Lieferanten",
+    confirmApprove: "Beleg wirklich genehmigen?",
+    confirmReject: "Beleg wirklich ablehnen?",
+    rejectReasonPrompt: "Grund für Ablehnung:",
+  },
+
+  // Bulk actions (extended labels for ActionBar)
+  bulkActions: {
+    approveSelected: "Belege genehmigen",
+    rejectSelected: "Belege ablehnen",
+    exportSelected: "Belege exportieren",
+    selectAll: "Alle auswählen",
+    clearSelection: "Auswahl aufheben",
+    confirmReject: "Wirklich ablehnen?",
+    rejectReasonPrompt: "Grund für Ablehnung:",
+  },
+
+  // Review speed meter
+  reviewSpeed: {
+    title: "Dein Tag heute",
+    todayLine: "Heute",
+    docs: "Belege",
+    reviewedIn: "geprüft in",
+    reviewed: "Geprüft",
+    inMinutes: "in {min} Minuten",
+    avgPerDoc: "Ø {sec}s pro Beleg",
+    rulesCreated: "Regeln angelegt",
+    suppliersVerified: "Lieferanten verifiziert",
+    suggestionsAccepted: "Vorschläge übernommen",
+    minutes: "Minuten",
+    nothingYet: "Heute noch keine Aktionen",
+  },
+
   // Filters
   filters: {
     clearAll: "Filter zurücksetzen",
@@ -1254,6 +1310,42 @@ export const de = {
     acceptanceShort: "Akzeptanz",
     driftShort: "Drift-Alerts",
     noDriftShort: "0 Drift-Alerts",
+  },
+
+  // Command Palette
+  commandPalette: {
+    placeholder: "Suchen oder navigieren… (Cmd+K)",
+    noResults: "Keine Ergebnisse",
+    categories: {
+      documents: "Belege",
+      suppliers: "Lieferanten",
+      periods: "Perioden",
+      tasks: "Aufgaben",
+      rules: "Regeln",
+      knowledge: "Wissen",
+      navigation: "Navigation",
+      recent: "Zuletzt bearbeitet",
+    },
+  },
+
+  // Keyboard Shortcuts
+  shortcuts: {
+    title: "Tastenkombinationen",
+    global: "Global",
+    navigation: "Navigation",
+    pageSpecific: "Seitenspezifisch",
+    commandPalette: "Suche öffnen",
+    goTo: "Gehe zu",
+    newUpload: "Neuer Upload",
+    focusSearch: "Suche fokussieren",
+    showHelp: "Hilfe anzeigen",
+  },
+
+  // Recent Items
+  recentItems: {
+    title: "Weiter wo du aufgehört hast",
+    noRecent: "Noch keine kürzlich bearbeiteten Einträge",
+    clear: "Verlauf löschen",
   },
 
   // Relative time

@@ -13,9 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/ds";
+import { SupplierRowActions } from "@/components/suppliers/supplier-row-actions";
+import { useCompany } from "@/lib/contexts/company-context";
 
 export default function SuppliersPage() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
+  const role = activeCompany?.role || "";
+  const canMutate = role === "admin" || role === "reviewer";
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -83,6 +88,7 @@ export default function SuppliersPage() {
                   <TableHead>IBAN</TableHead>
                   <TableHead>{de.suppliers.documentCount}</TableHead>
                   <TableHead>{de.suppliers.defaultCategory}</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -96,6 +102,13 @@ export default function SuppliersPage() {
                     <TableCell className="text-xs">{s.iban || de.common.noData}</TableCell>
                     <TableCell>{s.documentCount}</TableCell>
                     <TableCell className="text-xs">{s.defaultCategory || de.common.noData}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <SupplierRowActions
+                        supplier={s}
+                        canMutate={canMutate}
+                        onChanged={fetchSuppliers}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { SessionProvider } from "next-auth/react";
 import { CompanyProvider } from "@/lib/contexts/company-context";
+import { GlobalShortcutsProvider } from "@/components/shared/global-shortcuts-provider";
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
               {children}
             </main>
           </div>
+          <GlobalShortcutsProvider />
         </div>
       </CompanyProvider>
     </SessionProvider>

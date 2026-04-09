@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DocumentStatusBadge } from "./document-status-badge";
-import { StatusBadge, ConfidenceBadge, EmptyState } from "@/components/ds";
+import { StatusBadge, ConfidenceBadge, EmptyState, ActionBar } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import {
   formatCurrency,
@@ -24,13 +23,17 @@ import {
 } from "@/lib/i18n/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, FileText, Loader2, CheckCircle, ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, FileText, CheckCircle, XCircle, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/lib/contexts/company-context";
+import { InlineEditCell } from "./inline-edit-cell";
+import { DocumentRowActions } from "./document-row-actions";
 
 interface Document {
   id: string;
   documentNumber: string | null;
   status: string;
+  supplierId: string | null;
   supplierNameRaw: string | null;
   supplierNameNormalized: string | null;
   invoiceNumber: string | null;
@@ -39,6 +42,9 @@ interface Document {
   currency: string | null;
   confidenceScore: number | null;
   exportStatus: string | null;
+  accountCode: string | null;
+  expenseCategory: string | null;
+  costCenter: string | null;
   createdAt: string;
   file?: { fileName: string; mimeType: string } | null;
   bookingSuggestions?: Array<{ confidenceLevel: string; suggestedAccount: string | null; confidenceScore: number; status: string }>;
@@ -52,6 +58,10 @@ interface DocumentTableProps {
 
 export function DocumentTable({ refreshKey, initialStatus, extraParams }: DocumentTableProps) {
   const router = useRouter();
+  const { activeCompany } = useCompany();
+  const role = activeCompany?.role || "";
+  const canMutate = role === "admin" || role === "reviewer";
+
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -103,6 +113,111 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
     setPage(1);
   }
 
+  // Optimistic patch + persistence for inline edits
+  async function patchField(
+    docId: string,
+    field: "accountCode" | "expenseCategory" | "costCenter",
+    value: string | null
+  ) {
+    const previous = documents;
+    setDocuments((docs) => docs.map((d) => (d.id === docId ? { ...d, [field]: value } : d)));
+    try {
+      const res = await fetch(`/api/documents/${docId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setDocuments(previous);
+        throw new Error(err?.error || "Speichern fehlgeschlagen");
+      }
+    } catch (e: any) {
+      toast.error(e.message || de.inlineEdit.error);
+      throw e;
+    }
+  }
+
+  async function bulkApprove() {
+    const res = await fetch("/api/documents/bulk-approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentIds: Array.from(selected) }),
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast.success(
+        `${r.approved} ${de.bulk.approveSubmitted}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`
+      );
+      setSelected(new Set());
+      fetchDocuments();
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || "Fehler bei Bulk-Genehmigung");
+    }
+  }
+
+  async function bulkReject() {
+    if (!confirm(de.bulkActions.confirmReject)) return;
+    const reason = window.prompt(de.bulkActions.rejectReasonPrompt);
+    if (!reason || !reason.trim()) return;
+    const res = await fetch("/api/documents/bulk-reject", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentIds: Array.from(selected), reason }),
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast.success(
+        `${r.rejected} ${de.reviewStatus.rejected}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`
+      );
+      setSelected(new Set());
+      fetchDocuments();
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.inlineEdit.error);
+    }
+  }
+
+  async function bulkExport() {
+    const res = await fetch("/api/exports/csv", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentIds: Array.from(selected), format: "csv-excel" }),
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const batchId = res.headers.get("X-Export-Batch-Id") || "export";
+      a.download = `belegpilot-export-${batchId.slice(0, 8)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const count = res.headers.get("X-Export-Count");
+      toast.success(`${count || selected.size} ${de.bulk.export}`);
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || "Export fehlgeschlagen");
+    }
+  }
+
+  async function bulkReprocess() {
+    const res = await fetch("/api/documents/bulk-reprocess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentIds: Array.from(selected) }),
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
+      setSelected(new Set());
+      fetchDocuments();
+    }
+  }
+
   const SortHeader = ({
     column,
     children,
@@ -126,6 +241,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       {/* Filters */}
       <div className="flex gap-3">
         <Input
+          data-search-input
           placeholder={de.documents.search}
           value={search}
           onChange={(e) => {
@@ -151,85 +267,23 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
         </select>
       </div>
 
-      {/* Bulk actions */}
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 p-2 bg-blue-50 rounded-md border border-blue-200">
-          <span className="text-sm font-medium">{selected.size} {de.bulk.selected}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              const res = await fetch("/api/documents/bulk-approve", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ documentIds: Array.from(selected) }),
-              });
-              if (res.ok) {
-                const r = await res.json();
-                toast.success(`${r.approved} ${de.bulk.approveSubmitted}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`);
-                setSelected(new Set());
-                fetchDocuments();
-              } else {
-                const err = await res.json().catch(() => null);
-                toast.error(err?.error || "Fehler bei Bulk-Genehmigung");
-              }
-            }}
-          >
-            <CheckCircle className="h-3 w-3 mr-1" />{de.bulk.approve}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const ids = Array.from(selected);
-              router.push(`/tasks/new?documentIds=${ids.join(",")}`);
-            }}
-          >
-            <ClipboardList className="h-3 w-3 mr-1" />{de.bulk.createTask}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              const res = await fetch("/api/documents/bulk-reprocess", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ documentIds: Array.from(selected) }),
-              });
-              if (res.ok) {
-                const r = await res.json();
-                toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
-                setSelected(new Set());
-                fetchDocuments();
-              }
-            }}
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />{de.bulk.reprocess}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              const res = await fetch("/api/bexio/export", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ documentIds: Array.from(selected) }),
-              });
-              if (res.ok) {
-                const r = await res.json();
-                toast.success(`${r.successCount} an Bexio gesendet`);
-                setSelected(new Set());
-                fetchDocuments();
-              } else { toast.error("Export fehlgeschlagen"); }
-            }}
-          >
-            {de.bexio.exportToBexio}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-            {de.bulk.reset}
-          </Button>
-        </div>
-      )}
+      {/* Bulk action bar */}
+      <ActionBar
+        selectedCount={selected.size}
+        onClearSelection={() => setSelected(new Set())}
+        actions={
+          canMutate
+            ? [
+                { label: `${selected.size} ${de.bulkActions.approveSelected}`, icon: CheckCircle, onClick: bulkApprove },
+                { label: `${selected.size} ${de.bulkActions.rejectSelected}`, icon: XCircle, onClick: bulkReject, variant: "destructive" },
+                { label: `${selected.size} ${de.bulkActions.exportSelected}`, icon: Download, onClick: bulkExport },
+                { label: de.bulk.reprocess, icon: RefreshCw, onClick: bulkReprocess },
+              ]
+            : [
+                { label: `${selected.size} ${de.bulkActions.exportSelected}`, icon: Download, onClick: bulkExport },
+              ]
+        }
+      />
 
       {/* Table */}
       <div className="border rounded-md bg-white">
@@ -257,6 +311,9 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               <SortHeader column="grossAmount">
                 {de.documents.amount}
               </SortHeader>
+              <TableHead className="whitespace-nowrap">{de.detail.accountCode}</TableHead>
+              <TableHead className="whitespace-nowrap">{de.detail.expenseCategory}</TableHead>
+              <TableHead className="whitespace-nowrap">{de.detail.costCenter}</TableHead>
               <SortHeader column="confidenceScore">
                 {de.documents.confidence}
               </SortHeader>
@@ -265,6 +322,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               <SortHeader column="createdAt">
                 {de.documents.uploadedAt}
               </SortHeader>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -278,14 +336,19 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                 </TableRow>
               ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="p-0">
+                <TableCell colSpan={15} className="p-0">
                   <EmptyState
                     icon={FileText}
                     title={de.documents.noDocuments}
@@ -329,6 +392,27 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell className="whitespace-nowrap">
                     {formatCurrency(doc.grossAmount, doc.currency || "CHF")}
                   </TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <InlineEditCell
+                      value={doc.accountCode}
+                      editable={canMutate}
+                      onSave={(v) => patchField(doc.id, "accountCode", v)}
+                    />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <InlineEditCell
+                      value={doc.expenseCategory}
+                      editable={canMutate}
+                      onSave={(v) => patchField(doc.id, "expenseCategory", v)}
+                    />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <InlineEditCell
+                      value={doc.costCenter}
+                      editable={canMutate}
+                      onSave={(v) => patchField(doc.id, "costCenter", v)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <span className={getConfidenceColor(doc.confidenceScore)}>
                       {formatConfidence(doc.confidenceScore)}
@@ -357,6 +441,13 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatRelativeTime(doc.createdAt)}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DocumentRowActions
+                      doc={doc}
+                      canMutate={canMutate}
+                      onChanged={fetchDocuments}
+                    />
                   </TableCell>
                 </TableRow>
               ))

@@ -16,21 +16,31 @@ export async function POST(request: NextRequest) {
     const dateFrom = body.dateFrom;
     const dateTo = body.dateTo;
     const columns = body.columns;
+    const explicitIds: string[] | undefined = Array.isArray(body.documentIds) && body.documentIds.length > 0
+      ? body.documentIds
+      : undefined;
 
     // Build document query
     const where: Record<string, any> = {
       companyId: ctx.companyId,
-      status: "ready",
     };
 
-    if (filter === "not-exported") {
-      where.exportStatus = "not_exported";
-    }
+    if (explicitIds) {
+      // When IDs are explicitly provided (e.g. ActionBar bulk export), do not
+      // restrict to status: "ready" — the user has hand-picked these documents.
+      where.id = { in: explicitIds };
+    } else {
+      where.status = "ready";
 
-    if (filter === "date-range" && (dateFrom || dateTo)) {
-      where.invoiceDate = {};
-      if (dateFrom) where.invoiceDate.gte = new Date(dateFrom);
-      if (dateTo) where.invoiceDate.lte = new Date(dateTo + "T23:59:59Z");
+      if (filter === "not-exported") {
+        where.exportStatus = "not_exported";
+      }
+
+      if (filter === "date-range" && (dateFrom || dateTo)) {
+        where.invoiceDate = {};
+        if (dateFrom) where.invoiceDate.gte = new Date(dateFrom);
+        if (dateTo) where.invoiceDate.lte = new Date(dateTo + "T23:59:59Z");
+      }
     }
 
     const docs = await prisma.document.findMany({
