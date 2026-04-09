@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { analyzeSupplierPatterns } from "./supplier-patterns";
 
 export interface SuggestionResult {
   suggestedAccount: string | null;
@@ -163,6 +164,32 @@ export async function generateSuggestion(
   if (sources.some(s => s.type === "knowledge")) score = Math.min(score + 0.03, 1.0);
   // Bonus für Lieferanten-Default
   if (sources.some(s => s.type === "supplier_default")) score = Math.min(score + 0.05, 1.0);
+
+  // 10/11. Betrags- und MwSt-Anomalien erkennen
+  if (document.supplierNameNormalized) {
+    const pattern = await analyzeSupplierPatterns(companyId, document.supplierNameNormalized);
+    if (pattern && pattern.isAmountStable && document.grossAmount && pattern.typicalAmount) {
+      const deviation = Math.abs(document.grossAmount - pattern.typicalAmount);
+      const threshold = pattern.typicalAmount * 0.3; // 30% Toleranz
+      if (deviation > threshold) {
+        sources.push({
+          type: "history",
+          detail: `Betrag CHF ${document.grossAmount} weicht vom typischen Betrag CHF ${pattern.typicalAmount.toFixed(2)} ab (±30%)`,
+        });
+        score = Math.max(score - 0.1, 0.3);
+      }
+    }
+    if (pattern && pattern.vatStability >= 0.8 && document.vatRatesDetected) {
+      const docVat = (document.vatRatesDetected as any[])?.[0]?.rate;
+      if (typeof docVat === "number" && pattern.dominantVatRate !== null && docVat !== pattern.dominantVatRate) {
+        sources.push({
+          type: "history",
+          detail: `MwSt ${docVat}% weicht vom üblichen Satz ${pattern.dominantVatRate}% ab`,
+        });
+        score = Math.max(score - 0.1, 0.3);
+      }
+    }
+  }
 
   const level = score >= 0.85 ? "high" : score >= 0.65 ? "medium" : "low";
 

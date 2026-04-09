@@ -13,9 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, AlertTriangle, Save } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Save, Sparkles } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
@@ -33,8 +37,17 @@ export default function SupplierDetailPage() {
     defaultCostCenter: "", defaultVatCode: "", notes: "",
   });
   const [loading, setLoading] = useState(true);
+  const [patternData, setPatternData] = useState<any>(null);
+  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
+  const [acceptAccount, setAcceptAccount] = useState(true);
+  const [acceptCategory, setAcceptCategory] = useState(true);
 
   useEffect(() => {
+    fetch(`/api/suppliers/${params.id}/suggest-defaults`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setPatternData(d); })
+      .catch(() => {});
+
     fetch(`/api/suppliers/${params.id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -90,6 +103,28 @@ export default function SupplierDetailPage() {
     if (res.ok) {
       setSupplier(await res.json());
       toast.success(de.suppliers.verifySuccess);
+    }
+  }
+
+  async function handleAcceptDefaults() {
+    const res = await fetch(`/api/suppliers/${params.id}/suggest-defaults`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acceptAccount, acceptCategory }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSupplier(updated);
+      setForm((f) => ({
+        ...f,
+        defaultAccountCode: updated.defaultAccountCode || "",
+        defaultCategory: updated.defaultCategory || "",
+      }));
+      toast.success(de.supplierPatterns.defaultsUpdated);
+      setDefaultsDialogOpen(false);
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.common.error);
     }
   }
 
@@ -208,6 +243,111 @@ export default function SupplierDetailPage() {
                 <Input value={form.defaultVatCode} onChange={(e) => set("defaultVatCode", e.target.value)} /></div>
             </CardContent>
           </Card>
+
+          {/* Buchungsmuster */}
+          {patternData && (
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">{de.supplierPatterns.title}</CardTitle>
+                {patternData.eligible && (
+                  <Button variant="outline" size="sm" onClick={() => setDefaultsDialogOpen(true)}>
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />{de.supplierPatterns.suggestDefaults}
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!patternData.pattern ? (
+                  <p className="text-xs text-muted-foreground">{de.supplierPatterns.notEligible}</p>
+                ) : (
+                  <>
+                    {/* Konto */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{de.supplierPatterns.dominantAccount}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono">{patternData.pattern.dominantAccount || "—"}</span>
+                        {patternData.pattern.dominantAccount && (
+                          <Badge className={patternData.pattern.accountStability >= 0.8 ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}>
+                            {Math.round(patternData.pattern.accountStability * 100)}% von {patternData.pattern.totalApprovedDocs}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    {/* Betrag */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{de.supplierPatterns.typicalAmount}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">
+                          {patternData.pattern.typicalAmount != null
+                            ? formatCurrency(patternData.pattern.typicalAmount, "CHF")
+                            : "—"}
+                          {patternData.pattern.amountStdDeviation != null && patternData.pattern.typicalAmount != null && (
+                            <span className="text-xs text-muted-foreground"> ± {formatCurrency(patternData.pattern.amountStdDeviation, "CHF")}</span>
+                          )}
+                        </span>
+                        {patternData.pattern.isAmountStable ? (
+                          <Badge className="bg-green-100 text-green-800">{de.supplierPatterns.amountStable}</Badge>
+                        ) : (
+                          <Badge className="bg-amber-100 text-amber-800">{de.supplierPatterns.amountUnstable}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    {/* MwSt */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{de.supplierPatterns.dominantVat}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">
+                          {patternData.pattern.dominantVatRate != null ? `${patternData.pattern.dominantVatRate}%` : "—"}
+                        </span>
+                        {patternData.pattern.vatStability >= 0.8 ? (
+                          <Badge className="bg-green-100 text-green-800">{de.supplierPatterns.vatConsistent} ({Math.round(patternData.pattern.vatStability * 100)}%)</Badge>
+                        ) : patternData.pattern.dominantVatRate != null ? (
+                          <Badge className="bg-amber-100 text-amber-800">{de.supplierPatterns.vatInconsistent}</Badge>
+                        ) : null}
+                      </div>
+                    </div>
+                    {!patternData.eligible && (
+                      <p className="text-xs text-muted-foreground italic">{patternData.reason}</p>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Defaults dialog */}
+          <Dialog open={defaultsDialogOpen} onOpenChange={setDefaultsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{de.supplierPatterns.suggestDefaults}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                {patternData?.suggestions?.defaultAccountCode && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox checked={acceptAccount} onCheckedChange={(c) => setAcceptAccount(!!c)} />
+                    <div className="text-sm">
+                      <div>{de.supplierPatterns.dominantAccount}: <strong>{patternData.suggestions.defaultAccountCode}</strong></div>
+                      <p className="text-xs text-muted-foreground">{de.supplierPatterns.setAsDefault}</p>
+                    </div>
+                  </div>
+                )}
+                {patternData?.suggestions?.defaultCategory && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox checked={acceptCategory} onCheckedChange={(c) => setAcceptCategory(!!c)} />
+                    <div className="text-sm">
+                      <div>Kategorie: <strong>{patternData.suggestions.defaultCategory}</strong></div>
+                      <p className="text-xs text-muted-foreground">{de.supplierPatterns.setAsDefault}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+                <Button onClick={handleAcceptDefaults} disabled={!acceptAccount && !acceptCategory}>
+                  {de.common.save}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Notizen */}
           <Card>

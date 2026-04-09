@@ -142,6 +142,8 @@ model Company {
   monthlyPeriods     MonthlyPeriod[]
   tasks              Task[]
   bookingSuggestions BookingSuggestion[]
+  correctionEvents   CorrectionEvent[]
+  correctionPatterns CorrectionPattern[]
 
   @@map("companies")
 }
@@ -244,6 +246,7 @@ model Document {
   journalEntries  JournalEntry[]
   relatedTasks    Task[]         @relation("TaskDocument")
   bookingSuggestions BookingSuggestion[]
+  correctionEvents   CorrectionEvent[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -737,4 +740,65 @@ model BookingSuggestion {
   @@index([companyId, documentId])
   @@index([companyId, status])
   @@map("booking_suggestions")
+}
+
+model CorrectionEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  documentId      String   @map("document_id") @db.Uuid
+  supplierId      String?  @map("supplier_id") @db.Uuid
+
+  // Was wurde korrigiert?
+  field           String   // "accountCode", "expenseCategory", "vatRate", "costCenter"
+  originalValue   String?  @map("original_value")   // AI/Suggestion Wert
+  correctedValue  String   @map("corrected_value")  // Was der User gesetzt hat
+
+  // Kontext
+  correctedBy     String   @map("corrected_by") @db.Uuid
+  source          String   @default("manual")  // "manual", "suggestion_modified", "review"
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, supplierId, field])
+  @@index([companyId, createdAt])
+  @@map("correction_events")
+}
+
+model CorrectionPattern {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  // supplierId stored as plain string (empty "" = no supplier) so that
+  // the composite unique constraint works (Postgres treats null as distinct).
+  supplierId      String   @default("") @map("supplier_id")
+  supplierName    String?  @map("supplier_name")
+
+  // Das Muster
+  field           String   // "accountCode", "expenseCategory", "vatRate"
+  fromValue       String   @map("from_value")   // AI sagt immer X
+  toValue         String   @map("to_value")     // User ändert immer auf Y
+
+  // Stärke
+  occurrences     Int      @default(1)           // Wie oft dieses Muster
+  firstSeenAt     DateTime @map("first_seen_at")
+  lastSeenAt      DateTime @map("last_seen_at")
+
+  // Status
+  status           String    @default("open")  // "open", "promoted", "dismissed"
+  promotedTo       String?   @map("promoted_to")  // "rule" | "knowledge" | "supplier_default"
+  promotedEntityId String?   @map("promoted_entity_id") @db.Uuid
+  promotedAt       DateTime? @map("promoted_at")
+  dismissedAt      DateTime? @map("dismissed_at")
+  dismissedReason  String?   @map("dismissed_reason")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, supplierId, field, fromValue, toValue])
+  @@index([companyId, status])
+  @@map("correction_patterns")
 }

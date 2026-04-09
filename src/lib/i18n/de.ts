@@ -1025,6 +1025,25 @@ export const de = {
     },
   },
 
+  // Supplier Patterns
+  supplierPatterns: {
+    title: "Buchungsmuster",
+    dominantAccount: "Häufigstes Konto",
+    typicalAmount: "Typischer Betrag",
+    amountStable: "Stabil",
+    amountUnstable: "Variabel",
+    dominantVat: "MwSt-Satz",
+    vatConsistent: "Konsistent",
+    vatInconsistent: "Wechselnd",
+    suggestDefaults: "Defaults vorschlagen",
+    setAsDefault: "Als Standard setzen",
+    defaultsUpdated: "Lieferanten-Standards aktualisiert",
+    notEligible: "Noch nicht genug Daten für Standardwerte",
+    minDocs: "Mindestens 5 genehmigte Belege nötig",
+    amountDeviation: "Betragsabweichung",
+    vatDeviation: "MwSt-Abweichung",
+  },
+
   // Relative time
   time: {
     justNow: "gerade eben",
