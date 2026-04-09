@@ -19,6 +19,10 @@ export async function GET(request: NextRequest) {
     where.occurrences = { gte: minOccurrences };
   }
   if (supplierId) {
+    // Wenn supplierId="" übergeben wird, nicht zurückgeben — nur echte IDs erlaubt
+    if (supplierId.trim() === "") {
+      return NextResponse.json({ patterns: [] });
+    }
     where.supplierId = supplierId;
   }
 

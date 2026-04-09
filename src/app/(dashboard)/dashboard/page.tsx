@@ -76,6 +76,10 @@ interface CockpitData {
   clientRiskBoard?: ClientRisk[];
   waitingOnClient?: WaitingTask[];
   suggestionStats?: { total: number; accepted: number; rejected: number; modified: number; acceptRate: number };
+  autopilotStats?: {
+    eligible: number; blocked: number; total: number; eligibleRate: number;
+    config: { enabled: boolean; mode: string; killSwitchActive: boolean };
+  };
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -167,7 +171,7 @@ export default function DashboardPage() {
       )}
 
       {/* Bereich 3: Heute-Panel */}
-      <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} />
+      <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} autopilotStats={data.autopilotStats} />
 
       {/* Bereich 4: Zwei-Spalten Arbeitsbereich */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -255,7 +259,22 @@ function ClientRiskBoard({ clients, onSwitch }: { clients: ClientRisk[]; onSwitc
 }
 
 /* ---------- Bereich 3: Heute-Panel ---------- */
-function TodayPanel({ stats, suggestionStats }: { stats: CockpitData["todayStats"]; suggestionStats?: CockpitData["suggestionStats"] }) {
+function TodayPanel({
+  stats,
+  suggestionStats,
+  autopilotStats,
+}: {
+  stats: CockpitData["todayStats"];
+  suggestionStats?: CockpitData["suggestionStats"];
+  autopilotStats?: CockpitData["autopilotStats"];
+}) {
+  const apLabel = !autopilotStats
+    ? null
+    : autopilotStats.config.killSwitchActive
+    ? "GESTOPPT"
+    : !autopilotStats.config.enabled
+    ? "AUS"
+    : `${de.autopilot.mode[autopilotStats.config.mode as "shadow" | "prefill" | "auto_ready"]} (${autopilotStats.eligibleRate}% ${de.autopilot.eligible.toLowerCase()})`;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] text-sm">
       <span><strong>{stats.uploaded}</strong> {de.cockpit.todayUploaded}</span>
@@ -269,6 +288,12 @@ function TodayPanel({ stats, suggestionStats }: { stats: CockpitData["todayStats
         <>
           <span className="text-[var(--text-muted)]">&middot;</span>
           <span>{de.suggestions.panel.acceptRate}: <strong>{suggestionStats.acceptRate}%</strong></span>
+        </>
+      )}
+      {apLabel && (
+        <>
+          <span className="text-[var(--text-muted)]">&middot;</span>
+          <span>{de.autopilot.title}: <strong>{apLabel}</strong></span>
         </>
       )}
     </div>

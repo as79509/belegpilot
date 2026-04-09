@@ -48,6 +48,9 @@ export default function DocumentDetailPage() {
   const [suggestion, setSuggestion] = useState<any>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
 
+  // Autopilot Event
+  const [autopilotEvent, setAutopilotEvent] = useState<any>(null);
+
   // Correction patterns for this supplier
   const [correctionPattern, setCorrectionPattern] = useState<any>(null);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
@@ -111,6 +114,13 @@ export default function DocumentDetailPage() {
         if (suggRes?.ok) {
           const suggData = await suggRes.json();
           if (suggData && suggData.id) setSuggestion(suggData);
+        }
+
+        // Fetch autopilot event
+        const apRes = await fetch(`/api/documents/${params.id}/autopilot-event`).catch(() => null);
+        if (apRes?.ok) {
+          const apData = await apRes.json();
+          if (apData?.event) setAutopilotEvent(apData.event);
         }
 
         // Fetch correction patterns for this supplier

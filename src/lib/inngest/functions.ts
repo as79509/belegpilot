@@ -16,6 +16,7 @@ import {
 import { recordAiUsage } from "@/lib/services/ai/cost-tracker";
 import { checkEscalations } from "@/lib/services/rules/escalation-engine";
 import { generateSuggestion } from "@/lib/services/suggestions/suggestion-engine";
+import { evaluateAutopilot } from "@/lib/services/autopilot/autopilot-decision";
 
 export const processDocument = inngest.createFunction(
   {
@@ -551,6 +552,109 @@ export const processDocument = inngest.createFunction(
             reasoning: suggestion.reasoning as any,
             matchedDocCount: suggestion.matchedDocCount,
             consistencyRate: suggestion.consistencyRate,
+          },
+        });
+      }
+    });
+
+    // Step 8: Autopilot decision (prefill or auto-ready)
+    await step.run("autopilot-decision", async () => {
+      const doc = await prisma.document.findUnique({
+        where: { id: documentId },
+        include: { bookingSuggestions: { take: 1, orderBy: { createdAt: "desc" } } },
+      });
+      if (!doc) return;
+
+      const decision = await evaluateAutopilot(doc.companyId, {
+        id: doc.id,
+        supplierNameNormalized: doc.supplierNameNormalized,
+        supplierId: doc.supplierId,
+        grossAmount: doc.grossAmount ? Number(doc.grossAmount) : null,
+        currency: doc.currency,
+        documentType: doc.documentType,
+        invoiceDate: doc.invoiceDate,
+        confidenceScore: doc.bookingSuggestions[0]?.confidenceScore || null,
+        decisionReasons: doc.decisionReasons,
+        expenseCategory: doc.expenseCategory,
+        vatRatesDetected: doc.vatRatesDetected,
+      });
+
+      if (decision.action === "prefill" && decision.suggestion) {
+        // Vorbelegen: Suggestion-Werte ins Document schreiben, Status NICHT ändern
+        const updateData: Record<string, any> = {};
+        if (decision.suggestion.suggestedAccount) updateData.accountCode = decision.suggestion.suggestedAccount;
+        if (decision.suggestion.suggestedCategory) updateData.expenseCategory = decision.suggestion.suggestedCategory;
+        if (decision.suggestion.suggestedCostCenter) updateData.costCenter = decision.suggestion.suggestedCostCenter;
+        if (Object.keys(updateData).length > 0) {
+          await prisma.document.update({ where: { id: doc.id }, data: updateData });
+        }
+
+        await prisma.processingStep.create({
+          data: {
+            documentId: doc.id,
+            stepName: "autopilot-prefill",
+            status: "completed",
+            startedAt: new Date(),
+            completedAt: new Date(),
+            metadata: {
+              mode: decision.mode,
+              prefilledFields: Object.keys(updateData),
+              suggestion: decision.suggestion,
+              safetyChecks: decision.safetyResult.checks,
+            },
+          },
+        });
+      }
+
+      if (decision.action === "auto_ready" && decision.suggestion) {
+        // Auto-Ready: Suggestion-Werte schreiben + Status auf "ready"
+        const updateData: Record<string, any> = { status: "ready" };
+        if (decision.suggestion.suggestedAccount) updateData.accountCode = decision.suggestion.suggestedAccount;
+        if (decision.suggestion.suggestedCategory) updateData.expenseCategory = decision.suggestion.suggestedCategory;
+        if (decision.suggestion.suggestedCostCenter) updateData.costCenter = decision.suggestion.suggestedCostCenter;
+        await prisma.document.update({ where: { id: doc.id }, data: updateData });
+
+        // Suggestion als accepted markieren
+        const pendingSuggestion = doc.bookingSuggestions[0];
+        if (pendingSuggestion && pendingSuggestion.status === "pending") {
+          await prisma.bookingSuggestion.update({
+            where: { id: pendingSuggestion.id },
+            data: { status: "accepted", acceptedAt: new Date() },
+          });
+        }
+
+        await prisma.processingStep.create({
+          data: {
+            documentId: doc.id,
+            stepName: "autopilot-auto-ready",
+            status: "completed",
+            startedAt: new Date(),
+            completedAt: new Date(),
+            metadata: {
+              mode: decision.mode,
+              autoReadyFields: Object.keys(updateData),
+              suggestion: decision.suggestion,
+              safetyChecks: decision.safetyResult.checks,
+            },
+          },
+        });
+      }
+
+      if (decision.action === "none") {
+        // Shadow oder blocked — nur loggen, nichts ändern
+        await prisma.processingStep.create({
+          data: {
+            documentId: doc.id,
+            stepName: decision.mode === "shadow" ? "autopilot-shadow" : "autopilot-blocked",
+            status: "completed",
+            startedAt: new Date(),
+            completedAt: new Date(),
+            metadata: {
+              mode: decision.mode,
+              eligible: decision.eligible,
+              blockedBy: decision.safetyResult.blockedBy,
+              safetyChecks: decision.safetyResult.checks,
+            },
           },
         });
       }

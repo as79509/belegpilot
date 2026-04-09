@@ -161,6 +161,21 @@ export async function GET() {
     ? Math.round(((acceptedSuggestions + modifiedSuggestions) / totalSuggestions) * 100)
     : 0;
 
+  // Autopilot Stats (last 30 days)
+  const [autopilotEligible, autopilotBlocked, autopilotTotal, autopilotConfig] = await Promise.all([
+    prisma.autopilotEvent.count({ where: { companyId, decision: "eligible", createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.autopilotEvent.count({ where: { companyId, decision: "blocked", createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.autopilotEvent.count({ where: { companyId, createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.autopilotConfig.findUnique({
+      where: { companyId },
+      select: { enabled: true, mode: true, killSwitchActive: true },
+    }),
+  ]);
+
+  const autopilotEligibleRate = autopilotTotal > 0
+    ? Math.round((autopilotEligible / autopilotTotal) * 100)
+    : 0;
+
   // Contract overdue counts
   const { overdueCount: overdueContractCount, expiringCount: expiringContractCount } = countOverdueContracts(contractsRaw, now);
 
@@ -280,9 +295,23 @@ export async function GET() {
     acceptRate: suggestionAcceptRate,
   };
 
+  const autopilotStats = {
+    eligible: autopilotEligible,
+    blocked: autopilotBlocked,
+    total: autopilotTotal,
+    eligibleRate: autopilotEligibleRate,
+    config: autopilotConfig
+      ? {
+          enabled: autopilotConfig.enabled,
+          mode: autopilotConfig.mode,
+          killSwitchActive: autopilotConfig.killSwitchActive,
+        }
+      : { enabled: false, mode: "shadow", killSwitchActive: false },
+  };
+
   return NextResponse.json({
     alerts, todayStats, statusCounts: { ...counts, total },
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
-    periods, clientRiskBoard, waitingOnClient, suggestionStats,
+    periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats,
   });
 }

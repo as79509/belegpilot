@@ -105,14 +105,33 @@ export async function PATCH(request: NextRequest) {
       ? computeChanges(existing as any, saved as any, trackedFields)
       : { created: { before: null, after: true } };
 
-    await logAudit({
-      companyId: ctx.companyId,
-      userId: ctx.session.user.id,
-      action: "autopilot_config_updated",
-      entityType: "autopilot_config",
-      entityId: saved.id,
-      changes,
-    });
+    // Mode-Änderung als separates Audit-Event loggen
+    const modeChanged = existing && body.mode !== undefined && existing.mode !== saved.mode;
+    if (modeChanged) {
+      await logAudit({
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
+        action: "autopilot_mode_changed",
+        entityType: "autopilot_config",
+        entityId: saved.id,
+        changes: { mode: { before: existing!.mode, after: saved.mode } },
+      });
+    }
+
+    // Allgemeines Config-Update Audit (nur wenn andere Felder geändert wurden oder neu erstellt)
+    const nonModeChanges = changes
+      ? Object.fromEntries(Object.entries(changes).filter(([k]) => k !== "mode"))
+      : null;
+    if (!existing || (nonModeChanges && Object.keys(nonModeChanges).length > 0)) {
+      await logAudit({
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
+        action: "autopilot_config_updated",
+        entityType: "autopilot_config",
+        entityId: saved.id,
+        changes: nonModeChanges && Object.keys(nonModeChanges).length > 0 ? nonModeChanges : changes,
+      });
+    }
 
     return NextResponse.json(saved);
   } catch (error: any) {

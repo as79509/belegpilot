@@ -693,6 +693,10 @@ export const de = {
       system_error: "Systemfehler",
       correction_pattern_promoted: "Korrekturmuster umgewandelt",
       correction_pattern_dismissed: "Korrekturmuster ignoriert",
+      autopilot_config_updated: "Autopilot-Konfiguration aktualisiert",
+      autopilot_mode_changed: "Autopilot-Modus geändert",
+      autopilot_kill_switch_activated: "Autopilot gestoppt",
+      autopilot_kill_switch_deactivated: "Autopilot fortgesetzt",
     } as Record<string, string>,
   },
 
@@ -1104,6 +1108,27 @@ export const de = {
     supplierAllowlist: "Lieferanten-Allowlist",
     configSaved: "Konfiguration gespeichert",
     shadowMode: "Beobachtungsmodus — Autopilot berechnet, aber ändert nichts",
+    configPage: {
+      safetyGates: "Sicherheits-Einstellungen",
+      modeDescription: {
+        shadow: "Beobachten — Autopilot berechnet, ändert aber nichts. Ideal zum Testen.",
+        prefill: "Vorbelegen — Autopilot füllt Felder vor, User muss bestätigen.",
+        auto_ready: "Automatisch freigeben — Nur für sichere Standardfälle.",
+      },
+      eligibleRate: "Autopilot-fähig",
+      blockedRate: "Blockiert",
+      totalEvents: "Autopilot-Events",
+      save: "Konfiguration speichern",
+    },
+    pipeline: {
+      autoReady: "Automatisch freigegeben",
+      prefilled: "Felder vorbelegt",
+      shadow: "Shadow-Modus",
+      blocked: "Blockiert",
+      wouldBeEligible: "Wäre freigegeben worden",
+      allChecksPassed: "Alle Prüfungen bestanden",
+      blockedByCheck: "Blockiert durch",
+    },
   },
 
   corrections: {
