@@ -17,6 +17,7 @@ import { GitCompareArrows, CheckCircle, XCircle } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatDate } from "@/lib/i18n/format";
 import { toast } from "sonner";
+import { EntityHeader, StatusBadge, EmptyState } from "@/components/ds";
 
 interface CorrectionPattern {
   id: string;
@@ -127,16 +128,14 @@ export default function CorrectionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{de.correctionsDashboard.title}</h1>
-          {openCount > 0 && (
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-              {openCount} {de.correctionsDashboard.openPatterns}
-            </Badge>
-          )}
-        </div>
-      </div>
+      <EntityHeader
+        title={de.correctionsDashboard.title}
+        badge={
+          openCount > 0 ? (
+            <StatusBadge type="pattern" value="open" className="bg-amber-100 text-amber-800" />
+          ) : undefined
+        }
+      />
 
       {!loading && (
         <p className="text-sm text-muted-foreground">
@@ -231,9 +230,8 @@ function PatternsTable({
   if (patterns.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center">
-          <GitCompareArrows className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">{de.correctionsDashboard.noPatterns}</p>
+        <CardContent className="p-0">
+          <EmptyState icon={GitCompareArrows} title={de.correctionsDashboard.noPatterns} />
         </CardContent>
       </Card>
     );
@@ -293,12 +291,9 @@ function PatternsTable({
                 )}
                 {mode === "promoted" && (
                   <TableCell className="text-xs">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      {p.promotedTo}
-                    </Badge>
+                    <StatusBadge type="pattern" value="promoted" />
                     {p.promotedEntityName && (
-                      <div className="text-muted-foreground mt-1">{p.promotedEntityName}</div>
+                      <div className="text-muted-foreground mt-1">{p.promotedTo} · {p.promotedEntityName}</div>
                     )}
                   </TableCell>
                 )}

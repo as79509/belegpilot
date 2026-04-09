@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { de } from "@/lib/i18n/de";
+import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/ds";
 
 export default function SuppliersPage() {
   const router = useRouter();
@@ -43,13 +44,12 @@ export default function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{de.suppliers.title}</h1>
+      <EntityHeader title={de.suppliers.title} />
 
-      <Input
-        placeholder={de.documents.search}
-        value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        className="max-w-xs"
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder={de.documents.search}
       />
 
       <Card>
@@ -72,10 +72,7 @@ export default function SuppliersPage() {
               ))}
             </TableBody></Table>
           ) : suppliers.length === 0 ? (
-            <div className="flex flex-col items-center py-12">
-              <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-sm text-muted-foreground">{de.suppliers.noSuppliers}</p>
-            </div>
+            <EmptyState icon={Building2} title={de.suppliers.noSuppliers} />
           ) : (
             <Table>
               <TableHeader>
@@ -93,15 +90,7 @@ export default function SuppliersPage() {
                   <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/suppliers/${s.id}`)}>
                     <TableCell className="font-medium">{s.nameNormalized}</TableCell>
                     <TableCell>
-                      {s.isVerified ? (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />{de.suppliers.verified}
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
-                          <AlertTriangle className="h-3 w-3 mr-1" />{de.suppliers.unverified}
-                        </Badge>
-                      )}
+                      <StatusBadge type="supplier" value={!!s.isVerified} />
                     </TableCell>
                     <TableCell className="text-xs">{s.vatNumber || de.common.noData}</TableCell>
                     <TableCell className="text-xs">{s.iban || de.common.noData}</TableCell>

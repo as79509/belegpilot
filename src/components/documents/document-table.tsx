@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DocumentStatusBadge } from "./document-status-badge";
+import { StatusBadge, ConfidenceBadge, EmptyState } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import {
   formatCurrency,
@@ -284,9 +285,12 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-12">
-                  <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">{de.documents.noDocuments}</p>
+                <TableCell colSpan={11} className="p-0">
+                  <EmptyState
+                    icon={FileText}
+                    title={de.documents.noDocuments}
+                    description="Laden Sie Belege hoch oder passen Sie die Filter an"
+                  />
                 </TableCell>
               </TableRow>
             ) : (
@@ -313,7 +317,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                     {doc.documentNumber || de.common.noData}
                   </TableCell>
                   <TableCell>
-                    <DocumentStatusBadge status={doc.status} />
+                    <StatusBadge type="document" value={doc.status} />
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">
                     {doc.supplierNameNormalized ||
@@ -344,10 +348,9 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                       const s = doc.bookingSuggestions?.[0];
                       if (!s) return <span className="text-muted-foreground">—</span>;
                       if (s.status !== "pending") return <span className="text-green-600">✓</span>;
-                      const color = s.confidenceLevel === "high" ? "text-green-600" : s.confidenceLevel === "medium" ? "text-amber-600" : "text-gray-400";
                       return (
-                        <span className={color} title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || "—"} (${Math.round(s.confidenceScore * 100)}%)`}>
-                          ●
+                        <span title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || "—"} (${Math.round(s.confidenceScore * 100)}%)`}>
+                          <ConfidenceBadge level={s.confidenceLevel as "high" | "medium" | "low"} compact />
                         </span>
                       );
                     })()}

@@ -12,6 +12,7 @@ import {
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
 import { useCompany } from "@/lib/contexts/company-context";
+import { EntityHeader, StatusBadge, InfoPanel } from "@/components/ds";
 
 interface Alert {
   type: "error" | "warning";
@@ -129,18 +130,6 @@ function confidenceBadge(score: number | null) {
   return "bg-red-100 text-red-800";
 }
 
-function periodStatusBadge(status: string) {
-  const map: Record<string, string> = {
-    open: "bg-blue-100 text-blue-800",
-    incomplete: "bg-amber-100 text-amber-800",
-    review_ready: "bg-purple-100 text-purple-800",
-    closing: "bg-orange-100 text-orange-800",
-    closed: "bg-green-100 text-green-800",
-    locked: "bg-slate-100 text-slate-600",
-  };
-  return map[status] || "bg-slate-100 text-slate-600";
-}
-
 interface AutopilotHealth {
   isCalibrated: boolean;
   coverage: number;
@@ -190,10 +179,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* Hero */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{getGreeting()}</h1>
-        <p className="text-sm text-[var(--text-secondary)]">{today}</p>
-      </div>
+      <EntityHeader title={getGreeting()} subtitle={today} />
 
       {/* Bereich 1: Kritische Alerts-Leiste */}
       <AlertsBar alerts={data.alerts} />
@@ -232,12 +218,7 @@ export default function DashboardPage() {
 /* ---------- Bereich 1: Alerts ---------- */
 function AlertsBar({ alerts }: { alerts: Alert[] }) {
   if (alerts.length === 0) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-        <span className="text-sm font-medium text-green-800">{de.cockpit.allGood}</span>
-      </div>
-    );
+    return <InfoPanel tone="success" title={de.cockpit.allGood} />;
   }
 
   return (
@@ -286,9 +267,7 @@ function ClientRiskBoard({ clients, onSwitch }: { clients: ClientRisk[]; onSwitc
             <div className="flex gap-2 text-xs text-[var(--text-muted)]">
               {c.needsReview > 0 && <span className="text-orange-600">{c.needsReview} Belege</span>}
               {c.overdueTasks > 0 && <span className="text-red-600">{c.overdueTasks} Tasks</span>}
-              <span className={`px-1 rounded ${periodStatusBadge(c.periodStatus)}`}>
-                {de.periods.status[c.periodStatus] || c.periodStatus}
-              </span>
+              <StatusBadge type="period" value={c.periodStatus} icon={false} className="px-1 py-0" />
             </div>
           </button>
         ))}
@@ -572,9 +551,7 @@ function PeriodCard({ label, period }: { label: string; period: PeriodInfo | nul
             <p className="text-sm font-medium">{label}</p>
             <p className="text-xs text-[var(--text-muted)]">{monthName} {period.year}</p>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded font-medium ${periodStatusBadge(period.status)}`}>
-            {de.periods.status[period.status] || period.status}
-          </span>
+          <StatusBadge type="period" value={period.status} />
         </div>
 
         {/* Mini checklist */}

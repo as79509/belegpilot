@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
 
 const QUICK_FILTERS = [
   { key: "", label: "Alle" },
@@ -88,46 +89,55 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{de.documents.title}</h1>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setRefreshKey((k) => k + 1)} title="Aktualisieren">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4 mr-1" />Filter
-            {hasAdvancedFilters && <Badge variant="secondary" className="ml-1 text-xs px-1">!</Badge>}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowUpload(!showUpload)}>
-            <Upload className="h-4 w-4 mr-2" />{de.documents.upload}
-          </Button>
-        </div>
-      </div>
+      <EntityHeader
+        title={de.documents.title}
+        badge={
+          counts.total != null ? (
+            <Badge variant="secondary" className="text-xs">
+              {counts.total} {de.documentList.totalDocs}
+            </Badge>
+          ) : undefined
+        }
+        primaryAction={{
+          label: de.documents.upload,
+          icon: Upload,
+          onClick: () => setShowUpload(!showUpload),
+        }}
+        secondaryActions={[
+          {
+            label: "Filter",
+            icon: Filter,
+            onClick: () => setShowFilters(!showFilters),
+          },
+          {
+            label: "Aktualisieren",
+            icon: RefreshCw,
+            variant: "ghost",
+            onClick: () => setRefreshKey((k) => k + 1),
+          },
+        ]}
+      />
 
       {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
 
-      {/* Summary bar */}
-      <div className="flex gap-4 text-sm">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <FileText className="h-4 w-4" />
-          <span className="font-medium">{counts.total || 0}</span> {de.documentList.totalDocs}
+      {/* Summary alerts using InfoPanel */}
+      {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (
+        <div className="grid gap-2 md:grid-cols-2">
+          {(counts.escalated ?? 0) > 0 && (
+            <InfoPanel tone="warning" icon={AlertTriangle}>
+              <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
+            </InfoPanel>
+          )}
+          {(counts.unverified_suppliers ?? 0) > 0 && (
+            <InfoPanel tone="warning" icon={ShieldAlert}>
+              <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
+            </InfoPanel>
+          )}
         </div>
-        {(counts.escalated ?? 0) > 0 && (
-          <div className="flex items-center gap-1.5 text-orange-600">
-            <AlertTriangle className="h-4 w-4" />
-            <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
-          </div>
-        )}
-        {(counts.unverified_suppliers ?? 0) > 0 && (
-          <div className="flex items-center gap-1.5 text-amber-600">
-            <ShieldAlert className="h-4 w-4" />
-            <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Quick filter buttons */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {QUICK_FILTERS.map((f) => (
           <Button
             key={f.key}

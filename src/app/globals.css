@@ -158,6 +158,32 @@
   --status-error: #dc2626;
   --status-info: #2563eb;
   --status-muted: #6b7280;
+
+  /* === Design System Tokens (Phase 8.6.1) === */
+  /* Status Colors — siehe src/lib/design-tokens.ts */
+  --status-processing: #3B82F6;
+  --status-review: #F59E0B;
+  --status-ready: #16A34A;
+  --status-exported: #15803D;
+  --status-failed: #DC2626;
+
+  /* Risk Colors */
+  --risk-low: #16A34A;
+  --risk-medium: #F59E0B;
+  --risk-high: #DC2626;
+  --risk-critical: #991B1B;
+
+  /* Autopilot Colors */
+  --autopilot-shadow: #3B82F6;
+  --autopilot-prefill: #F59E0B;
+  --autopilot-auto-ready: #16A34A;
+  --autopilot-blocked: #DC2626;
+  --autopilot-disabled: #94A3B8;
+
+  /* Confidence Colors */
+  --confidence-high: #16A34A;
+  --confidence-medium: #F59E0B;
+  --confidence-low: #94A3B8;
 }
 
 /* Tables: tighter padding */

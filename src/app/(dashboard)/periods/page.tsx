@@ -11,19 +11,14 @@ import {
   DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import {
-  CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle,
+  CalendarCheck, Lock, CheckCircle2, XCircle,
   MessageSquare, Loader2, Unlock, Square, ArrowRight,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency } from "@/lib/i18n/format";
 import { toast } from "sonner";
 import Link from "next/link";
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800", incomplete: "bg-amber-100 text-amber-800",
-  review_ready: "bg-cyan-100 text-cyan-800", closing: "bg-purple-100 text-purple-800",
-  closed: "bg-green-100 text-green-800", locked: "bg-gray-200 text-gray-800",
-};
+import { EntityHeader, FilterBar, StatusBadge, EmptyState, InfoPanel } from "@/components/ds";
 
 const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
@@ -31,6 +26,7 @@ export default function PeriodsPage() {
   const [periods, setPeriods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [statusFilterValue, setStatusFilterValue] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -129,20 +125,46 @@ export default function PeriodsPage() {
     } catch {} finally { setSaving(false); }
   }
 
+  const visiblePeriods = statusFilterValue
+    ? periods.filter((p: any) => p.status === statusFilterValue)
+    : periods;
+
+  const periodStatusOptions = Object.entries(de.periods.status).map(([value, label]) => ({
+    value,
+    label,
+  }));
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{de.periods.title}</h1>
-        <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={(e) => setYear(parseInt(e.target.value))}>
-          {[2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
+      <EntityHeader title={de.periods.title} />
+
+      <FilterBar
+        filters={[
+          {
+            key: "year",
+            label: "Jahr",
+            value: String(year),
+            onChange: (v) => setYear(parseInt(v) || new Date().getFullYear()),
+            options: [2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) })),
+          },
+          {
+            key: "status",
+            label: "Status",
+            value: statusFilterValue,
+            onChange: setStatusFilterValue,
+            options: periodStatusOptions,
+          },
+        ]}
+        onClear={() => setStatusFilterValue("")}
+      />
 
       {loading ? (
         <div className="grid grid-cols-3 md:grid-cols-4 gap-3">{Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-32" />)}</div>
+      ) : visiblePeriods.length === 0 ? (
+        <EmptyState icon={CalendarCheck} title="Keine Perioden gefunden" description="Wählen Sie ein anderes Jahr oder passen Sie den Filter an" />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {periods.map((p: any) => (
+          {visiblePeriods.map((p: any) => (
             <Card
               key={p.month}
               className={`cursor-pointer hover:ring-2 hover:ring-blue-300 transition-shadow ${p.status === "locked" ? "opacity-60" : ""}`}
@@ -151,10 +173,7 @@ export default function PeriodsPage() {
               <CardContent className="pt-3 pb-2 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{MONTHS[p.month - 1]}</span>
-                  <Badge variant="secondary" className={`text-xs ${STATUS_COLORS[p.status] || ""}`}>
-                    {p.status === "locked" && <Lock className="h-3 w-3 mr-0.5" />}
-                    {de.periods.status[p.status] || p.status}
-                  </Badge>
+                  <StatusBadge type="period" value={p.status} />
                 </div>
 
                 <div className="text-xs space-y-0.5">
@@ -191,10 +210,7 @@ export default function PeriodsPage() {
               <CalendarCheck className="h-5 w-5" />
               {selectedPeriod && `${MONTHS[selectedPeriod.month - 1]} ${selectedPeriod.year}`}
               {selectedPeriod && (
-                <Badge variant="secondary" className={`text-xs ${STATUS_COLORS[selectedPeriod.status] || ""}`}>
-                  {selectedPeriod.status === "locked" && <Lock className="h-3 w-3 mr-0.5" />}
-                  {de.periods.status[selectedPeriod.status] || selectedPeriod.status}
-                </Badge>
+                <StatusBadge type="period" value={selectedPeriod.status} />
               )}
             </DialogTitle>
           </DialogHeader>
@@ -281,24 +297,16 @@ export default function PeriodsPage() {
 
               {/* Blockers */}
               {detail.blockers.length > 0 ? (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-800">
-                      {detail.blockers.length} {de.periodDetail.blockerCount}: {de.periodDetail.blockers}
-                    </span>
-                  </div>
-                  <ul className="text-xs text-red-700 space-y-1 ml-6 list-disc">
+                <InfoPanel
+                  tone="error"
+                  title={`${detail.blockers.length} ${de.periodDetail.blockerCount}: ${de.periodDetail.blockers}`}
+                >
+                  <ul className="space-y-1 ml-1 list-disc list-inside">
                     {detail.blockers.map((b: string, i: number) => <li key={i}>{b}</li>)}
                   </ul>
-                </div>
+                </InfoPanel>
               ) : (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-800">{de.periodDetail.noBlockers}</span>
-                  </div>
-                </div>
+                <InfoPanel tone="success" title={de.periodDetail.noBlockers} />
               )}
 
               {/* Expected documents — missing or mismatched */}
