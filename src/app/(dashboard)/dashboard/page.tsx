@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock,
+  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -66,6 +66,16 @@ interface WaitingTask {
   messageSentAt: string;
 }
 
+interface NextAction {
+  type: string;
+  priority: "high" | "medium" | "low";
+  title: string;
+  detail: string;
+  targetType: string;
+  targetId: string;
+  targetUrl: string;
+}
+
 interface CockpitData {
   alerts: Alert[];
   todayStats: { uploaded: number; reviewed: number; tasksDue: number; autoQuote: number };
@@ -80,6 +90,7 @@ interface CockpitData {
     eligible: number; blocked: number; total: number; eligibleRate: number;
     config: { enabled: boolean; mode: string; killSwitchActive: boolean };
   };
+  nextActions?: NextAction[];
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -172,6 +183,9 @@ export default function DashboardPage() {
 
       {/* Bereich 3: Heute-Panel */}
       <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} autopilotStats={data.autopilotStats} />
+
+      {/* Bereich 3b: Empfohlene Aktionen */}
+      <NextActionsPanel actions={data.nextActions || []} onNavigate={(url) => router.push(url)} />
 
       {/* Bereich 4: Zwei-Spalten Arbeitsbereich */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -297,6 +311,57 @@ function TodayPanel({
         </>
       )}
     </div>
+  );
+}
+
+/* ---------- Bereich 3b: Empfohlene Aktionen ---------- */
+function NextActionsPanel({ actions, onNavigate }: { actions: NextAction[]; onNavigate: (url: string) => void }) {
+  const top = actions.slice(0, 5);
+
+  if (top.length === 0) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
+        <CheckCircle2 className="h-4 w-4 text-green-600" />
+        <span className="text-sm font-medium text-green-800">{de.nextActions.noActions}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Zap className="h-4 w-4 text-amber-500" />
+          {de.nextActions.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          {top.map((action, i) => {
+            const dotColor =
+              action.priority === "high"
+                ? "bg-red-500"
+                : action.priority === "medium"
+                ? "bg-amber-500"
+                : "bg-slate-400";
+            return (
+              <button
+                key={`${action.type}-${i}`}
+                type="button"
+                onClick={() => onNavigate(action.targetUrl)}
+                className="w-full flex items-center gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-secondary)] transition-colors text-left"
+              >
+                <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
+                <span className="text-xs flex-1 min-w-0 truncate">{action.title}</span>
+                <span className="inline-flex items-center gap-1 text-xs text-blue-600 whitespace-nowrap">
+                  {de.nextActions.goTo} <ArrowRight className="h-3 w-3" />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

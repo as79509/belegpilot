@@ -51,6 +51,9 @@ export default function DocumentDetailPage() {
   // Autopilot Event
   const [autopilotEvent, setAutopilotEvent] = useState<any>(null);
 
+  // Next Actions
+  const [nextActions, setNextActions] = useState<any[]>([]);
+
   // Correction patterns for this supplier
   const [correctionPattern, setCorrectionPattern] = useState<any>(null);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
@@ -121,6 +124,13 @@ export default function DocumentDetailPage() {
         if (apRes?.ok) {
           const apData = await apRes.json();
           if (apData?.event) setAutopilotEvent(apData.event);
+        }
+
+        // Fetch next actions for this document
+        const naRes = await fetch(`/api/next-actions?scope=document&id=${params.id}`).catch(() => null);
+        if (naRes?.ok) {
+          const naData = await naRes.json();
+          setNextActions(Array.isArray(naData?.actions) ? naData.actions : []);
         }
 
         // Fetch correction patterns for this supplier
@@ -507,6 +517,9 @@ export default function DocumentDetailPage() {
 
       {/* Autopilot Event Hint */}
       <AutopilotEventBox event={autopilotEvent} />
+
+      {/* Next Action Hint */}
+      <NextActionHint actions={nextActions} />
 
       {/* Modify suggestion dialog */}
       <Dialog open={modifyDialogOpen} onOpenChange={setModifyDialogOpen}>
@@ -1100,6 +1113,43 @@ function AutopilotEventBox({ event }: { event: any }) {
   }
 
   return null;
+}
+
+function NextActionHint({ actions }: { actions: any[] }) {
+  if (!actions || actions.length === 0) return null;
+  const primary = actions[0];
+  const alternative = actions[1];
+
+  return (
+    <div className="px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm space-y-1">
+      <div className="flex items-start gap-2">
+        <Lightbulb className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-blue-900">{de.nextActions.recommended}: </span>
+          <span className="text-blue-800">{primary.title}</span>
+          <Link
+            href={primary.targetUrl}
+            className="inline-flex items-center gap-1 ml-2 text-xs text-blue-700 hover:text-blue-900 underline whitespace-nowrap"
+          >
+            {de.nextActions.goTo}
+          </Link>
+        </div>
+      </div>
+      {alternative && (
+        <div className="flex items-start gap-2 pl-6">
+          <span className="text-xs text-blue-700">
+            {de.nextActions.alternative}: {alternative.title}
+          </span>
+          <Link
+            href={alternative.targetUrl}
+            className="text-xs text-blue-700 hover:text-blue-900 underline whitespace-nowrap"
+          >
+            {de.nextActions.goTo}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DecisionReasonsPanel({ reasons }: { reasons: any }) {

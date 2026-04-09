@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { computeRiskScore } from "@/lib/services/cockpit/risk-score";
 import { buildAlerts } from "@/lib/services/cockpit/alert-builder";
+import { getCompanyActions } from "@/lib/services/actions/next-action";
 
 function countOverdueContracts(contracts: Array<{ frequency: string; startDate: Date; endDate: Date | null; reminderDays: number }>, now: Date) {
   let overdueCount = 0;
@@ -295,6 +296,10 @@ export async function GET() {
     acceptRate: suggestionAcceptRate,
   };
 
+  // Next Best Actions (Top 5)
+  const allCompanyActions = await getCompanyActions(companyId);
+  const nextActions = allCompanyActions.slice(0, 5);
+
   const autopilotStats = {
     eligible: autopilotEligible,
     blocked: autopilotBlocked,
@@ -312,6 +317,6 @@ export async function GET() {
   return NextResponse.json({
     alerts, todayStats, statusCounts: { ...counts, total },
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
-    periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats,
+    periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats, nextActions,
   });
 }

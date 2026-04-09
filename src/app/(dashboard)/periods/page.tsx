@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle,
-  MessageSquare, Loader2, Unlock,
+  MessageSquare, Loader2, Unlock, Square, ArrowRight,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency } from "@/lib/i18n/format";
@@ -37,6 +37,7 @@ export default function PeriodsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<any>(null);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [periodActions, setPeriodActions] = useState<any[]>([]);
 
   const fetchPeriods = useCallback(async () => {
     setLoading(true);
@@ -53,6 +54,7 @@ export default function PeriodsPage() {
     setDetailOpen(true);
     setDetailLoading(true);
     setNote(p.notes || "");
+    setPeriodActions([]);
     try {
       // Ensure period exists in DB
       let periodId = p.id;
@@ -69,8 +71,15 @@ export default function PeriodsPage() {
         }
       }
       if (periodId) {
-        const res = await fetch(`/api/periods/${periodId}/detail`);
-        if (res.ok) setDetail(await res.json());
+        const [detailRes, actionsRes] = await Promise.all([
+          fetch(`/api/periods/${periodId}/detail`),
+          fetch(`/api/next-actions?scope=period&id=${periodId}`).catch(() => null),
+        ]);
+        if (detailRes.ok) setDetail(await detailRes.json());
+        if (actionsRes?.ok) {
+          const actionsData = await actionsRes.json();
+          setPeriodActions(Array.isArray(actionsData?.actions) ? actionsData.actions : []);
+        }
       }
     } catch (err) {
       console.error("[Periods] Detail load error:", err);
@@ -233,6 +242,42 @@ export default function PeriodsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Next Actions Checklist */}
+              {periodActions.length > 0 && (
+                <Card>
+                  <CardContent className="py-3">
+                    <p className="text-xs font-medium mb-2">
+                      {de.nextActions.periodSteps}
+                      {selectedPeriod && `: ${MONTHS[selectedPeriod.month - 1]} ${selectedPeriod.year}`}
+                    </p>
+                    <div className="space-y-1">
+                      {periodActions.map((action: any, i: number) => {
+                        const isReady = action.type === "close_period";
+                        return (
+                          <Link
+                            key={`${action.type}-${i}`}
+                            href={action.targetUrl}
+                            className={`flex items-center gap-2 text-sm p-1.5 rounded transition-colors ${
+                              isReady
+                                ? "bg-green-50 hover:bg-green-100 text-green-800"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            {isReady ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                            ) : (
+                              <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <span className="flex-1 min-w-0 truncate">{action.title}</span>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Blockers */}
               {detail.blockers.length > 0 ? (

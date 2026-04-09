@@ -1152,6 +1152,31 @@ export const de = {
     patternDetected: "Korrekturmuster erkannt",
   },
 
+  nextActions: {
+    title: "Empfohlene Aktionen",
+    noActions: "Keine offenen Aktionen — alles im Griff!",
+    recommended: "Empfohlen",
+    alternative: "Alternativ",
+    periodSteps: "Nächste Schritte",
+    periodReady: "Periode kann abgeschlossen werden",
+    goTo: "Öffnen",
+    verifySupplier: "Lieferant verifizieren",
+    createRule: "Regel anlegen",
+    reviewSuggestion: "Vorschlag prüfen",
+    resolveTask: "Aufgabe erledigen",
+    reviewDocument: "Beleg prüfen",
+    closePeriod: "Periode abschliessen",
+    requestMissingDocs: "Fehlende Unterlagen anfragen",
+    generateRecurring: "Wiederkehrende Buchungen",
+    generateDepreciation: "Abschreibungen verbuchen",
+    reviewBacklog: "Review-Queue abarbeiten",
+    verifySuppliers: "Lieferanten verifizieren",
+    promotePatterns: "Korrekturmuster prüfen",
+    fixExports: "Exporte reparieren",
+    resolveTasks: "Aufgaben erledigen",
+    reviewPeriodDocs: "Perioden-Belege prüfen",
+  },
+
   // Relative time
   time: {
     justNow: "gerade eben",
