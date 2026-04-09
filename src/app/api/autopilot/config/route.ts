@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
+import { hasPermission } from "@/lib/permissions";
 
 const DEFAULT_CONFIG = {
   enabled: false,
@@ -40,8 +41,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "trustee"].includes(ctx.session.user.role)) {
-      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    if (!hasPermission(ctx.session.user.role, "autopilot:configure")) {
+      return NextResponse.json(
+        { error: "Keine Berechtigung für Autopilot-Konfiguration" },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

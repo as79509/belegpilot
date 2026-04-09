@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { hasPermission } from "@/lib/permissions";
 
 const ALLOWED_TYPES = [
   "suggestion_good",
@@ -15,8 +16,11 @@ type FeedbackType = (typeof ALLOWED_TYPES)[number];
 export async function POST(request: NextRequest) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (!["admin", "trustee"].includes(ctx.session.user.role)) {
-    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  if (!hasPermission(ctx.session.user.role, "telemetry:feedback")) {
+    return NextResponse.json(
+      { error: "Keine Berechtigung für Telemetrie-Feedback" },
+      { status: 403 }
+    );
   }
 
   let body: any;

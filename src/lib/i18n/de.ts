@@ -1449,6 +1449,53 @@ export const de = {
     closeDetails: "Details schliessen",
   },
 
+  // Decision Replay (Phase 8.9.1)
+  decisionReplay: {
+    title: "Entscheidungsverlauf",
+    step: "Schritt",
+    duration: "Dauer",
+    metadata: "Details",
+    noSteps: "Keine Verarbeitungsschritte gefunden",
+    suggestion: "Buchungsvorschlag",
+    sources: "Quellen",
+    autopilotDecision: "Autopilot-Entscheidung",
+    safetyChecks: "Sicherheitsprüfungen",
+    passed: "Bestanden",
+    blocked: "Blockiert",
+    correctionsApplied: "Korrekturen",
+    rulesApplied: "Angewandte Regeln",
+    pipelineSteps: {
+      upload: "Upload",
+      ocr: "OCR-Erkennung",
+      "ai-normalize": "AI-Normalisierung",
+      "supplier-match": "Lieferanten-Zuordnung",
+      "apply-rules": "Regeln anwenden",
+      "escalation-check": "Eskalations-Prüfung",
+      validate: "Validierung",
+      decision: "Entscheidung",
+      "generate-suggestion": "Vorschlag generieren",
+      "autopilot-decision": "Autopilot-Entscheidung",
+    },
+  },
+
+  // System Health (Phase 8.9.1)
+  systemHealth: {
+    title: "Systemzustand",
+    pipeline: "Pipeline",
+    activeJobs: "Aktive Jobs",
+    stuckDocs: "Hängende Belege",
+    failedDocs: "Fehlgeschlagene Belege",
+    autopilotState: "Autopilot-Zustand",
+    exportState: "Export-Zustand",
+    apiHealth: "API-Status",
+    healthy: "Gesund",
+    degraded: "Eingeschränkt",
+    down: "Ausgefallen",
+    lastCheck: "Letzte Prüfung",
+    dbConnection: "Datenbankverbindung",
+    noIssues: "Keine Probleme erkannt",
+  },
+
   // Exports Deep (Phase 8.8.1)
   exportsDeep: {
     batchId: "Batch-ID",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { hasPermission } from "@/lib/permissions";
 
 const FIELD_TO_RULE_ACTION: Record<string, string> = {
   accountCode: "set_account_code",
@@ -22,8 +23,11 @@ export async function POST(
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "trustee"].includes(ctx.session.user.role)) {
-      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    if (!hasPermission(ctx.session.user.role, "corrections:promote")) {
+      return NextResponse.json(
+        { error: "Keine Berechtigung zum Übernehmen von Korrekturmustern" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

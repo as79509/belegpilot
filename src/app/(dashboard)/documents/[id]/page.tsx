@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import {
   Link2, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   SkipForward, ClipboardList, MessageSquare, BookOpen, Lightbulb,
-  Keyboard,
+  Keyboard, ChevronDown, ChevronUp, GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
@@ -29,6 +29,7 @@ import { PdfViewer } from "@/components/documents/pdf-viewer";
 import { ReviewForm } from "@/components/review/review-form";
 import { ConfidenceBadge } from "@/components/ds/confidence-badge";
 import { StatusBadge } from "@/components/ds/status-badge";
+import { SectionCard } from "@/components/ds/section-card";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
@@ -54,6 +55,9 @@ export default function DocumentDetailPage() {
 
   // Autopilot Event
   const [autopilotEvent, setAutopilotEvent] = useState<any>(null);
+
+  // Decision Replay
+  const [decisionReplay, setDecisionReplay] = useState<any>(null);
 
   // Next Actions
   const [nextActions, setNextActions] = useState<any[]>([]);
@@ -131,6 +135,13 @@ export default function DocumentDetailPage() {
         if (apRes?.ok) {
           const apData = await apRes.json();
           if (apData?.event) setAutopilotEvent(apData.event);
+        }
+
+        // Fetch decision replay
+        const drRes = await fetch(`/api/documents/${params.id}/decision-replay`).catch(() => null);
+        if (drRes?.ok) {
+          const drData = await drRes.json();
+          if (drData && !drData.error) setDecisionReplay(drData);
         }
 
         // Fetch next actions for this document
@@ -793,6 +804,7 @@ export default function DocumentDetailPage() {
           <TabsTrigger value="ocr">{de.detail.rawOcr}</TabsTrigger>
           <TabsTrigger value="ai">{de.detail.rawAi}</TabsTrigger>
           <TabsTrigger value="history">{de.detail.processingHistory}</TabsTrigger>
+          <TabsTrigger value="replay">{de.decisionReplay.title}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="validation" className="mt-4">
@@ -875,6 +887,10 @@ export default function DocumentDetailPage() {
               </div>
             )}
           </CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="replay" className="mt-4">
+          <DecisionReplayPanel replay={decisionReplay} />
         </TabsContent>
       </Tabs>
 
@@ -1258,6 +1274,238 @@ function DecisionReasonsPanel({ reasons }: { reasons: any }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Phase 8.9.1: Decision Replay — full pipeline reconstruction
+function DecisionReplayPanel({ replay }: { replay: any }) {
+  const [openSteps, setOpenSteps] = useState<Set<number>>(new Set());
+
+  if (!replay) {
+    return (
+      <Card>
+        <CardContent className="py-3">
+          <p className="text-xs text-muted-foreground">{de.decisionReplay.noSteps}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const timeline = (replay.timeline || []) as Array<{
+    step: string;
+    status: string;
+    startedAt: string;
+    completedAt: string | null;
+    durationMs: number | null;
+    metadata: any;
+    errorMessage?: string | null;
+  }>;
+
+  function toggleStep(idx: number) {
+    setOpenSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
+
+  function stepLabel(name: string): string {
+    const map = de.decisionReplay.pipelineSteps as Record<string, string>;
+    return map[name] || (de.processingStep as Record<string, string>)[name] || name;
+  }
+
+  function statusDot(status: string): string {
+    if (status === "completed") return "bg-green-500";
+    if (status === "failed") return "bg-red-500";
+    return "bg-gray-300";
+  }
+
+  const suggestion = replay.suggestion;
+  const autopilot = replay.autopilot;
+  const corrections = (replay.corrections || []) as Array<any>;
+  const rules = (replay.rulesApplied || []) as Array<any>;
+
+  return (
+    <div className="space-y-4">
+      {/* Timeline */}
+      <SectionCard title={de.decisionReplay.title} icon={GitBranch}>
+        {timeline.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{de.decisionReplay.noSteps}</p>
+        ) : (
+          <ol className="relative border-l border-border ml-2 space-y-3 pl-4 max-h-[480px] overflow-y-auto">
+            {timeline.map((s, idx) => {
+              const isOpen = openSteps.has(idx);
+              const hasMeta =
+                (s.metadata && typeof s.metadata === "object" && Object.keys(s.metadata).length > 0) ||
+                !!s.errorMessage;
+              return (
+                <li key={`${s.step}-${idx}`} className="relative">
+                  <span
+                    className={`absolute -left-[1.42rem] mt-1.5 w-2.5 h-2.5 rounded-full ${statusDot(s.status)}`}
+                  />
+                  <div
+                    className="flex items-center gap-2 cursor-pointer select-none"
+                    onClick={() => hasMeta && toggleStep(idx)}
+                  >
+                    <span className="text-sm font-medium">{stepLabel(s.step)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {s.durationMs != null ? `${s.durationMs}ms` : "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {formatDate(s.startedAt)}
+                    </span>
+                    {hasMeta && (
+                      isOpen ? (
+                        <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      )
+                    )}
+                  </div>
+                  {isOpen && hasMeta && (
+                    <div className="mt-1 ml-1 text-xs space-y-1 bg-muted/40 rounded p-2">
+                      {s.errorMessage && (
+                        <div className="text-red-700">{s.errorMessage}</div>
+                      )}
+                      {s.metadata && typeof s.metadata === "object" && (
+                        <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
+                          {Object.entries(s.metadata as Record<string, any>).map(([k, v]) => (
+                            <Fragment key={k}>
+                              <dt className="text-muted-foreground font-mono">{k}</dt>
+                              <dd className="font-mono break-all">
+                                {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                              </dd>
+                            </Fragment>
+                          ))}
+                        </dl>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </SectionCard>
+
+      {/* Suggestion */}
+      {suggestion && (
+        <SectionCard title={de.decisionReplay.suggestion} icon={Lightbulb}>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Konfidenz:</span>
+              <strong>{Math.round((suggestion.confidenceScore || 0) * 100)}%</strong>
+              <span className="text-muted-foreground">({suggestion.confidenceLevel})</span>
+              <span className="text-muted-foreground ml-auto">{suggestion.status}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {suggestion.suggestedAccount && (
+                <span>{de.suggestions.panel.account}: <strong>{suggestion.suggestedAccount}</strong></span>
+              )}
+              {suggestion.suggestedCategory && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span>{de.suggestions.panel.category}: <strong>{suggestion.suggestedCategory}</strong></span>
+                </>
+              )}
+            </div>
+            {Array.isArray(suggestion.sources) && suggestion.sources.length > 0 && (
+              <div className="space-y-0.5">
+                <span className="text-muted-foreground">{de.decisionReplay.sources}:</span>
+                <ul className="space-y-0.5">
+                  {suggestion.sources.map((src: any, i: number) => (
+                    <li key={i} className="flex gap-1.5">
+                      <span>•</span>
+                      <span><strong>{src.type}</strong>: {src.detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Autopilot */}
+      {autopilot && (
+        <SectionCard title={de.decisionReplay.autopilotDecision} icon={GitBranch}>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Modus:</span>
+              <strong>{autopilot.mode}</strong>
+              <span className="text-muted-foreground">·</span>
+              <span className={autopilot.decision === "eligible" ? "text-green-700" : "text-amber-700"}>
+                {autopilot.decision === "eligible" ? de.decisionReplay.passed : de.decisionReplay.blocked}
+              </span>
+              {autopilot.blockedBy && (
+                <span className="text-muted-foreground ml-auto">→ {autopilot.blockedBy}</span>
+              )}
+            </div>
+            <div>
+              <span className="text-muted-foreground">{de.decisionReplay.safetyChecks}:</span>
+              <ul className="mt-1 space-y-0.5">
+                {Object.entries(autopilot.safetyChecks || {}).map(([key, val]: [string, any]) => {
+                  const passed =
+                    val === true ||
+                    (val && typeof val === "object" && val.passed === true);
+                  const detail =
+                    val && typeof val === "object" && typeof val.detail === "string" ? val.detail : null;
+                  return (
+                    <li key={key} className="flex items-center gap-2">
+                      <span className={passed ? "text-green-600" : "text-red-600"}>
+                        {passed ? "✓" : "✗"}
+                      </span>
+                      <span className="font-mono">{key}</span>
+                      {detail && <span className="text-muted-foreground">— {detail}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Corrections */}
+      {corrections.length > 0 && (
+        <SectionCard title={de.decisionReplay.correctionsApplied}>
+          <ul className="space-y-1 text-xs">
+            {corrections.map((c, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-muted-foreground">{formatDate(c.createdAt)}</span>
+                <span className="font-mono">{c.field}</span>
+                <span className="text-muted-foreground line-through">{c.originalValue || "—"}</span>
+                <span>→</span>
+                <strong>{c.correctedValue}</strong>
+                <span className="text-muted-foreground ml-auto">{c.source}</span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+
+      {/* Rules applied */}
+      {rules.length > 0 && (
+        <SectionCard title={de.decisionReplay.rulesApplied}>
+          <ul className="space-y-1 text-xs">
+            {rules.map((r) => (
+              <li key={r.id} className="flex items-center gap-2">
+                <Link href={`/rules`} className="text-blue-600 hover:underline font-medium">
+                  {r.name}
+                </Link>
+                <span className="text-muted-foreground font-mono">{r.ruleType}</span>
+                {r.actions && (
+                  <span className="text-muted-foreground truncate">
+                    {typeof r.actions === "object" ? JSON.stringify(r.actions) : String(r.actions)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+    </div>
   );
 }
 

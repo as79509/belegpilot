@@ -3,13 +3,21 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
 import { rateLimit } from "@/lib/rate-limit";
+import { hasPermission } from "@/lib/permissions";
 
 export async function POST(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "reviewer"].includes(ctx.session.user.role))
-      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    if (
+      !hasPermission(ctx.session.user.role, "documents:bulk") &&
+      !["admin", "reviewer"].includes(ctx.session.user.role)
+    ) {
+      return NextResponse.json(
+        { error: "Keine Berechtigung für Massen-Freigabe" },
+        { status: 403 }
+      );
+    }
 
     const { allowed } = rateLimit(`bulk-approve:${ctx.session.user.id}`, 5, 60_000);
     if (!allowed) {

@@ -75,6 +75,7 @@ const baseNavGroups: NavGroup[] = [
       { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },
       { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
       { href: "/settings", label: de.nav.settings, icon: Settings },
+      { href: "/settings/system-health", label: de.systemHealth.title, icon: Activity },
       { href: "/settings/phase8-gate", label: "Phase-8-Gate", icon: ShieldCheck },
     ],
   },
