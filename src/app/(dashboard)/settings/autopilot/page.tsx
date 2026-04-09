@@ -12,9 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Zap, AlertOctagon, Power, Save } from "lucide-react";
+import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
+import Link from "next/link";
 
 const DOC_TYPES = ["invoice", "credit_note", "receipt", "reminder", "other"];
 const CURRENCIES = ["CHF", "EUR", "USD", "GBP"];
@@ -301,10 +302,19 @@ export default function AutopilotSettingsPage() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={saving}>
-        <Save className="h-4 w-4 mr-2" />
-        {de.autopilot.configPage.save}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={handleSave} disabled={saving}>
+          <Save className="h-4 w-4 mr-2" />
+          {de.autopilot.configPage.save}
+        </Button>
+        <Link href="/settings/control-center">
+          <Button variant="outline">
+            <Activity className="h-4 w-4 mr-2" />
+            {de.controlCenter.openControlCenter}
+            <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        </Link>
+      </div>
 
       {/* Kill Switch Dialog */}
       <Dialog open={killDialogOpen} onOpenChange={setKillDialogOpen}>

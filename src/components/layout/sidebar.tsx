@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
   Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  ShieldCheck, GitCompareArrows, Zap,
+  ShieldCheck, GitCompareArrows, Zap, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -64,6 +64,7 @@ const baseNavGroups: NavGroup[] = [
       { href: "/rules", label: de.nav.rules, icon: Workflow },
       { href: "/corrections", label: de.correctionsDashboard.title, icon: GitCompareArrows },
       { href: "/settings/autopilot", label: de.autopilot.title, icon: Zap },
+      { href: "/settings/control-center", label: "Control Center", icon: Activity },
       { href: "/settings/ai", label: "KI-Einstellungen", icon: Brain },
     ],
   },

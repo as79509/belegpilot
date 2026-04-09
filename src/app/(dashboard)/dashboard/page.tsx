@@ -141,11 +141,19 @@ function periodStatusBadge(status: string) {
   return map[status] || "bg-slate-100 text-slate-600";
 }
 
+interface AutopilotHealth {
+  isCalibrated: boolean;
+  coverage: number;
+  acceptanceRate: number;
+  driftAlerts: number;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { switchCompany, isMultiCompany } = useCompany();
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
@@ -153,6 +161,20 @@ export default function DashboardPage() {
       .then((d) => setData(d))
       .catch((e) => console.error("[Dashboard]", e))
       .finally(() => setLoading(false));
+
+    // Lightweight Autopilot Health snapshot from telemetry
+    fetch("/api/telemetry?days=30")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((t) => {
+        if (!t) return;
+        setAutopilotHealth({
+          isCalibrated: !!t.calibration?.isCalibrated,
+          coverage: t.suggestions?.coverage ?? 0,
+          acceptanceRate: t.suggestions?.acceptanceRate ?? 0,
+          driftAlerts: Array.isArray(t.drift?.alerts) ? t.drift.alerts.length : 0,
+        });
+      })
+      .catch((e) => console.error("[Dashboard][Telemetry]", e));
   }, []);
 
   if (loading || !data) return (
@@ -183,6 +205,9 @@ export default function DashboardPage() {
 
       {/* Bereich 3: Heute-Panel */}
       <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} autopilotStats={data.autopilotStats} />
+
+      {/* Bereich 3a: Autopilot Health Indikator */}
+      {autopilotHealth && <AutopilotHealthIndicator health={autopilotHealth} />}
 
       {/* Bereich 3b: Empfohlene Aktionen */}
       <NextActionsPanel actions={data.nextActions || []} onNavigate={(url) => router.push(url)} />
@@ -311,6 +336,44 @@ function TodayPanel({
         </>
       )}
     </div>
+  );
+}
+
+/* ---------- Bereich 3a: Autopilot Health Indikator ---------- */
+function AutopilotHealthIndicator({ health }: { health: AutopilotHealth }) {
+  const hasIssues = !health.isCalibrated || health.driftAlerts > 0;
+  const toneClass = hasIssues
+    ? "bg-amber-50 border-amber-200 text-amber-800"
+    : "bg-green-50 border-green-200 text-green-800";
+  const Icon = hasIssues ? AlertTriangle : CheckCircle2;
+  const iconColor = hasIssues ? "text-amber-600" : "text-green-600";
+
+  return (
+    <Link
+      href="/settings/control-center"
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 rounded-lg border text-xs font-medium transition-opacity hover:opacity-90 ${toneClass}`}
+    >
+      <Icon className={`h-4 w-4 ${iconColor}`} />
+      <span className="font-semibold">{de.controlCenter.healthShort}:</span>
+      <span>
+        {health.isCalibrated ? de.controlCenter.healthGood : de.controlCenter.healthBad}
+      </span>
+      <span className="opacity-50">·</span>
+      <span>
+        {Math.round(health.coverage * 100)}% {de.controlCenter.coverageShort}
+      </span>
+      <span className="opacity-50">·</span>
+      <span>
+        {Math.round(health.acceptanceRate * 100)}% {de.controlCenter.acceptanceShort}
+      </span>
+      <span className="opacity-50">·</span>
+      <span>
+        {health.driftAlerts === 0
+          ? de.controlCenter.noDriftShort
+          : `${health.driftAlerts} ${de.controlCenter.driftShort}`}
+      </span>
+      <ArrowRight className="h-3 w-3 ml-auto" />
+    </Link>
   );
 }
 
