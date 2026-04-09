@@ -3,6 +3,7 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { generateSuggestion } from "@/lib/services/suggestions/suggestion-engine";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { trackCorrections } from "@/lib/services/corrections/correction-tracker";
 
 export async function GET(
   _request: NextRequest,
@@ -140,6 +141,33 @@ export async function POST(
       if (modifiedTo.costCenter) docUpdate.costCenter = modifiedTo.costCenter;
       if (Object.keys(docUpdate).length > 0) {
         await prisma.document.update({ where: { id }, data: docUpdate });
+      }
+
+      // Korrekturen tracken: Vorschlag → tatsächlich gewählter Wert
+      try {
+        const doc = await prisma.document.findFirst({
+          where: { id, companyId: ctx.companyId },
+          select: { supplierId: true },
+        });
+        await trackCorrections(
+          ctx.companyId,
+          id,
+          ctx.session.user.id,
+          {
+            accountCode: suggestion.suggestedAccount,
+            expenseCategory: suggestion.suggestedCategory,
+            costCenter: suggestion.suggestedCostCenter,
+          },
+          {
+            accountCode: modifiedTo.account ?? null,
+            expenseCategory: modifiedTo.category ?? null,
+            costCenter: modifiedTo.costCenter ?? null,
+          },
+          doc?.supplierId ?? null,
+          "suggestion_modified"
+        );
+      } catch (trackErr) {
+        console.error("[Suggestion POST] trackCorrections failed", trackErr);
       }
     }
 

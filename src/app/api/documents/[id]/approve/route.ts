@@ -3,6 +3,7 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
 import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
+import { trackCorrections } from "@/lib/services/corrections/correction-tracker";
 
 export async function POST(
   _request: NextRequest,
@@ -51,6 +52,36 @@ export async function POST(
       entityType: "document",
       entityId: id,
     });
+
+    // Korrekturen tracken: Vergleiche AI-Vorschlag mit finalen Werten
+    try {
+      const aiResult = await prisma.aiResult.findFirst({
+        where: { documentId: id },
+        orderBy: { createdAt: "desc" },
+        select: { normalizedData: true },
+      });
+      const aiData = (aiResult?.normalizedData as any) || {};
+
+      await trackCorrections(
+        ctx.companyId,
+        id,
+        ctx.session.user.id,
+        {
+          accountCode: aiData.accountCode ?? updated.accountCode,
+          expenseCategory: aiData.expenseCategory ?? updated.expenseCategory,
+          costCenter: aiData.costCenter ?? updated.costCenter,
+        },
+        {
+          accountCode: updated.accountCode,
+          expenseCategory: updated.expenseCategory,
+          costCenter: updated.costCenter,
+        },
+        updated.supplierId,
+        "review"
+      );
+    } catch (trackErr) {
+      console.error("[Approve] trackCorrections failed", trackErr);
+    }
 
     return NextResponse.json(updated);
   } catch (error: any) {

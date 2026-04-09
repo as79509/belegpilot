@@ -1044,6 +1044,27 @@ export const de = {
     vatDeviation: "MwSt-Abweichung",
   },
 
+  corrections: {
+    title: "Korrekturmuster",
+    pattern: "Muster",
+    field: "Feld",
+    fromValue: "AI-Wert",
+    toValue: "Korrigiert auf",
+    occurrences: "Häufigkeit",
+    firstSeen: "Erstmals",
+    lastSeen: "Zuletzt",
+    promote: "Umwandeln",
+    promoteToRule: "Als Regel anlegen",
+    promoteToKnowledge: "Als Wissenseintrag",
+    promoteToDefault: "Als Lieferantenstandard",
+    dismiss: "Ignorieren",
+    dismissed: "Ignoriert",
+    promoted: "Umgewandelt",
+    noPatterns: "Keine wiederkehrenden Korrekturmuster erkannt",
+    threshold: "Ab 3 gleichen Korrekturen",
+    patternDetected: "Korrekturmuster erkannt",
+  },
+
   // Relative time
   time: {
     justNow: "gerade eben",
