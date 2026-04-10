@@ -11,10 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History, Globe, BookTemplate, TrendingUp } from "lucide-react";
+import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Zap, History, Globe, BookTemplate, TrendingUp, AlertTriangle } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { toast } from "sonner";
+import { InfoPanel } from "@/components/ds/info-panel";
 
 interface Rule {
   id: string; name: string; ruleType: string;
@@ -46,10 +47,33 @@ interface RuleImpact {
   approvedCount: number;
 }
 
+interface RuleConflict {
+  rule1Id: string;
+  rule1Name: string;
+  rule2Id: string;
+  rule2Name: string;
+  type: string;
+  description: string;
+}
+
+interface RuleWarning {
+  ruleId: string;
+  ruleName: string;
+  message: string;
+}
+
+interface ConflictReport {
+  conflicts: RuleConflict[];
+  warnings: RuleWarning[];
+  checkedAt: string;
+  totalRules: number;
+}
+
 export default function RulesPage() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [impactByRule, setImpactByRule] = useState<Record<string, RuleImpact>>({});
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [conflictReport, setConflictReport] = useState<ConflictReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,13 +109,15 @@ export default function RulesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [rulesRes, sugRes] = await Promise.all([
+    const [rulesRes, sugRes, conflictsRes] = await Promise.all([
       fetch("/api/rules").then((r) => r.json()).catch(() => []),
       fetch("/api/rules/suggestions").then((r) => r.json()).catch(() => ({ suggestions: [] })),
+      fetch("/api/rules/conflicts").then((r) => r.json()).catch(() => null),
     ]);
     const ruleList: Rule[] = Array.isArray(rulesRes) ? rulesRes : [];
     setRules(ruleList);
     setSuggestions(sugRes.suggestions || []);
+    setConflictReport(conflictsRes && typeof conflictsRes === "object" && Array.isArray(conflictsRes.conflicts) ? conflictsRes : null);
     setLoading(false);
 
     // Wirkungsanalyse parallel laden — non-blocking
@@ -274,6 +300,33 @@ export default function RulesPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Konflikt-Analyse */}
+      {conflictReport && (conflictReport.conflicts.length > 0 || conflictReport.warnings.length > 0) && (
+        <InfoPanel
+          tone={conflictReport.conflicts.length > 0 ? "warning" : "info"}
+          title={de.ruleConflicts.title}
+          icon={AlertTriangle}
+        >
+          <div className="space-y-1.5">
+            {conflictReport.conflicts.length === 0 && conflictReport.warnings.length === 0 && (
+              <div>{de.ruleConflicts.noConflicts}</div>
+            )}
+            {conflictReport.conflicts.map((c, idx) => (
+              <div key={`c-${idx}`} className="text-xs">
+                <span className="font-medium">{de.ruleConflicts.conflictFound}:</span>{" "}
+                <span className="font-medium">{c.rule1Name}</span> ↔{" "}
+                <span className="font-medium">{c.rule2Name}</span> — {c.description}
+              </div>
+            ))}
+            {conflictReport.warnings.map((w, idx) => (
+              <div key={`w-${idx}`} className="text-xs">
+                <span className="font-medium">{w.ruleName}:</span> {w.message}
+              </div>
+            ))}
+          </div>
+        </InfoPanel>
       )}
 
       {/* Quick Rule Creator */}

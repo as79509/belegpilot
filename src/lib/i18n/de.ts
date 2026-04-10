@@ -1497,6 +1497,24 @@ export const de = {
   },
 
   // Exports Deep (Phase 8.8.1)
+  permissions: {
+    noPermission: "Keine Berechtigung für diese Aktion",
+    roleRequired: "Benötigte Rolle: {role}",
+    permissionRequired: "Benötigte Berechtigung: {permission}",
+  },
+  ruleConflicts: {
+    title: "Regelkonflikte",
+    noConflicts: "Keine Konflikte erkannt",
+    conflictFound: "Konflikt gefunden",
+    sameConditions: "Gleiche Bedingungen, unterschiedliche Aktionen",
+    duplicateRule: "Doppelte Regel — gleiche Bedingungen und Aktionen",
+    inactiveOverrides: "Inaktive Regel würde aktive überschreiben",
+    priorityWarning: "Prioritäts-Warnung",
+    priorityOverlap: "Mehrere Regeln mit gleicher Priorität",
+    warningsTitle: "Warnungen",
+    checkedAt: "Geprüft",
+    rulesChecked: "Regeln geprüft",
+  },
   exportsDeep: {
     batchId: "Batch-ID",
     format: "Format",
