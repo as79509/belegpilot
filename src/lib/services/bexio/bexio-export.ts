@@ -73,6 +73,18 @@ export async function exportDocumentToBexio(
       }
     }
 
+    // 4b. Kontenplan-Validierung: Warnung wenn Konto fehlt
+    if (doc.accountCode) {
+      const chartAccount = await prisma.account.findFirst({
+        where: { companyId, accountNumber: doc.accountCode, isActive: true },
+        select: { accountNumber: true },
+      });
+      if (!chartAccount) {
+        // Warnung im ExportRecord speichern, aber Export nicht blockieren
+        console.warn(`[Bexio] Konto ${doc.accountCode} ist nicht im Kontenplan`);
+      }
+    }
+
     // 5. Resolve Bexio account IDs from account numbers
     const debitAccountNumber = doc.accountCode || "6300";
     const creditAccountNumber = "2000";
@@ -136,7 +148,14 @@ export async function exportDocumentToBexio(
     const response = await client.createManualEntry(payload);
     const bexioId = String(response.id || response.entry_id || "");
 
-    // 8. Record export
+    // 8. Record export (include chart warning if applicable)
+    const chartWarning = doc.accountCode
+      ? await prisma.account.findFirst({
+          where: { companyId, accountNumber: doc.accountCode, isActive: true },
+          select: { accountNumber: true },
+        }).then(a => a ? undefined : `Konto ${doc.accountCode} ist nicht im Kontenplan`)
+      : undefined;
+
     await prisma.exportRecord.create({
       data: {
         documentId,
@@ -145,6 +164,7 @@ export async function exportDocumentToBexio(
         externalId: bexioId,
         payloadSent: payload as any,
         responseReceived: response as any,
+        ...(chartWarning && { errorMessage: chartWarning }),
       },
     });
 

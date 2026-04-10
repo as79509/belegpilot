@@ -1,4 +1,5 @@
 import type { CanonicalAccountingData } from "@/lib/types/canonical";
+import { prisma } from "@/lib/db";
 
 export interface ValidationCheck {
   checkName: string;
@@ -227,4 +228,40 @@ export function validateDocument(
     errorCount,
     warningCount,
   };
+}
+
+/** Extended validation including async chart-of-accounts check */
+export async function validateDocumentWithChart(
+  canonical: CanonicalAccountingData,
+  companyId: string,
+  existingDocuments?: MinimalDocumentInfo[]
+): Promise<ValidationResult> {
+  const result = validateDocument(canonical, existingDocuments);
+
+  // Check account_in_chart
+  if (canonical.accountCode) {
+    const account = await prisma.account.findFirst({
+      where: {
+        companyId,
+        accountNumber: canonical.accountCode,
+        isActive: true,
+      },
+    });
+
+    result.checks.push({
+      checkName: "account_in_chart",
+      passed: !!account,
+      severity: "warning",
+      message: account
+        ? `Konto ${canonical.accountCode} ist im Kontenplan`
+        : `Konto ${canonical.accountCode} ist nicht im Kontenplan`,
+      field: "accountCode",
+    });
+
+    if (!account) {
+      result.warningCount++;
+    }
+  }
+
+  return result;
 }

@@ -18,6 +18,7 @@ export interface SafetyCheckDocument {
   invoiceDate: Date | null;
   confidenceScore: number | null;
   decisionReasons: any;
+  accountCode?: string | null;
 }
 
 export interface SafetyCheckConfig {
@@ -154,6 +155,31 @@ export async function runSafetyChecks(
       passed: onList,
       detail: onList ? "Lieferant auf Allowlist" : "Lieferant nicht auf Allowlist",
     };
+  }
+
+  // 12. Konto-Governance: Nur freigegebene Konten
+  if (document.accountCode) {
+    const account = await prisma.account.findFirst({
+      where: { companyId, accountNumber: document.accountCode, isActive: true },
+      select: { aiGovernance: true },
+    });
+
+    if (!account) {
+      checks.accountGovernance = {
+        passed: false,
+        detail: `Konto ${document.accountCode} nicht im Kontenplan`,
+      };
+    } else if (account.aiGovernance !== "ai_autopilot") {
+      checks.accountGovernance = {
+        passed: false,
+        detail: `Konto ${document.accountCode} ist nicht für Autopilot freigegeben (${account.aiGovernance})`,
+      };
+    } else {
+      checks.accountGovernance = {
+        passed: true,
+        detail: `Konto ${document.accountCode} ist für Autopilot freigegeben`,
+      };
+    }
   }
 
   // Erster fehlgeschlagener Check bestimmt blockedBy

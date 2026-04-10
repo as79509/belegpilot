@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
     rule: { findMany: vi.fn() },
     knowledgeItem: { findMany: vi.fn() },
     supplier: { findFirst: vi.fn() },
+    account: { findMany: vi.fn(), findFirst: vi.fn() },
   },
 }));
 
@@ -16,6 +17,8 @@ const mockDocFindMany = prisma.document.findMany as ReturnType<typeof vi.fn>;
 const mockRuleFindMany = prisma.rule.findMany as ReturnType<typeof vi.fn>;
 const mockKnowledgeFindMany = prisma.knowledgeItem.findMany as ReturnType<typeof vi.fn>;
 const mockSupplierFindFirst = prisma.supplier.findFirst as ReturnType<typeof vi.fn>;
+const mockAccountFindMany = (prisma as any).account.findMany as ReturnType<typeof vi.fn>;
+const mockAccountFindFirst = (prisma as any).account.findFirst as ReturnType<typeof vi.fn>;
 
 const baseDoc = {
   supplierNameNormalized: "Swisscom AG",
@@ -43,6 +46,12 @@ describe("generateSuggestion", () => {
     mockRuleFindMany.mockResolvedValue([]);
     mockKnowledgeFindMany.mockResolvedValue([]);
     mockSupplierFindFirst.mockResolvedValue(null);
+    // Default: Konto ist im Kontenplan und für AI freigegeben
+    mockAccountFindMany.mockResolvedValue([
+      { accountNumber: "6500", aiGovernance: "ai_suggest" },
+      { accountNumber: "6510", aiGovernance: "ai_suggest" },
+    ]);
+    mockAccountFindFirst.mockResolvedValue(null);
   });
 
   it("0 historische Belege → null (kein Vorschlag)", async () => {

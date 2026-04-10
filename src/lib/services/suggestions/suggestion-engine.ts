@@ -191,13 +191,58 @@ export async function generateSuggestion(
     }
   }
 
+  // 12. Kontenplan-Governance: Nur erlaubte Konten vorschlagen
+  let finalAccount = topAccount?.[0] || null;
+
+  if (finalAccount) {
+    const allowedAccounts = await prisma.account.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        aiGovernance: { in: ["ai_suggest", "ai_autopilot"] },
+      },
+      select: { accountNumber: true, aiGovernance: true },
+    });
+
+    const allowedSet = new Set(allowedAccounts.map(a => a.accountNumber));
+
+    if (!allowedSet.has(finalAccount)) {
+      // Prüfe ob Konto existiert aber manual_only/locked ist
+      const restrictedAccount = await prisma.account.findFirst({
+        where: {
+          companyId,
+          accountNumber: finalAccount,
+          aiGovernance: { in: ["manual_only", "locked"] },
+        },
+        select: { aiGovernance: true },
+      });
+
+      if (restrictedAccount) {
+        // Konto ist manual_only oder locked → Vorschlag blockieren
+        sources.push({
+          type: "history",
+          detail: `Konto ${finalAccount} ist für AI gesperrt (${restrictedAccount.aiGovernance})`,
+        });
+        finalAccount = null;
+        score = 0;
+      } else {
+        // Konto nicht im Kontenplan oder inaktiv
+        sources.push({
+          type: "history",
+          detail: `Konto ${finalAccount} ist nicht im Kontenplan oder für AI gesperrt`,
+        });
+        score = Math.max(score - 0.2, 0);
+      }
+    }
+  }
+
   const level = score >= 0.85 ? "high" : score >= 0.65 ? "medium" : "low";
 
   // 9. Erklärung zusammenbauen
   const explanation = sources.map(s => s.detail).join(". ") + ".";
 
   return {
-    suggestedAccount: topAccount?.[0] || null,
+    suggestedAccount: finalAccount,
     suggestedCategory: topCategory?.[0] || null,
     suggestedVatCode,
     suggestedCostCenter: topCostCenter?.[0] || null,

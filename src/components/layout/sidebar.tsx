@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
   Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  ShieldCheck, GitCompareArrows, Zap, Activity,
+  ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -36,6 +36,7 @@ const baseNavGroups: NavGroup[] = [
     items: [
       { href: "/documents", label: de.nav.documents, icon: FileText },
       { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
+      { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
     ],
   },
   {

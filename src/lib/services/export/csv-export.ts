@@ -39,12 +39,18 @@ function escCsv(v: string): string {
   return v;
 }
 
+export interface ExportWarning {
+  documentId: string;
+  documentNumber: string;
+  warning: string;
+}
+
 export async function generateCsvExport(
   companyId: string,
   userId: string,
   documentIds: string[],
   separator: string = ";"
-): Promise<{ batchId: string; csv: string; count: number }> {
+): Promise<{ batchId: string; csv: string; count: number; warnings: ExportWarning[] }> {
   const batchId = uuidv4();
 
   const documents = await prisma.document.findMany({
@@ -57,6 +63,16 @@ export async function generateCsvExport(
     throw new Error("Keine bereiten Belege zum Exportieren");
   }
 
+  // Load chart of accounts for validation
+  const chartAccounts = await prisma.account.findMany({
+    where: { companyId, isActive: true },
+    select: { accountNumber: true },
+  });
+  const accountSet = new Set(chartAccounts.map((a) => a.accountNumber));
+  const hasChart = chartAccounts.length > 0;
+
+  const warnings: ExportWarning[] = [];
+
   // Build CSV
   const sep = separator;
   const rows: string[] = [
@@ -64,6 +80,20 @@ export async function generateCsvExport(
   ];
 
   for (const doc of readyDocs) {
+    // Check accountCode against chart of accounts
+    const docWarning =
+      hasChart && doc.accountCode && !accountSet.has(doc.accountCode)
+        ? `Konto ${doc.accountCode} ist nicht im Kontenplan`
+        : null;
+
+    if (docWarning) {
+      warnings.push({
+        documentId: doc.id,
+        documentNumber: doc.documentNumber || doc.id.slice(0, 8),
+        warning: docWarning,
+      });
+    }
+
     const vatRates = (doc.vatRatesDetected as any[]) || [];
     const vatRateStr = vatRates.map((r) => `${r.rate}%`).join(", ");
 
@@ -87,13 +117,14 @@ export async function generateCsvExport(
     ];
     rows.push(row.join(sep));
 
-    // Create export record
+    // Create export record (with warning if applicable)
     await prisma.exportRecord.create({
       data: {
         documentId: doc.id,
         exportTarget: "csv",
         status: "success",
         externalId: batchId,
+        ...(docWarning && { errorMessage: docWarning }),
       },
     });
 
@@ -104,5 +135,5 @@ export async function generateCsvExport(
     });
   }
 
-  return { batchId, csv: rows.join("\r\n"), count: readyDocs.length };
+  return { batchId, csv: rows.join("\r\n"), count: readyDocs.length, warnings };
 }
