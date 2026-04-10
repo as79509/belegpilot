@@ -1882,6 +1882,12 @@ export const de = {
     scoreGood: "Gut",
     scoreAcceptable: "Akzeptabel",
     scoreCritical: "Kritisch",
+    levels: {
+      excellent: "Ausgezeichnet",
+      good: "Gut",
+      acceptable: "Akzeptabel",
+      critical: "Kritisch",
+    },
     closingReadiness: "Abschlussbereitschaft",
     gateBlocked: "Abschluss blockiert",
     gateBlockedDetail: "Periode kann nicht geschlossen werden",
