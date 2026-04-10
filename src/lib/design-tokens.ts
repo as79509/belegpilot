@@ -146,3 +146,18 @@ export const CONFIDENCE_COLORS = {
   medium: "#F59E0B",
   low: "#94A3B8",
 } as const;
+
+/** Payment Status → Tone */
+export const PAYMENT_STATUS_TONES: Record<string, BadgeTone> = {
+  open: "slate",
+  paid: "green",
+  partial: "amber",
+  unclear: "red",
+};
+
+/** Bank Match Method → Tone */
+export const MATCH_METHOD_TONES: Record<string, BadgeTone> = {
+  qr_reference: "green",
+  amount_date_iban: "amber",
+  manual: "slate",
+};
