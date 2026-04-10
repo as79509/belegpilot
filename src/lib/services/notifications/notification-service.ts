@@ -117,8 +117,19 @@ export const NotificationTemplates = {
     body: taskTitle,
     severity: "info" as const,
   }),
+
+  missingDocumentReminder: (docDescription: string, daysPastDue: number) => ({
+    type: "document_uploaded" as const,
+    title: "Fehlendes Dokument: " + docDescription,
+    body: docDescription + " ist seit " + daysPastDue + " Tagen überfällig",
+    severity: "warning" as const,
+  }),
 };
 
 // TODO Phase 9.4.3: Überfällige Rechnungen — Cron-Job oder Inngest-Scheduled-Function
 // die täglich prüft ob Dokumente mit dueDate < heute && paymentStatus != "paid"
 // existieren und dann overdueInvoice Notifications erstellt.
+
+// TODO Phase 9.4.3: Fehlende Dokumente — Wöchentlicher Cron-Job:
+// Prüfe ExpectedDocuments ohne passendes Document und sende
+// missingDocumentReminder Notification an viewer-User der Company.

@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Upload, Building2, Download, Workflow, Mail,
+  LayoutDashboard, FileText, Upload, Building2, Download, Workflow, Mail, Home,
   Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
   ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList, Wallet, Receipt,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -61,6 +62,7 @@ const baseNavGroups: NavGroup[] = [
       { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
       { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
       { href: "/reports", label: de.reports.title, icon: BarChart3 },
+      { href: "/reports/monthly-summary", label: de.monthlySummary.title, icon: FileBarChart },
     ],
   },
   {
@@ -86,10 +88,25 @@ const baseNavGroups: NavGroup[] = [
   },
 ];
 
+const clientGroup: NavGroup = {
+  label: de.clientPortal.title,
+  defaultOpen: true,
+  items: [
+    { href: "/client", label: de.clientPortal.title, icon: Home },
+    { href: "/documents", label: de.nav.documents, icon: FileText },
+  ],
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const { companies, activeCompany, switchCompany, isMultiCompany } = useCompany();
-  const navGroups = isMultiCompany ? [trusteeGroup, ...baseNavGroups] : baseNavGroups;
+  const role = activeCompany?.role || "";
+  const isViewer = role === "viewer" || role === "readonly";
+  const navGroups = isViewer
+    ? [clientGroup]
+    : isMultiCompany
+      ? [trusteeGroup, ...baseNavGroups]
+      : baseNavGroups;
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );

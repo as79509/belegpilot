@@ -157,11 +157,19 @@ interface AutopilotHealth {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { switchCompany, isMultiCompany } = useCompany();
+  const { switchCompany, isMultiCompany, activeCompany } = useCompany();
   const { items: recentItems } = useRecentItems();
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
+
+  // Redirect viewer/readonly users to client portal
+  const role = activeCompany?.role || "";
+  useEffect(() => {
+    if (role === "viewer" || role === "readonly") {
+      router.replace("/client");
+    }
+  }, [role, router]);
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
