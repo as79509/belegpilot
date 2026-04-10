@@ -151,6 +151,8 @@ model Company {
   bankStatements     BankStatement[]
   bankTransactions   BankTransaction[]
   vatReturns         VatReturn[]
+  emailInboxes       EmailInbox[]
+  notifications      Notification[]
 
   @@map("companies")
 }
@@ -178,6 +180,7 @@ model User {
   bankTransactionMatches     BankTransaction[] @relation("BankTransactionMatcher")
   vatReturnsValidated        VatReturn[] @relation("VatReturnValidator")
   vatReturnsApproved         VatReturn[] @relation("VatReturnApprover")
+  notifications              Notification[]
 
   @@map("users")
 }
@@ -1071,4 +1074,47 @@ model VatReturn {
   @@unique([companyId, year, quarter, periodType])
   @@index([companyId, status])
   @@map("vat_returns")
+}
+
+model EmailInbox {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  inboxAddress    String   @map("inbox_address")          // z.B. "firma-abc@belege.belegpilot.ch"
+  label           String?                                  // z.B. "Haupteingang Rechnungen"
+  isActive        Boolean  @default(true) @map("is_active")
+  autoProcess     Boolean  @default(true) @map("auto_process")  // Sofort verarbeiten oder Queue
+  allowedSenders  Json?    @map("allowed_senders")         // ["buchhaltung@lieferant.ch"] oder null = alle
+  processedCount  Int      @default(0) @map("processed_count")
+  lastReceivedAt  DateTime? @map("last_received_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([inboxAddress])
+  @@index([companyId])
+  @@map("email_inboxes")
+}
+
+model Notification {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  userId          String?  @map("user_id") @db.Uuid        // null = Firma-weit
+  type            String                                     // "document_uploaded" | "period_closing" | "overdue_invoice" | "vat_reminder" | "task_assigned" | "system_alert"
+  title           String
+  body            String   @db.Text
+  severity        String   @default("info")                  // "info" | "warning" | "error" | "success"
+  isRead          Boolean  @default(false) @map("is_read")
+  readAt          DateTime? @map("read_at")
+  link            String?                                    // z.B. "/documents/abc-123"
+  metadata        Json?                                      // Zusätzliche Daten (documentId, periodId, etc.)
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId, isRead])
+  @@index([companyId, type])
+  @@map("notifications")
 }

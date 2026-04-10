@@ -13,6 +13,7 @@ import {
 import { LogOut, User, Menu, Bell, Settings, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileSidebar } from "./mobile-sidebar";
+import { NotificationCenter } from "@/components/shared/notification-center";
 import { de } from "@/lib/i18n/de";
 
 interface HeaderProps {
@@ -91,15 +92,10 @@ export function Header({ userName, userRole }: HeaderProps) {
 
       <div className="flex-1" />
 
-      {/* Notification bell */}
-      <Link href="/documents?status=needs_review" className="relative mr-3 p-1.5 rounded-md hover:bg-accent transition-colors">
-        <Bell className="h-4 w-4 text-[var(--text-secondary)]" />
-        {reviewCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-[var(--brand-danger)] text-white text-[10px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-1">
-            {reviewCount}
-          </span>
-        )}
-      </Link>
+      {/* Notification center */}
+      <div className="mr-3">
+        <NotificationCenter />
+      </div>
 
       {/* User dropdown */}
       <DropdownMenu>

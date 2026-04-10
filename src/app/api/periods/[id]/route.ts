@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { createNotification, NotificationTemplates } from "@/lib/services/notifications/notification-service";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ["incomplete", "review_ready"],
@@ -78,6 +79,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const updated = await prisma.monthlyPeriod.update({ where: { id }, data });
+
+    // Notification on period close/lock
+    if (data.status === "closed" || data.status === "locked") {
+      const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+      const tmpl = NotificationTemplates.periodClosingReminder(months[period.month - 1], period.year);
+      await createNotification({
+        companyId: ctx.companyId,
+        type: tmpl.type,
+        title: tmpl.title,
+        body: tmpl.body,
+        severity: tmpl.severity,
+        link: "/periods",
+        metadata: { periodId: id, month: period.month, year: period.year },
+      }).catch(() => {}); // Non-blocking
+    }
+
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

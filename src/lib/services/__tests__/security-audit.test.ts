@@ -19,6 +19,7 @@ const EXCEPTIONS = [
   "auth/[...nextauth]",
   "trustee/queue",       // Cross-company query by design
   "user/companies",      // Lists all user companies by design
+  "email/webhook",       // Inbound webhook with own auth (secret header)
 ];
 
 describe("Multi-Tenant Security Audit", () => {

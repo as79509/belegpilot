@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
+  LayoutDashboard, FileText, Upload, Building2, Download, Workflow, Mail,
   Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
   ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList, Wallet, Receipt,
@@ -37,6 +37,7 @@ const baseNavGroups: NavGroup[] = [
       { href: "/documents", label: de.nav.documents, icon: FileText },
       { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
       { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
+      { href: "/email", label: de.emailImport.title, icon: Mail },
     ],
   },
   {

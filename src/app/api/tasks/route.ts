@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { createNotification, NotificationTemplates } from "@/lib/services/notifications/notification-service";
 
 export async function GET(request: NextRequest) {
   const ctx = await getActiveCompany();
@@ -36,6 +37,21 @@ export async function POST(request: NextRequest) {
         relatedContractId: body.relatedContractId || null, dueDate: body.dueDate ? new Date(body.dueDate) : null,
       },
     });
+    // Notify assigned user
+    if (body.assignedTo) {
+      const tmpl = NotificationTemplates.taskAssigned(body.title);
+      await createNotification({
+        companyId: ctx.companyId,
+        userId: body.assignedTo,
+        type: tmpl.type,
+        title: tmpl.title,
+        body: tmpl.body,
+        severity: tmpl.severity,
+        link: `/tasks`,
+        metadata: { taskId: task.id },
+      }).catch(() => {}); // Non-blocking
+    }
+
     return NextResponse.json(task, { status: 201 });
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
