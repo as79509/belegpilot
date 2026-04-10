@@ -146,6 +146,7 @@ model Company {
   correctionPatterns CorrectionPattern[]
   autopilotConfig    AutopilotConfig?
   autopilotEvents    AutopilotEvent[]
+  accounts           Account[]
 
   @@map("companies")
 }
@@ -867,4 +868,45 @@ model AutopilotEvent {
   @@index([companyId, decision])
   @@index([companyId, createdAt])
   @@map("autopilot_events")
+}
+
+model Account {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  accountNumber   String   @map("account_number")      // z.B. "6200"
+  name            String                                 // z.B. "Telekommunikation"
+  accountType     String   @map("account_type")          // "asset" | "liability" | "equity" | "revenue" | "expense"
+  category        String?                                // Unterkategorie z.B. "Betriebsaufwand"
+  parentNumber    String?  @map("parent_number")         // z.B. "6000" für Hierarchie
+  bclass          Int?                                    // Banana BClass (1=Aktiv, 2=Passiv, 3=Aufwand, 4=Ertrag)
+  groupCode       String?  @map("group_code")            // Banana Gr
+  currency        String?  @db.VarChar(3)
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // AI Governance (4 Stufen)
+  aiGovernance    String   @default("ai_suggest") @map("ai_governance")
+  // "ai_suggest" = AI darf vorschlagen
+  // "ai_autopilot" = AI darf Autopilot verwenden
+  // "manual_only" = Nur manuelle Buchung
+  // "locked" = Gesperrt (kein Zugriff)
+
+  // Optionale Einschränkungen
+  allowedDocTypes Json?    @map("allowed_doc_types")     // z.B. ["invoice", "credit_note"]
+  allowedVatCodes Json?    @map("allowed_vat_codes")     // z.B. ["V81", "V00"]
+  notes           String?  @db.Text
+
+  // Banana Export Mapping
+  bananaAccountNumber String? @map("banana_account_number")  // Falls abweichend
+  bananaDescription   String? @map("banana_description")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, accountNumber])
+  @@index([companyId, accountType])
+  @@index([companyId, isActive])
+  @@map("accounts")
 }
