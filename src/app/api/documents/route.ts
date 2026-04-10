@@ -77,8 +77,36 @@ export async function GET(request: NextRequest) {
     prisma.document.count({ where: where as any }),
   ]);
 
+  // Compute payment status for each document
+  const docIds = documents.map((d) => d.id);
+  const bankTxs = docIds.length > 0 ? await prisma.bankTransaction.findMany({
+    where: { matchedDocumentId: { in: docIds }, companyId },
+    select: { matchedDocumentId: true, amount: true, matchStatus: true },
+  }) : [];
+
+  const txByDoc = new Map<string, typeof bankTxs>();
+  for (const tx of bankTxs) {
+    if (!tx.matchedDocumentId) continue;
+    const arr = txByDoc.get(tx.matchedDocumentId) || [];
+    arr.push(tx);
+    txByDoc.set(tx.matchedDocumentId, arr);
+  }
+
+  const docsWithPayment = documents.map((doc) => {
+    const txs = txByDoc.get(doc.id) || [];
+    let paymentStatus: string | null = null;
+    if (txs.length > 0) {
+      const totalPaid = txs.reduce((s, t) => s + Number(t.amount), 0);
+      const totalDue = doc.grossAmount ? Number(doc.grossAmount) : 0;
+      if (totalDue > 0 && Math.abs(totalPaid - totalDue) <= 0.01) paymentStatus = "paid";
+      else if (totalPaid > 0 && totalPaid < totalDue) paymentStatus = "partial";
+      else if (totalPaid >= totalDue) paymentStatus = "paid";
+    }
+    return { ...doc, paymentStatus };
+  });
+
   return NextResponse.json({
-    documents,
+    documents: docsWithPayment,
     pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
   });
 }

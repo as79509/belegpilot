@@ -108,6 +108,7 @@ interface CockpitData {
   nextActions?: NextAction[];
   reviewSpeed?: ReviewSpeed;
   personalToday?: PersonalToday;
+  unpaidDocs?: { count: number; total: number; overdueCount: number };
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -208,6 +209,11 @@ export default function DashboardPage() {
 
       {/* Bereich 3: Heute-Panel */}
       <TodayPanel stats={data.todayStats} suggestionStats={data.suggestionStats} autopilotStats={data.autopilotStats} />
+
+      {/* Unbezahlte Belege (Phase 9.2.2) */}
+      {data.unpaidDocs && data.unpaidDocs.count > 0 && (
+        <UnpaidDocsPanel unpaid={data.unpaidDocs} />
+      )}
 
       {/* Bereich 3a': Review Speed Meter */}
       {data.reviewSpeed && <ReviewSpeedMeter speed={data.reviewSpeed} />}
@@ -702,6 +708,32 @@ function PersonalTodayCard({ today }: { today: PersonalToday }) {
               <p className="text-lg font-semibold mt-0.5">{it.value}</p>
             </div>
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Phase 9.2.2: Unpaid Documents Panel
+function UnpaidDocsPanel({ unpaid }: { unpaid: { count: number; total: number; overdueCount: number } }) {
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">{de.payment.unpaidDocs}</p>
+            <p className="text-2xl font-bold mt-1">
+              {unpaid.count} <span className="text-sm font-normal text-muted-foreground">({formatCurrency(unpaid.total, "CHF")})</span>
+            </p>
+          </div>
+          {unpaid.overdueCount > 0 && (
+            <div className="flex items-center gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <div className="text-sm">
+                <span className="font-medium text-amber-800">{unpaid.overdueCount} {de.payment.overdueWarning}</span>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

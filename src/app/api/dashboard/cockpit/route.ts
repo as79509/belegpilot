@@ -367,6 +367,25 @@ export async function GET() {
     acceptRate: suggestionAcceptRate,
   };
 
+  // Unpaid Documents (Phase 9.2.2)
+  const allDocsWithAmount = await prisma.document.findMany({
+    where: { companyId, grossAmount: { not: null }, status: { notIn: ["rejected", "failed", "archived"] } },
+    select: { id: true, grossAmount: true, dueDate: true },
+  });
+
+  const paidDocIds = new Set(
+    (await prisma.bankTransaction.findMany({
+      where: { companyId, matchStatus: { in: ["auto_matched", "manual_matched"] }, matchedDocumentId: { not: null } },
+      select: { matchedDocumentId: true },
+    })).map((t) => t.matchedDocumentId)
+  );
+
+  const unpaidDocs = allDocsWithAmount.filter((d) => !paidDocIds.has(d.id));
+  const unpaidCount = unpaidDocs.length;
+  const unpaidTotal = unpaidDocs.reduce((s, d) => s + Number(d.grossAmount || 0), 0);
+  const overdueDocs = unpaidDocs.filter((d) => d.dueDate && d.dueDate < todayStart);
+  const overdueCount = overdueDocs.length;
+
   // Next Best Actions (Top 5)
   const allCompanyActions = await getCompanyActions(companyId);
   const nextActions = allCompanyActions.slice(0, 5);
@@ -390,5 +409,6 @@ export async function GET() {
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
     periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats, nextActions,
     reviewSpeed, personalToday,
+    unpaidDocs: { count: unpaidCount, total: unpaidTotal, overdueCount: overdueCount },
   });
 }

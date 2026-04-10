@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import {
   Link2, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   SkipForward, ClipboardList, MessageSquare, BookOpen, Lightbulb,
-  Keyboard, ChevronDown, ChevronUp, GitBranch,
+  Keyboard, ChevronDown, ChevronUp, GitBranch, Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
@@ -64,6 +64,9 @@ export default function DocumentDetailPage() {
 
   // Supplier context (Phase 8.8.1: Review-Kontext)
   const [supplierContext, setSupplierContext] = useState<any>(null);
+
+  // Payment status
+  const [paymentStatus, setPaymentStatus] = useState<any>(null);
 
   // Correction patterns for this supplier
   const [correctionPattern, setCorrectionPattern] = useState<any>(null);
@@ -149,6 +152,13 @@ export default function DocumentDetailPage() {
         if (naRes?.ok) {
           const naData = await naRes.json();
           setNextActions(Array.isArray(naData?.actions) ? naData.actions : []);
+        }
+
+        // Fetch payment status
+        const payRes = await fetch(`/api/documents/${params.id}/payment-status`).catch(() => null);
+        if (payRes?.ok) {
+          const payData = await payRes.json();
+          setPaymentStatus(payData);
         }
 
         // Fetch correction patterns for this supplier
@@ -663,6 +673,9 @@ export default function DocumentDetailPage() {
         supplierContext={supplierContext}
         similarDocs={similarDocs}
       />
+
+      {/* Payment Status (Phase 9.2.2) */}
+      <PaymentStatusPanel paymentStatus={paymentStatus} currency={doc.currency || "CHF"} />
 
       {/* Main layout: PDF + Review Form */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -1684,5 +1697,57 @@ function ReviewContextPanel({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Phase 9.2.2: Payment Status Panel
+function PaymentStatusPanel({ paymentStatus, currency }: { paymentStatus: any; currency: string }) {
+  if (!paymentStatus) return null;
+
+  const statusColors: Record<string, string> = {
+    paid: "text-green-600",
+    open: "text-slate-500",
+    partial: "text-amber-600",
+    unclear: "text-red-600",
+  };
+
+  const statusDots: Record<string, string> = {
+    paid: "bg-green-500",
+    open: "bg-slate-400",
+    partial: "bg-amber-500",
+    unclear: "bg-red-500",
+  };
+
+  return (
+    <SectionCard title={de.payment.title} icon={Landmark}>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className={`inline-block w-2 h-2 rounded-full ${statusDots[paymentStatus.status] || "bg-slate-400"}`} />
+          <span className={`font-medium ${statusColors[paymentStatus.status] || ""}`}>
+            {(de.payment.status as Record<string, string>)[paymentStatus.status] || paymentStatus.status}
+          </span>
+        </div>
+        {paymentStatus.transactions && paymentStatus.transactions.length > 0 && (
+          <div className="space-y-1.5 mt-2">
+            <p className="text-xs font-medium text-muted-foreground">{de.payment.details}</p>
+            {paymentStatus.transactions.map((tx: any) => (
+              <div key={tx.id} className="flex items-center justify-between text-sm">
+                <div className="text-muted-foreground">
+                  {formatDate(tx.bookingDate)} · {formatCurrency(tx.amount, currency)} · {tx.bankAccountName}
+                  {tx.matchMethod && (
+                    <span className="ml-1">
+                      · <StatusBadge type="matchMethod" value={tx.matchMethod} size="sm" />
+                    </span>
+                  )}
+                </div>
+                <Link href={`/bank`} className="text-blue-600 hover:underline text-xs">
+                  {de.payment.openTransaction} →
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </SectionCard>
   );
 }

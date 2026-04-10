@@ -13,6 +13,8 @@ import {
   DOCUMENT_STATUS_TONES,
   ESCALATION_TONES,
   EXPORT_STATUS_TONES,
+  MATCH_METHOD_TONES,
+  PAYMENT_STATUS_TONES,
   PERIOD_STATUS_TONES,
   REVIEW_STATUS_TONES,
   RISK_TONES,
@@ -32,7 +34,9 @@ export type StatusBadgeType =
   | "autopilot"
   | "suggestion"
   | "risk"
-  | "escalation";
+  | "escalation"
+  | "payment"
+  | "matchMethod";
 
 export interface StatusBadgeProps {
   type: StatusBadgeType;
@@ -139,6 +143,16 @@ function configFor(type: StatusBadgeType, value: string | boolean): BadgeConfig 
         dismissed: { label: "Verworfen", className: TONE_CLASSES.slate, Icon: XCircle },
       };
       return map[v] || { label: v, className: TONE_CLASSES.slate };
+    }
+    case "payment": {
+      const tone = PAYMENT_STATUS_TONES[v] ?? "slate";
+      const label = (de.payment.status as Record<string, string>)[v] || v;
+      return fromTone(tone, label);
+    }
+    case "matchMethod": {
+      const tone = MATCH_METHOD_TONES[v] ?? "slate";
+      const label = (de.bank.matchMethod as Record<string, string>)[v] || v;
+      return fromTone(tone, label);
     }
   }
 }

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
   Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList,
+  ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -44,6 +44,7 @@ const baseNavGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { href: "/journal", label: de.journal.title, icon: BookOpen },
+      { href: "/bank", label: de.bank.title, icon: Wallet },
       { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
       { href: "/assets", label: de.assets.title, icon: Landmark },
       { href: "/exports", label: de.nav.exports, icon: Download },

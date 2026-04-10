@@ -48,6 +48,7 @@ interface Document {
   createdAt: string;
   file?: { fileName: string; mimeType: string } | null;
   bookingSuggestions?: Array<{ confidenceLevel: string; suggestedAccount: string | null; confidenceScore: number; status: string }>;
+  paymentStatus?: string | null;
 }
 
 interface DocumentTableProps {
@@ -318,6 +319,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                 {de.documents.confidence}
               </SortHeader>
               <TableHead className="whitespace-nowrap">Export</TableHead>
+              <TableHead className="whitespace-nowrap">{de.payment.column}</TableHead>
               <TableHead className="whitespace-nowrap">{de.suggestions.title}</TableHead>
               <SortHeader column="createdAt">
                 {de.documents.uploadedAt}
@@ -342,13 +344,14 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                 </TableRow>
               ))
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={15} className="p-0">
+                <TableCell colSpan={16} className="p-0">
                   <EmptyState
                     icon={FileText}
                     title={de.documents.noDocuments}
@@ -425,6 +428,13 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                       <span className="text-red-600">✗</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {doc.paymentStatus ? (
+                      <StatusBadge type="payment" value={doc.paymentStatus} size="sm" />
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </TableCell>
                   <TableCell className="text-xs">
