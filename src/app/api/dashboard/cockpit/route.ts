@@ -4,6 +4,7 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { computeRiskScore } from "@/lib/services/cockpit/risk-score";
 import { buildAlerts } from "@/lib/services/cockpit/alert-builder";
 import { getCompanyActions } from "@/lib/services/actions/next-action";
+import { getQualityScore } from "@/lib/services/quality/period-quality";
 
 function countOverdueContracts(contracts: Array<{ frequency: string; startDate: Date; endDate: Date | null; reminderDays: number }>, now: Date) {
   let overdueCount = 0;
@@ -404,11 +405,18 @@ export async function GET() {
       : { enabled: false, mode: "shadow", killSwitchActive: false },
   };
 
+  // Quality score for current month
+  let qualityScore: number | null = null;
+  try {
+    qualityScore = await getQualityScore(companyId, currentYear, currentMonth);
+  } catch {}
+
   return NextResponse.json({
     alerts, todayStats, statusCounts: { ...counts, total },
     highRiskDocs: highRiskDocsFormatted, openTasks: openTasksFormatted,
     periods, clientRiskBoard, waitingOnClient, suggestionStats, autopilotStats, nextActions,
     reviewSpeed, personalToday,
     unpaidDocs: { count: unpaidCount, total: unpaidTotal, overdueCount: overdueCount },
+    qualityScore,
   });
 }

@@ -11,8 +11,8 @@ import {
   DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import {
-  CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle,
-  MessageSquare, Loader2, Unlock, Square, ArrowRight,
+  CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle, Info,
+  MessageSquare, Loader2, Unlock, Square, ArrowRight, Shield,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency } from "@/lib/i18n/format";
@@ -34,6 +34,8 @@ export default function PeriodsPage() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [periodActions, setPeriodActions] = useState<any[]>([]);
+  const [qualityReport, setQualityReport] = useState<any>(null);
+  const [qualityLoading, setQualityLoading] = useState(false);
 
   const fetchPeriods = useCallback(async () => {
     setLoading(true);
@@ -51,6 +53,7 @@ export default function PeriodsPage() {
     setDetailLoading(true);
     setNote(p.notes || "");
     setPeriodActions([]);
+    setQualityReport(null);
     try {
       // Ensure period exists in DB
       let periodId = p.id;
@@ -82,30 +85,63 @@ export default function PeriodsPage() {
     } finally { setDetailLoading(false); }
   }
 
-  async function changeStatus(newStatus: string) {
+  // Quality gate state
+  const [qualityGateOpen, setQualityGateOpen] = useState(false);
+  const [qualityGateReport, setQualityGateReport] = useState<any>(null);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
+  async function changeStatus(newStatus: string, forceClose?: boolean) {
     if (!selectedPeriod?.id) return;
-    if (newStatus === "locked" && !confirm(de.periods.lockConfirm)) return;
+    if (newStatus === "locked" && !forceClose && !confirm(de.periods.lockConfirm)) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/periods/${selectedPeriod.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, forceClose }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || de.errors.serverError);
+        // Quality gate blocked
+        if (res.status === 422 && data.qualityReport) {
+          setQualityGateReport(data.qualityReport);
+          setPendingStatus(newStatus);
+          setQualityGateOpen(true);
+          return;
+        }
+        toast.error(data.error || de.errors.serverError);
         return;
       }
-      const updated = await res.json();
-      setSelectedPeriod(updated);
+      setSelectedPeriod(data);
       toast.success(de.periodDetail.statusChanged);
+      setQualityGateOpen(false);
       fetchPeriods();
-      // Reload detail
-      const detailRes = await fetch(`/api/periods/${updated.id}/detail`);
+      const detailRes = await fetch(`/api/periods/${data.id}/detail`);
       if (detailRes.ok) setDetail(await detailRes.json());
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
+  }
+
+  async function handlePreCloseCheck(newStatus: string) {
+    if (!selectedPeriod?.id) return;
+    // Pre-check quality for close/lock
+    if (newStatus === "closed" || newStatus === "locked") {
+      setSaving(true);
+      try {
+        const qRes = await fetch(`/api/periods/${selectedPeriod.id}/quality`);
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          const report = qData.report || qData;
+          if (report.errorCount > 0 || report.warningCount > 0) {
+            setQualityGateReport(report);
+            setPendingStatus(newStatus);
+            setQualityGateOpen(true);
+            return;
+          }
+        }
+      } catch {} finally { setSaving(false); }
+    }
+    changeStatus(newStatus);
   }
 
   async function saveNote() {
@@ -332,6 +368,24 @@ export default function PeriodsPage() {
                 <InfoPanel tone="success" title={de.periodDetail.noBlockers} />
               )}
 
+              {/* Quality Report */}
+              <QualitySection
+                periodId={selectedPeriod?.id}
+                qualityReport={qualityReport}
+                qualityLoading={qualityLoading}
+                onLoad={async () => {
+                  if (!selectedPeriod?.id) return;
+                  setQualityLoading(true);
+                  try {
+                    const res = await fetch(`/api/periods/${selectedPeriod.id}/quality`);
+                    if (res.ok) {
+                      const qData = await res.json();
+                      setQualityReport(qData.report || qData);
+                    }
+                  } finally { setQualityLoading(false); }
+                }}
+              />
+
               {/* Expected documents — missing or mismatched */}
               {detail.expectedDocs?.details?.filter((d: any) => d.status === "missing" || d.status === "amount_mismatch").length > 0 && (
                 <div>
@@ -422,7 +476,7 @@ export default function PeriodsPage() {
                   <Button
                     size="sm"
                     className="bg-green-600 hover:bg-green-700"
-                    onClick={() => changeStatus("closed")}
+                    onClick={() => handlePreCloseCheck("closed")}
                     disabled={saving}
                   >
                     {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
@@ -433,7 +487,7 @@ export default function PeriodsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => changeStatus("locked")}
+                    onClick={() => handlePreCloseCheck("locked")}
                     disabled={saving}
                   >
                     <Lock className="h-4 w-4 mr-1" />{de.periodDetail.lockPeriod}
@@ -454,6 +508,161 @@ export default function PeriodsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* Quality Gate Dialog */}
+      <Dialog open={qualityGateOpen} onOpenChange={setQualityGateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              {qualityGateReport?.errorCount > 0 ? de.quality.gateBlocked : de.quality.gateWarnings}
+            </DialogTitle>
+          </DialogHeader>
+          {qualityGateReport && (
+            <div className="space-y-3">
+              {qualityGateReport.errorCount > 0 && (
+                <InfoPanel tone="error" title={`${qualityGateReport.errorCount} ${de.quality.criticalIssues}`}>
+                  <ul className="space-y-1 mt-1">
+                    {qualityGateReport.checks.filter((c: any) => c.severity === "error").map((c: any) => (
+                      <li key={c.key} className="text-sm">{c.message}</li>
+                    ))}
+                  </ul>
+                </InfoPanel>
+              )}
+              {qualityGateReport.warningCount > 0 && (
+                <InfoPanel tone="warning" title={`${qualityGateReport.warningCount} ${de.quality.warningsPresent}`}>
+                  <ul className="space-y-1 mt-1">
+                    {qualityGateReport.checks.filter((c: any) => c.severity === "warning").map((c: any) => (
+                      <li key={c.key} className="text-sm">{c.message}</li>
+                    ))}
+                  </ul>
+                </InfoPanel>
+              )}
+              <div className="text-xs text-muted-foreground">
+                {de.quality.score}: {qualityGateReport.score}/100
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            {qualityGateReport?.errorCount === 0 && pendingStatus && (
+              <Button
+                variant="default"
+                onClick={() => changeStatus(pendingStatus, true)}
+                disabled={saving}
+              >
+                {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                {de.quality.closeAnyway}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Quality Score Helpers ──
+
+function qualityLevel(score: number): { label: string; className: string } {
+  if (score >= 90) return { label: de.quality.levels.excellent, className: "bg-green-100 text-green-800" };
+  if (score >= 70) return { label: de.quality.levels.good, className: "bg-blue-100 text-blue-800" };
+  if (score >= 50) return { label: de.quality.levels.acceptable, className: "bg-amber-100 text-amber-800" };
+  return { label: de.quality.levels.critical, className: "bg-red-100 text-red-800" };
+}
+
+function qualityBarColor(score: number): string {
+  if (score >= 90) return "bg-green-500";
+  if (score >= 70) return "bg-blue-500";
+  if (score >= 50) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+// ── Quality Section Component ──
+
+function QualitySection({
+  periodId,
+  qualityReport,
+  qualityLoading,
+  onLoad,
+}: {
+  periodId: string | null;
+  qualityReport: any;
+  qualityLoading: boolean;
+  onLoad: () => void;
+}) {
+  if (!periodId) return null;
+
+  return (
+    <div className="rounded-md border p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5" />
+          {de.quality.title}
+        </p>
+        {!qualityReport && !qualityLoading && (
+          <Button variant="outline" size="sm" className="h-6 text-xs" onClick={onLoad}>
+            {de.quality.loadDetails}
+          </Button>
+        )}
+      </div>
+
+      {qualityLoading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {de.common.loading}
+        </div>
+      )}
+
+      {qualityReport && (
+        <>
+          {/* Score bar */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{de.quality.score}</span>
+              <span className="flex items-center gap-2">
+                <Badge variant="secondary" className={qualityLevel(qualityReport.score).className}>
+                  {qualityLevel(qualityReport.score).label}
+                </Badge>
+                <span className="font-mono font-bold">{qualityReport.score}/100</span>
+              </span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden bg-gray-100">
+              <div className={`${qualityBarColor(qualityReport.score)} transition-all`} style={{ width: `${qualityReport.score}%` }} />
+            </div>
+          </div>
+
+          {/* Checks list */}
+          <div className="space-y-1">
+            <p className="text-xs font-medium">{de.quality.checks}</p>
+            {qualityReport.checks.map((check: any) => {
+              const icon = check.severity === "passed"
+                ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                : check.severity === "error"
+                  ? <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                  : check.severity === "warning"
+                    ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    : <Info className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+
+              const bgClass = check.severity === "error" ? "bg-red-50"
+                : check.severity === "warning" ? "bg-amber-50"
+                  : "";
+
+              return (
+                <div key={check.key} className={`flex items-start gap-2 text-xs p-1.5 rounded ${bgClass}`}>
+                  {icon}
+                  <div className="min-w-0">
+                    <span className={check.severity === "error" ? "text-red-700 font-medium" : check.severity === "warning" ? "text-amber-700" : ""}>
+                      {check.message}
+                    </span>
+                    {check.detail && <span className="text-muted-foreground ml-1">({check.detail})</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

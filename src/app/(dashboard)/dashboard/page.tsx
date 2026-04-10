@@ -109,6 +109,7 @@ interface CockpitData {
   reviewSpeed?: ReviewSpeed;
   personalToday?: PersonalToday;
   unpaidDocs?: { count: number; total: number; overdueCount: number };
+  qualityScore?: number | null;
 }
 
 const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -213,6 +214,11 @@ export default function DashboardPage() {
       {/* Unbezahlte Belege (Phase 9.2.2) */}
       {data.unpaidDocs && data.unpaidDocs.count > 0 && (
         <UnpaidDocsPanel unpaid={data.unpaidDocs} />
+      )}
+
+      {/* Abschlussbereitschaft (Quality Score) */}
+      {data.qualityScore != null && data.qualityScore < 70 && (
+        <QualityScorePanel score={data.qualityScore} />
       )}
 
       {/* Bereich 3a': Review Speed Meter */}
@@ -732,6 +738,42 @@ function UnpaidDocsPanel({ unpaid }: { unpaid: { count: number; total: number; o
               <div className="text-sm">
                 <span className="font-medium text-amber-800">{unpaid.overdueCount} {de.payment.overdueWarning}</span>
               </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Phase 9.5.2: Quality Score Panel
+function QualityScorePanel({ score }: { score: number }) {
+  const isCritical = score < 50;
+  return (
+    <Card className={isCritical ? "border-red-200" : "border-amber-200"}>
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">{de.quality.closingReadiness}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex h-2 w-24 rounded-full overflow-hidden bg-gray-100">
+                <div
+                  className={isCritical ? "bg-red-500" : "bg-amber-500"}
+                  style={{ width: `${score}%` }}
+                />
+              </div>
+              <span className="text-lg font-bold font-mono">{score}/100</span>
+            </div>
+          </div>
+          {isCritical ? (
+            <div className="flex items-center gap-1.5 rounded-md bg-red-50 border border-red-200 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-medium text-red-800">{de.quality.levels.critical}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium text-amber-800">{de.quality.levels.acceptable}</span>
             </div>
           )}
         </div>

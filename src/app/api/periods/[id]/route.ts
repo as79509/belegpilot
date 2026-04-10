@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { logAudit } from "@/lib/services/audit/audit-service";
 import { createNotification, NotificationTemplates } from "@/lib/services/notifications/notification-service";
+import { generateQualityReport } from "@/lib/services/quality/period-quality";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   open: ["incomplete", "review_ready"],
@@ -50,7 +51,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       data.status = newStatus;
 
-      if (newStatus === "locked" || newStatus === "closed") {
+      // Quality gate: check before closing/locking
+      if (newStatus === "closed" || newStatus === "locked") {
+        const forceClose = body.forceClose === true;
+        try {
+          const qualityReport = await generateQualityReport(ctx.companyId, period.year, period.month);
+          if (qualityReport.errorCount > 0 && !forceClose) {
+            return NextResponse.json({
+              error: `Periode kann nicht geschlossen werden: ${qualityReport.errorCount} kritische Probleme`,
+              qualityReport,
+            }, { status: 422 });
+          }
+          // Attach warnings to response metadata
+          if (qualityReport.warningCount > 0) {
+            data.notes = (period.notes || "") +
+              (period.notes ? "\n" : "") +
+              `[Auto] Geschlossen mit ${qualityReport.warningCount} Warnung(en), Score: ${qualityReport.score}/100`;
+          }
+        } catch {
+          // Quality check failed — allow close but log
+        }
+
         data.closedAt = new Date();
         data.closedBy = ctx.session.user.id;
       }

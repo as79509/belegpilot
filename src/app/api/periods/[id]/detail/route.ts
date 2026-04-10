@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { getQualityScore } from "@/lib/services/quality/period-quality";
 
 export async function GET(
   _request: NextRequest,
@@ -203,6 +204,14 @@ export async function GET(
 
   const blockers = checklist.filter((c) => !c.done).map((c) => c.label);
 
+  // Quality score (lightweight, inline)
+  let qualityScore: number | null = null;
+  try {
+    qualityScore = await getQualityScore(companyId, year, month);
+  } catch {
+    // Non-critical — leave null if quality check fails
+  }
+
   return NextResponse.json({
     period,
     checklist,
@@ -214,6 +223,7 @@ export async function GET(
     vatReturn,
     isQuarterEnd,
     quarterNumber,
+    qualityScore,
   });
 }
 
