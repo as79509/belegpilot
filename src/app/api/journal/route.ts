@@ -39,6 +39,37 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ entries, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
 }
 
+async function validateAccountsAgainstPlan(
+  companyId: string,
+  debitAccount: string,
+  creditAccount: string
+): Promise<{ warnings: string[]; lockedError: string | null }> {
+  const warnings: string[] = [];
+  let lockedError: string | null = null;
+
+  const accounts = await prisma.account.findMany({
+    where: { companyId, isActive: true },
+    select: { accountNumber: true, aiGovernance: true },
+  });
+
+  // If no chart of accounts exists, skip validation (legacy)
+  if (accounts.length === 0) return { warnings, lockedError };
+
+  const accountMap = new Map(accounts.map((a) => [a.accountNumber, a.aiGovernance]));
+
+  for (const [label, code] of [["Soll", debitAccount], ["Haben", creditAccount]] as const) {
+    if (!code) continue;
+    const governance = accountMap.get(code);
+    if (governance === undefined) {
+      warnings.push(`${label}-Konto ${code} ist nicht im Kontenplan`);
+    } else if (governance === "locked") {
+      lockedError = `Konto ${code} ist gesperrt`;
+    }
+  }
+
+  return { warnings, lockedError };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
@@ -52,6 +83,16 @@ export async function POST(request: NextRequest) {
       if (lock.locked) {
         return NextResponse.json({ error: lock.message }, { status: 409 });
       }
+    }
+
+    // Validate accounts against chart of accounts
+    const { warnings, lockedError } = await validateAccountsAgainstPlan(
+      ctx.companyId,
+      body.debitAccount,
+      body.creditAccount
+    );
+    if (lockedError) {
+      return NextResponse.json({ error: lockedError }, { status: 400 });
     }
 
     const entry = await prisma.journalEntry.create({
@@ -72,7 +113,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(entry, { status: 201 });
+    return NextResponse.json({ entry, warnings }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
     let count: number;
     let batchId: string;
 
+    let exportWarnings: Array<{ documentId: string; documentNumber: string; warning: string }> = [];
+
     if (format === "xlsx") {
       const result = await generateXlsxExport(
         ctx.companyId,
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
       fileExt = "csv";
       count = result.count;
       batchId = result.batchId;
+      exportWarnings = result.warnings;
     }
 
     await logAudit({
@@ -105,15 +108,18 @@ export async function POST(request: NextRequest) {
       ? responseBody
       : new Uint8Array(responseBody);
 
-    return new NextResponse(responseBytes, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="belegpilot-export-${batchId.slice(0, 8)}.${fileExt}"`,
-        "X-Export-Batch-Id": batchId,
-        "X-Export-Count": String(count),
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="belegpilot-export-${batchId.slice(0, 8)}.${fileExt}"`,
+      "X-Export-Batch-Id": batchId,
+      "X-Export-Count": String(count),
+    };
+    if (exportWarnings.length > 0) {
+      headers["X-Export-Warnings"] = JSON.stringify(exportWarnings);
+      headers["X-Export-Warning-Count"] = String(exportWarnings.length);
+    }
+
+    return new NextResponse(responseBytes, { status: 200, headers });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
