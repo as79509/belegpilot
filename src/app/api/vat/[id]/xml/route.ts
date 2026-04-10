@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
-import { generateVatPdf } from "@/lib/services/vat/vat-pdf";
+import { generateEch0217Xml } from "@/lib/services/vat/vat-xml";
 
 export async function GET(
   _request: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
 
   const company = await prisma.company.findUnique({
     where: { id: ctx.companyId },
-    select: { name: true, uid: true, vatNumber: true },
+    select: { name: true, uid: true },
   });
   if (!company) return NextResponse.json({ error: "Firma nicht gefunden" }, { status: 404 });
 
@@ -47,20 +47,20 @@ export async function GET(
     ziffer410: Number(vatReturn.ziffer410),
     ziffer415: Number(vatReturn.ziffer415),
     ziffer420: Number(vatReturn.ziffer420),
-    documentCount: vatReturn.documentCount,
   };
 
-  const pdfBuffer = generateVatPdf(vrData, company);
+  const xml = generateEch0217Xml(vrData, company);
 
   const periodLabel = vatReturn.periodType === "semi_annual"
     ? `h${vatReturn.quarter}`
     : `q${vatReturn.quarter}`;
-  const fileName = `mwst-${periodLabel}-${vatReturn.year}.pdf`;
+  const fileName = `mwst-${periodLabel}-${vatReturn.year}.xml`;
 
-  return new NextResponse(new Uint8Array(pdfBuffer), {
+  return new NextResponse(xml, {
     headers: {
-      "Content-Type": "application/pdf",
+      "Content-Type": "application/xml",
       "Content-Disposition": `attachment; filename="${fileName}"`,
+      "X-Implementation-Status": "placeholder",
     },
   });
 }
