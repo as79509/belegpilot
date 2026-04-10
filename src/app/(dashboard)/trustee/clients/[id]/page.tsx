@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Brain } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
+import { InfoPanel } from "@/components/ds";
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -42,6 +43,16 @@ export default function ClientDetailPage() {
       .finally(() => setLoading(false));
   }, [params.id]);
 
+  const [docCount, setDocCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!client) return;
+    fetch(`/api/documents?pageSize=1`)
+      .then((r) => r.json())
+      .then((d) => setDocCount(d.pagination?.total ?? null))
+      .catch(() => {});
+  }, [client]);
+
   function set(f: string, v: any) { setForm((p) => ({ ...p, [f]: v })); }
 
   async function handleSave() {
@@ -64,6 +75,22 @@ export default function ClientDetailPage() {
     <div className="space-y-4">
       <Link href="/trustee/clients" className="text-sm text-muted-foreground hover:text-foreground">← {de.clients.title}</Link>
       <h1 className="text-xl font-semibold">{client.name}</h1>
+
+      {/* AI Onboarding Hints */}
+      {docCount !== null && docCount < 10 && (
+        <InfoPanel tone="info" title="" icon={Brain}>
+          {de.onboardingAnalysis.hints.fewDocs.replace("{count}", String(docCount))}
+          {docCount >= 5 && (
+            <> — <Link href="/trustee/onboarding/analysis" className="text-blue-600 hover:underline">{de.onboardingAnalysis.hints.startLink} →</Link></>
+          )}
+        </InfoPanel>
+      )}
+      {docCount !== null && docCount >= 50 && (
+        <InfoPanel tone="info" title="" icon={Brain}>
+          {de.onboardingAnalysis.hints.noAnalysis}
+          {" "}<Link href="/trustee/onboarding/analysis" className="text-blue-600 hover:underline">{de.onboardingAnalysis.hints.startLink} →</Link>
+        </InfoPanel>
+      )}
 
       <Tabs defaultValue="details">
         <TabsList>
