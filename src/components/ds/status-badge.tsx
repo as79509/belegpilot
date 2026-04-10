@@ -15,6 +15,7 @@ import {
   EXPORT_STATUS_TONES,
   MATCH_METHOD_TONES,
   PAYMENT_STATUS_TONES,
+  VAT_RETURN_STATUS_TONES,
   PERIOD_STATUS_TONES,
   REVIEW_STATUS_TONES,
   RISK_TONES,
@@ -36,7 +37,8 @@ export type StatusBadgeType =
   | "risk"
   | "escalation"
   | "payment"
-  | "matchMethod";
+  | "matchMethod"
+  | "vatReturn";
 
 export interface StatusBadgeProps {
   type: StatusBadgeType;
@@ -152,6 +154,11 @@ function configFor(type: StatusBadgeType, value: string | boolean): BadgeConfig 
     case "matchMethod": {
       const tone = MATCH_METHOD_TONES[v] ?? "slate";
       const label = (de.bank.matchMethod as Record<string, string>)[v] || v;
+      return fromTone(tone, label);
+    }
+    case "vatReturn": {
+      const tone = VAT_RETURN_STATUS_TONES[v] ?? "slate";
+      const label = (de.vatReturn.status as Record<string, string>)[v] || v;
       return fromTone(tone, label);
     }
   }

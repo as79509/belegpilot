@@ -161,3 +161,11 @@ export const MATCH_METHOD_TONES: Record<string, BadgeTone> = {
   amount_date_iban: "amber",
   manual: "slate",
 };
+
+/** VAT Return Status → Tone */
+export const VAT_RETURN_STATUS_TONES: Record<string, BadgeTone> = {
+  draft: "slate",
+  validated: "blue",
+  approved: "green",
+  submitted: "green-dark",
+};

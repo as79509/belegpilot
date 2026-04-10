@@ -150,6 +150,7 @@ model Company {
   bankAccounts       BankAccount[]
   bankStatements     BankStatement[]
   bankTransactions   BankTransaction[]
+  vatReturns         VatReturn[]
 
   @@map("companies")
 }
@@ -175,6 +176,8 @@ model User {
   editedKnowledge    KnowledgeItem[] @relation("KnowledgeEditor")
   userCompanies              UserCompany[]
   bankTransactionMatches     BankTransaction[] @relation("BankTransactionMatcher")
+  vatReturnsValidated        VatReturn[] @relation("VatReturnValidator")
+  vatReturnsApproved         VatReturn[] @relation("VatReturnApprover")
 
   @@map("users")
 }
@@ -1003,4 +1006,69 @@ model BankTransaction {
   @@index([companyId, paymentReference])
   @@index([matchedDocumentId])
   @@map("bank_transactions")
+}
+
+model VatReturn {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  year            Int
+  quarter         Int                            // 1-4 (oder Halbjahr 1-2 je nach vatInterval)
+  periodType      String   @map("period_type")   // "quarterly" | "semi_annual" | "annual"
+
+  // Status
+  status          String   @default("draft")      // "draft" | "validated" | "approved" | "submitted"
+  validatedAt     DateTime? @map("validated_at")
+  validatedBy     String?  @map("validated_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?  @map("approved_by") @db.Uuid
+  submittedAt     DateTime? @map("submitted_at")
+
+  // Ziffern gemäss Formular 405
+  // Umsatz
+  ziffer200       Decimal  @default(0) @db.Decimal(12, 2)  // Gesamtbetrag der vereinbarten/vereinnahmten Entgelte
+  ziffer205       Decimal  @default(0) @db.Decimal(12, 2)  // Nicht steuerbare Leistungen (Ausland, Art. 21)
+  ziffer220       Decimal  @default(0) @db.Decimal(12, 2)  // Steuerbefreite Leistungen (Export etc.)
+  ziffer221       Decimal  @default(0) @db.Decimal(12, 2)  // Leistungen im Ausland
+  ziffer225       Decimal  @default(0) @db.Decimal(12, 2)  // Übertrag / Minderungen
+  ziffer230       Decimal  @default(0) @db.Decimal(12, 2)  // Subventionen, Kurtaxen
+  ziffer235       Decimal  @default(0) @db.Decimal(12, 2)  // Diverses
+  // Total steuerbarer Umsatz = 200 - (205+220+221+225+230+235) → berechnet, nicht gespeichert
+
+  // Steuerberechnung
+  ziffer302       Decimal  @default(0) @db.Decimal(12, 2)  // Leistungen zum Normalsatz (8.1%)
+  ziffer312       Decimal  @default(0) @db.Decimal(12, 2)  // Leistungen zum reduzierten Satz (2.6%)
+  ziffer342       Decimal  @default(0) @db.Decimal(12, 2)  // Leistungen zum Sondersatz Beherbergung (3.8%)
+  ziffer382       Decimal  @default(0) @db.Decimal(12, 2)  // Bezugsteuer
+  steuer302       Decimal  @default(0) @db.Decimal(12, 2)  // Steuer Normalsatz
+  steuer312       Decimal  @default(0) @db.Decimal(12, 2)  // Steuer reduzierter Satz
+  steuer342       Decimal  @default(0) @db.Decimal(12, 2)  // Steuer Sondersatz
+  steuer382       Decimal  @default(0) @db.Decimal(12, 2)  // Steuer Bezugsteuer
+  // Total Steuer = steuer302 + steuer312 + steuer342 + steuer382
+
+  // Vorsteuer
+  ziffer400       Decimal  @default(0) @db.Decimal(12, 2)  // Vorsteuer auf Material/DL
+  ziffer405       Decimal  @default(0) @db.Decimal(12, 2)  // Vorsteuer auf Investitionen
+  ziffer410       Decimal  @default(0) @db.Decimal(12, 2)  // Einlageentsteuerung
+  ziffer415       Decimal  @default(0) @db.Decimal(12, 2)  // Vorsteuerkorrekturen (Eigenverbrauch etc.)
+  ziffer420       Decimal  @default(0) @db.Decimal(12, 2)  // Kürzungen Vorsteuer (nicht geschäftlich etc.)
+  // Total Vorsteuer = 400 + 405 + 410 - 415 - 420
+
+  // Zahllast = Total Steuer - Total Vorsteuer (positiv = Schuld, negativ = Guthaben)
+
+  // Validierung
+  warnings        Json?                            // Array<{ ziffer: string, message: string, severity: "error"|"warning" }>
+  documentCount   Int      @default(0) @map("document_count")
+  journalCount    Int      @default(0) @map("journal_count")
+  notes           String?  @db.Text
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+  validator       User?    @relation("VatReturnValidator", fields: [validatedBy], references: [id])
+  approver        User?    @relation("VatReturnApprover", fields: [approvedBy], references: [id])
+
+  @@unique([companyId, year, quarter, periodType])
+  @@index([companyId, status])
+  @@map("vat_returns")
 }

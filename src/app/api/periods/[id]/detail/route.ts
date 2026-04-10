@@ -35,6 +35,10 @@ export async function GET(
   const monthEnd = new Date(year, month, 1);
 
   // Run all queries in parallel
+  // Check if this month is a quarter-end (3, 6, 9, 12) for VAT integration
+  const isQuarterEnd = [3, 6, 9, 12].includes(month);
+  const quarterNumber = isQuarterEnd ? Math.ceil(month / 3) : null;
+
   const [
     totalDocs,
     readyDocs,
@@ -179,6 +183,24 @@ export async function GET(
     { key: "exported", label: "Export durchgeführt", done: exportedDocs > 0 || totalDocs === 0, detail: `${exportedDocs} exportiert` },
   ];
 
+  // VAT return for this quarter (if quarter-end month)
+  let vatReturn: { id: string; status: string; zahllast: number } | null = null;
+  if (isQuarterEnd && quarterNumber) {
+    const vr = await prisma.vatReturn.findFirst({
+      where: { companyId, year, quarter: quarterNumber },
+      select: {
+        id: true, status: true,
+        steuer302: true, steuer312: true, steuer342: true, steuer382: true,
+        ziffer400: true, ziffer405: true, ziffer410: true, ziffer415: true, ziffer420: true,
+      },
+    });
+    if (vr) {
+      const totalTax = Number(vr.steuer302) + Number(vr.steuer312) + Number(vr.steuer342) + Number(vr.steuer382);
+      const totalInput = Number(vr.ziffer400) + Number(vr.ziffer405) + Number(vr.ziffer410) + Number(vr.ziffer415) - Number(vr.ziffer420);
+      vatReturn = { id: vr.id, status: vr.status, zahllast: Math.round((totalTax - totalInput) * 100) / 100 };
+    }
+  }
+
   const blockers = checklist.filter((c) => !c.done).map((c) => c.label);
 
   return NextResponse.json({
@@ -189,6 +211,9 @@ export async function GET(
     expectedDocs: { total: expTotal, received: expReceived, missing: expMissing, mismatch: expMismatch, details: expectedDocsResults },
     openTasks,
     stats: { totalDocs, readyDocs, needsReviewDocs, failedDocs, exportedDocs },
+    vatReturn,
+    isQuarterEnd,
+    quarterNumber,
   });
 }
 

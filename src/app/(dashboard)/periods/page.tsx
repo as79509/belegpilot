@@ -11,7 +11,7 @@ import {
   DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import {
-  CalendarCheck, Lock, CheckCircle2, XCircle,
+  CalendarCheck, Lock, CheckCircle2, XCircle, AlertTriangle,
   MessageSquare, Loader2, Unlock, Square, ArrowRight,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
@@ -258,6 +258,29 @@ export default function PeriodsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* VAT Return for Quarter-End months */}
+              {detail.isQuarterEnd && (
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-medium mb-2">{de.vatReturn.title} — Q{detail.quarterNumber}/{selectedPeriod?.year}</p>
+                  {detail.vatReturn ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge type="vatReturn" value={detail.vatReturn.status} size="sm" />
+                        <span className="text-sm font-mono">{formatCurrency(detail.vatReturn.zahllast, "CHF")}</span>
+                      </div>
+                      <Link href="/vat" className="text-blue-600 hover:underline text-xs">{de.vatReturn.vatReturnExists} →</Link>
+                    </div>
+                  ) : (
+                    <Link href="/vat" className="text-blue-600 hover:underline text-sm">{de.vatReturn.createVatReturn} →</Link>
+                  )}
+                  {detail.vatReturn && detail.vatReturn.status === "draft" && (
+                    <InfoPanel tone="warning" title="" icon={AlertTriangle} className="mt-2">
+                      {de.vatReturn.periodNotClosed.replace("{q}", String(detail.quarterNumber))}
+                    </InfoPanel>
+                  )}
+                </div>
+              )}
 
               {/* Next Actions Checklist */}
               {periodActions.length > 0 && (
