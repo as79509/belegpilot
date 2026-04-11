@@ -153,6 +153,8 @@ model Company {
   vatReturns         VatReturn[]
   emailInboxes       EmailInbox[]
   notifications      Notification[]
+  suggestionEvaluations SuggestionEvaluation[]
+  vatCodeMappings       VatCodeMapping[]
 
   @@map("companies")
 }
@@ -262,6 +264,7 @@ model Document {
   correctionEvents   CorrectionEvent[]
   autopilotEvents    AutopilotEvent[]
   bankTransactions   BankTransaction[]
+  evaluations        SuggestionEvaluation[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -751,6 +754,7 @@ model BookingSuggestion {
 
   company   Company  @relation(fields: [companyId], references: [id])
   document  Document @relation(fields: [documentId], references: [id])
+  evaluations SuggestionEvaluation[]
 
   @@index([companyId, documentId])
   @@index([companyId, status])
@@ -910,6 +914,9 @@ model Account {
   // Banana Export Mapping
   bananaAccountNumber String? @map("banana_account_number")  // Falls abweichend
   bananaDescription   String? @map("banana_description")
+  bananaMappingStatus String  @default("unmapped") @map("banana_mapping_status")
+  // "mapped" | "unmapped" | "uncertain" | "blocked"
+  bananaMappingNotes  String? @map("banana_mapping_notes") @db.Text
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -1117,4 +1124,71 @@ model Notification {
   @@index([companyId, userId, isRead])
   @@index([companyId, type])
   @@map("notifications")
+}
+
+model SuggestionEvaluation {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  documentId      String   @map("document_id") @db.Uuid
+  suggestionId    String?  @map("suggestion_id") @db.Uuid
+
+  // Entscheidungstyp
+  source          String   // "suggestion_accept" | "suggestion_modify" | "autopilot_auto_ready" | "manual"
+
+  // Feld-Level Vergleich: vorgeschlagen vs. final
+  suggestedAccount    String? @map("suggested_account")
+  finalAccount        String? @map("final_account")
+  accountCorrect      Boolean? @map("account_correct")
+
+  suggestedCategory   String? @map("suggested_category")
+  finalCategory       String? @map("final_category")
+  categoryCorrect     Boolean? @map("category_correct")
+
+  suggestedCostCenter String? @map("suggested_cost_center")
+  finalCostCenter     String? @map("final_cost_center")
+  costCenterCorrect   Boolean? @map("cost_center_correct")
+
+  suggestedVatCode    String? @map("suggested_vat_code")
+  finalVatCode        String? @map("final_vat_code")
+  vatCodeCorrect      Boolean? @map("vat_code_correct")
+
+  // Aggregierte Metriken
+  fieldsEvaluated     Int     @default(0) @map("fields_evaluated")
+  fieldsCorrect       Int     @default(0) @map("fields_correct")
+  overallCorrect      Boolean @default(false) @map("overall_correct")
+
+  // Konfidenz zum Zeitpunkt der Suggestion
+  confidenceScore     Float?  @map("confidence_score")
+  confidenceLevel     String? @map("confidence_level")
+
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  company             Company  @relation(fields: [companyId], references: [id])
+  document            Document @relation(fields: [documentId], references: [id])
+  suggestion          BookingSuggestion? @relation(fields: [suggestionId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([companyId, source])
+  @@index([documentId])
+  @@map("suggestion_evaluations")
+}
+
+model VatCodeMapping {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  internalRate    Float    @map("internal_rate")          // z.B. 8.1, 2.6, 3.8, 0
+  internalLabel   String   @map("internal_label")         // z.B. "Normalsatz 8.1%"
+  bananaVatCode   String?  @map("banana_vat_code")        // z.B. "V81", "V26", "V00"
+  bananaVatLabel  String?  @map("banana_vat_label")       // z.B. "Vorsteuer 8.1%"
+  mappingStatus   String   @default("unmapped") @map("mapping_status")  // "mapped" | "unmapped" | "uncertain"
+  isDefault       Boolean  @default(false) @map("is_default")  // Standard-Code für diese Rate
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, internalRate, bananaVatCode])
+  @@index([companyId, mappingStatus])
+  @@map("vat_code_mappings")
 }

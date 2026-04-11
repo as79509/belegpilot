@@ -1272,6 +1272,23 @@ export const de = {
     last30days: "Letzte 30 Tage",
   },
 
+  evaluation: {
+    title: "Entscheidungsauswertung",
+    fieldAccuracy: "Feldgenauigkeit",
+    accountAccuracy: "Konto-Genauigkeit",
+    categoryAccuracy: "Kategorie-Genauigkeit",
+    costCenterAccuracy: "Kostenstelle-Genauigkeit",
+    vatCodeAccuracy: "MwSt-Code-Genauigkeit",
+    overallAccuracy: "Gesamtgenauigkeit",
+    evaluationsCount: "{count} Auswertungen",
+    source: {
+      suggestion_accept: "Vorschlag akzeptiert",
+      suggestion_modify: "Vorschlag geändert",
+      autopilot_auto_ready: "Autopilot",
+      manual: "Manuell",
+    },
+  },
+
   controlCenter: {
     title: "Kontrollzentrum",
     pipelineHealth: "Verarbeitungsstatus",

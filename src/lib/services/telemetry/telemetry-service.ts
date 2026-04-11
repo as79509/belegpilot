@@ -317,9 +317,34 @@ export async function computeTelemetry(
     }),
   ]);
 
-  // ── postAutopilotCorrectionRate: Anteil der auto-ready Docs die nachher korrigiert wurden ──
+  // ── SuggestionEvaluations laden (für topFieldAccuracy + postAutopilotCorrectionRate) ──
+  const evaluations = await prisma.suggestionEvaluation.findMany({
+    where: {
+      companyId,
+      createdAt: { gte: from },
+      source: { in: ["suggestion_accept", "suggestion_modify", "autopilot_auto_ready"] },
+    },
+    select: {
+      accountCorrect: true,
+      categoryCorrect: true,
+      costCenterCorrect: true,
+      vatCodeCorrect: true,
+      source: true,
+    },
+  });
+
+  // ── postAutopilotCorrectionRate: Echte Rate aus Evaluations, Fallback auf CorrectionEvents ──
   let postAutopilotCorrectionRate = 0;
-  if (autoReadyCount > 0) {
+  const autopilotEvals = evaluations.filter((e) => e.source === "autopilot_auto_ready");
+  if (autopilotEvals.length > 0) {
+    postAutopilotCorrectionRate =
+      1 -
+      autopilotEvals.filter(
+        (e) => e.accountCorrect === true && e.categoryCorrect !== false
+      ).length /
+        autopilotEvals.length;
+  } else if (autoReadyCount > 0) {
+    // Fallback auf CorrectionEvents
     const autoReadyEvents = await prisma.autopilotEvent.findMany({
       where: { companyId, decision: "eligible", mode: "auto_ready", createdAt: dateFilter },
       select: { documentId: true },
@@ -336,25 +361,39 @@ export async function computeTelemetry(
     }
   }
 
-  // ── topFieldAccuracy: Proxy aus BookingSuggestion-Outcomes ──
-  // PROXY-WARNUNG: topFieldAccuracy ist ein Näherungswert basierend auf Suggestion-Outcomes.
-  // Echtes Field-Level-Tracking erfordert ein SuggestionEvaluation Model (Phase 10+).
-  const suggestionOutcomes = await prisma.bookingSuggestion.groupBy({
-    by: ["status"],
-    where: { companyId, createdAt: dateFilter },
-    _count: true,
-  });
-  const suggOutcomeCounts = Object.fromEntries(
-    suggestionOutcomes.map((s) => [s.status, s._count])
-  );
-  const totalSuggOutcomes = suggestionOutcomes.reduce((sum, s) => sum + s._count, 0) || 1;
-  const suggAccepted = suggOutcomeCounts["accepted"] || 0;
-  const suggModified = suggOutcomeCounts["modified"] || 0;
-  const topFieldAccuracy = {
-    accountCode: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
-    expenseCategory: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
-    costCenter: (suggAccepted + suggModified * 0.5) / totalSuggOutcomes,
-  };
+  let topFieldAccuracy: { accountCode: number; expenseCategory: number; costCenter: number };
+
+  if (evaluations.length > 0) {
+    const countTrue = (field: "accountCorrect" | "categoryCorrect" | "costCenterCorrect" | "vatCodeCorrect") => {
+      const relevant = evaluations.filter((e) => e[field] !== null);
+      if (relevant.length === 0) return 0;
+      return relevant.filter((e) => e[field] === true).length / relevant.length;
+    };
+
+    topFieldAccuracy = {
+      accountCode: countTrue("accountCorrect"),
+      expenseCategory: countTrue("categoryCorrect"),
+      costCenter: countTrue("costCenterCorrect"),
+    };
+  } else {
+    // Fallback auf Proxy wenn noch keine Evaluations vorhanden
+    const suggestionOutcomes = await prisma.bookingSuggestion.groupBy({
+      by: ["status"],
+      where: { companyId, createdAt: dateFilter },
+      _count: true,
+    });
+    const suggOutcomeCounts = Object.fromEntries(
+      suggestionOutcomes.map((s) => [s.status, s._count])
+    );
+    const totalSuggOutcomes = suggestionOutcomes.reduce((sum, s) => sum + s._count, 0) || 1;
+    const suggAccepted = suggOutcomeCounts["accepted"] || 0;
+    const suggModified = suggOutcomeCounts["modified"] || 0;
+    topFieldAccuracy = {
+      accountCode: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
+      expenseCategory: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
+      costCenter: (suggAccepted + suggModified * 0.5) / totalSuggOutcomes,
+    };
+  }
 
   return {
     pipeline: {

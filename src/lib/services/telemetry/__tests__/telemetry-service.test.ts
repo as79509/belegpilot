@@ -9,6 +9,7 @@ vi.mock("@/lib/db", () => ({
     correctionPattern: { count: vi.fn() },
     supplier: { findMany: vi.fn() },
     processingStep: { aggregate: vi.fn() },
+    suggestionEvaluation: { findMany: vi.fn() },
   },
 }));
 
@@ -44,6 +45,7 @@ function setEmptyDefaults() {
   mockSupplierFindMany.mockResolvedValue([]);
   mockProcessingStepAggregate.mockResolvedValue({ _avg: { durationMs: null } });
   (prisma.correctionEvent as any).groupBy.mockResolvedValue([]);
+  (prisma as any).suggestionEvaluation.findMany.mockResolvedValue([]);
 }
 
 describe("computeTelemetry", () => {

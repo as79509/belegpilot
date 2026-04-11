@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/services/audit/audit-service";
 import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
 import { trackCorrections } from "@/lib/services/corrections/correction-tracker";
+import { evaluateDocumentOutcome } from "@/lib/services/evaluation/evaluation-service";
 
 export async function POST(
   _request: NextRequest,
@@ -82,6 +83,18 @@ export async function POST(
       );
     } catch (trackErr) {
       console.error("[Approve] trackCorrections failed", trackErr);
+    }
+
+    // SuggestionEvaluation: Feld-Level-Accuracy erfassen
+    try {
+      await evaluateDocumentOutcome(ctx.companyId, id, {
+        accountCode: updated.accountCode || null,
+        expenseCategory: updated.expenseCategory || null,
+        costCenter: updated.costCenter || null,
+        vatCode: null,
+      });
+    } catch (evalErr) {
+      console.error("[Evaluation] Failed:", evalErr);
     }
 
     return NextResponse.json(updated);
