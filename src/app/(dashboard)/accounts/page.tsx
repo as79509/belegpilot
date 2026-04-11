@@ -90,9 +90,9 @@ const DOC_TYPES = [
 const VAT_CODES = ["8.1", "2.6", "3.8", "0.0"];
 
 export default function AccountsPage() {
-  const { activeCompany } = useCompany();
+  const { activeCompany, capabilities } = useCompany();
   const role = activeCompany?.role || "";
-  const canMutate = role === "admin" || role === "reviewer";
+  const canMutate = capabilities?.canMutate?.accounts ?? (role === "admin");
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);

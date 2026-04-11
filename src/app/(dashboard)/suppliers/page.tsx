@@ -18,9 +18,9 @@ import { useCompany } from "@/lib/contexts/company-context";
 
 export default function SuppliersPage() {
   const router = useRouter();
-  const { activeCompany } = useCompany();
+  const { activeCompany, capabilities } = useCompany();
   const role = activeCompany?.role || "";
-  const canMutate = role === "admin" || role === "reviewer";
+  const canMutate = capabilities?.canMutate?.suppliers ?? (role === "admin" || role === "reviewer");
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
