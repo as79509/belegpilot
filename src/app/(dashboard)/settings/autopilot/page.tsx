@@ -12,8 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight } from "lucide-react";
+import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight, TrendingDown, ShieldCheck } from "lucide-react";
 import { de } from "@/lib/i18n/de";
+import { InfoPanel } from "@/components/ds";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -40,6 +41,9 @@ export default function AutopilotSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [killDialogOpen, setKillDialogOpen] = useState(false);
   const [killReason, setKillReason] = useState("");
+  const [driftReport, setDriftReport] = useState<any>(null);
+  const [driftLoading, setDriftLoading] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
 
   useEffect(() => {
     fetch("/api/autopilot/config")
@@ -99,6 +103,37 @@ export default function AutopilotSettingsPage() {
     } catch (err: any) {
       toast.error(err.message);
     }
+  }
+
+  async function fetchDrift() {
+    setDriftLoading(true);
+    try {
+      const res = await fetch("/api/autopilot/drift");
+      if (res.ok) setDriftReport(await res.json());
+    } catch { /* non-critical */ }
+    finally { setDriftLoading(false); }
+  }
+
+  async function handleAutoDowngrade() {
+    setDowngrading(true);
+    try {
+      const res = await fetch("/api/autopilot/drift", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "check_and_apply" }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.downgraded) {
+          toast.success(de.drift.downgraded.replace("{from}", result.from).replace("{to}", result.to));
+          setConfig((c) => c ? { ...c, mode: result.to } : c);
+          fetchDrift();
+        } else {
+          toast.success(de.drift.noDrift);
+        }
+      }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setDowngrading(false); }
   }
 
   function toggleListItem(field: "allowedDocTypes" | "allowedCurrencies", value: string) {
@@ -172,7 +207,7 @@ export default function AutopilotSettingsPage() {
           <CardContent className="py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Power className="h-5 w-5 text-green-700" />
-              <span className="text-sm font-medium text-green-900">Autopilot läuft</span>
+              <span className="text-sm font-medium text-green-900">Autopilot l\u00e4uft</span>
             </div>
             <Button
               size="sm"
@@ -299,6 +334,46 @@ export default function AutopilotSettingsPage() {
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Drift Detection */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><TrendingDown className="h-4 w-4" />{de.drift.title}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!driftReport ? (
+            <Button variant="outline" size="sm" onClick={fetchDrift} disabled={driftLoading}>
+              {driftLoading ? "Pr\u00fcfe..." : de.drift.title + " pr\u00fcfen"}
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className={"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium " + (driftReport.overallScore >= 70 ? "bg-green-100 text-green-800" : driftReport.overallScore >= 40 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800")}>
+                  <ShieldCheck className="h-4 w-4" />
+                  {de.drift.score}: {driftReport.overallScore}/100
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {driftReport.recommendation === "keep" ? de.drift.recommendation.keep : driftReport.recommendation === "downgrade" ? de.drift.recommendation.downgrade : de.drift.recommendation.emergency_stop}
+                </span>
+              </div>
+              {driftReport.signals.length === 0 && (
+                <InfoPanel tone="success" icon={ShieldCheck}>{de.drift.noDrift}</InfoPanel>
+              )}
+              {driftReport.signals.map((s: any, i: number) => (
+                <InfoPanel key={i} tone={s.severity === "critical" ? "error" : "warning"} icon={TrendingDown}>
+                  {s.message} ({de.drift.signals[s.type as keyof typeof de.drift.signals] || s.type})
+                </InfoPanel>
+              ))}
+              {driftReport.recommendation !== "keep" && (
+                <Button variant="destructive" size="sm" onClick={handleAutoDowngrade} disabled={downgrading}>
+                  {downgrading ? "Pr\u00fcfe..." : de.drift.autoDowngrade}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={fetchDrift} disabled={driftLoading}>Aktualisieren</Button>
+            </>
+          )}
         </CardContent>
       </Card>
 

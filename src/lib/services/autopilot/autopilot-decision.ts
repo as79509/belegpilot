@@ -164,3 +164,56 @@ export async function evaluateAutopilot(
     action,
   };
 }
+
+export async function checkAndApplyDrift(
+  companyId: string
+): Promise<{ downgraded: boolean; from: string | null; to: string | null; reason: string | null }> {
+  const { detectDrift } = await import("./drift-detection");
+  const config = await prisma.autopilotConfig.findUnique({ where: { companyId } });
+
+  if (!config || !config.enabled || config.killSwitchActive || config.mode === "shadow") {
+    return { downgraded: false, from: null, to: null, reason: null };
+  }
+
+  const driftReport = await detectDrift(companyId, config.mode);
+
+  if (driftReport.recommendation === "keep" || !driftReport.recommendedMode) {
+    return { downgraded: false, from: null, to: null, reason: null };
+  }
+
+  const from = config.mode;
+  const to = driftReport.recommendedMode;
+  const reason = driftReport.signals.map((s: { message: string }) => s.message).join("; ");
+
+  await prisma.autopilotConfig.update({
+    where: { companyId },
+    data: { mode: to },
+  });
+
+  await prisma.autopilotEvent.create({
+    data: {
+      companyId,
+      documentId: "00000000-0000-0000-0000-000000000000",
+      mode: to,
+      decision: "drift_downgrade",
+      safetyChecks: driftReport as any,
+      blockedBy: "drift_detection",
+      confidenceScore: 0,
+      suggestedAccount: null,
+      supplierName: null,
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      companyId,
+      type: "system_alert",
+      title: "Autopilot-Downgrade",
+      body: "Autopilot wurde von " + from + " auf " + to + " zur\u00fcckgestuft: " + reason,
+      severity: driftReport.recommendation === "emergency_stop" ? "error" : "warning",
+      link: "/settings/autopilot",
+    },
+  });
+
+  return { downgraded: true, from, to, reason };
+}

@@ -26,6 +26,20 @@ export default function SuppliersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [trustScores, setTrustScores] = useState<Record<string, { trustScore: number; riskLevel: string }>>({});
+
+  useEffect(() => {
+    fetch("/api/suppliers/trust-scores")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.scores) {
+          const map: Record<string, { trustScore: number; riskLevel: string }> = {};
+          for (const s of data.scores) map[s.supplierId] = { trustScore: s.trustScore, riskLevel: s.riskLevel };
+          setTrustScores(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchSuppliers = useCallback(async () => {
     setLoading(true);
@@ -64,6 +78,7 @@ export default function SuppliersPage() {
               <TableHead>{de.suppliers.name}</TableHead><TableHead>Status</TableHead>
               <TableHead>{de.detail.vatNumber}</TableHead><TableHead>IBAN</TableHead>
               <TableHead>{de.suppliers.documentCount}</TableHead><TableHead>{de.suppliers.defaultCategory}</TableHead>
+              <TableHead>{de.supplierTrust.trustScore}</TableHead>
             </TableRow></TableHeader><TableBody>
               {Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
@@ -73,6 +88,7 @@ export default function SuppliersPage() {
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-8" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                 </TableRow>
               ))}
             </TableBody></Table>
@@ -88,29 +104,42 @@ export default function SuppliersPage() {
                   <TableHead>IBAN</TableHead>
                   <TableHead>{de.suppliers.documentCount}</TableHead>
                   <TableHead>{de.suppliers.defaultCategory}</TableHead>
+                  <TableHead>{de.supplierTrust.trustScore}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliers.map((s) => (
-                  <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/suppliers/${s.id}`)}>
-                    <TableCell className="font-medium">{s.nameNormalized}</TableCell>
-                    <TableCell>
-                      <StatusBadge type="supplier" value={!!s.isVerified} />
-                    </TableCell>
-                    <TableCell className="text-xs">{s.vatNumber || de.common.noData}</TableCell>
-                    <TableCell className="text-xs">{s.iban || de.common.noData}</TableCell>
-                    <TableCell>{s.documentCount}</TableCell>
-                    <TableCell className="text-xs">{s.defaultCategory || de.common.noData}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <SupplierRowActions
-                        supplier={s}
-                        canMutate={canMutate}
-                        onChanged={fetchSuppliers}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {suppliers.map((s) => {
+                  const trust = trustScores[s.id];
+                  return (
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/suppliers/${s.id}`)}>
+                      <TableCell className="font-medium">{s.nameNormalized}</TableCell>
+                      <TableCell>
+                        <StatusBadge type="supplier" value={!!s.isVerified} />
+                      </TableCell>
+                      <TableCell className="text-xs">{s.vatNumber || de.common.noData}</TableCell>
+                      <TableCell className="text-xs">{s.iban || de.common.noData}</TableCell>
+                      <TableCell>{s.documentCount}</TableCell>
+                      <TableCell className="text-xs">{s.defaultCategory || de.common.noData}</TableCell>
+                      <TableCell>
+                        {trust ? (
+                          <Badge className={trust.riskLevel === "low" ? "bg-green-100 text-green-800" : trust.riskLevel === "medium" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}>
+                            {trust.trustScore}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <SupplierRowActions
+                          supplier={s}
+                          canMutate={canMutate}
+                          onChanged={fetchSuppliers}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

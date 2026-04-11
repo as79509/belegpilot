@@ -91,6 +91,7 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   // Autopilot
   "autopilot/config": { PATCH: "autopilot:configure" },
   "autopilot/kill-switch": { POST: "autopilot:kill-switch" },
+  "autopilot/drift": { POST: "autopilot:configure" },
 
   // Korrekturen
   "corrections/patterns/[id]/dismiss": { POST: "corrections:read" },
