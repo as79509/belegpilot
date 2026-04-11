@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
   Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug,
+  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -73,6 +73,7 @@ const systemGroup: NavGroup = {
     { href: "/settings/autopilot", label: de.autopilot.title, icon: Zap },
     { href: "/settings/control-center", label: de.controlCenter.title, icon: Activity },
     { href: "/integrations", label: de.integrations.title, icon: Plug },
+    { href: "/banana", label: de.banana.title, icon: ArrowLeftRight },
     { href: "/settings", label: de.nav.settings, icon: Settings },
     { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
   ],

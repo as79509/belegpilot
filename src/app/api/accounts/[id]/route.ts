@@ -24,6 +24,7 @@ const ALLOWED_PATCH_FIELDS = [
   "name", "category", "parentNumber", "aiGovernance",
   "allowedDocTypes", "allowedVatCodes", "notes", "isActive",
   "sortOrder", "bananaAccountNumber", "bananaDescription",
+  "bananaMappingStatus", "bananaMappingNotes",
   "bclass", "groupCode", "currency",
 ];
 
