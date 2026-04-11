@@ -14,6 +14,7 @@ import { LogOut, User, Menu, Bell, Settings, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileSidebar } from "./mobile-sidebar";
 import { NotificationCenter } from "@/components/shared/notification-center";
+import { ExplainButton } from "@/components/shared/explain-button";
 import { de } from "@/lib/i18n/de";
 
 interface HeaderProps {
@@ -91,6 +92,11 @@ export function Header({ userName, userRole }: HeaderProps) {
       </nav>
 
       <div className="flex-1" />
+
+      {/* Explain button */}
+      <div className="mr-1">
+        <ExplainButton />
+      </div>
 
       {/* Notification center */}
       <div className="mr-3">
