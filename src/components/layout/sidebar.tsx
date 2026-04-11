@@ -4,11 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Upload, Building2, Download, Workflow, Mail, Home,
-  Settings, ScrollText, ChevronDown, Link2, Users, ClipboardCheck, BookOpen,
+  LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
+  Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  ShieldCheck, GitCompareArrows, Zap, Activity, ClipboardList, Wallet, Receipt,
-  FileBarChart, Plug,
+  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -31,63 +30,53 @@ const trusteeGroup: NavGroup = {
   ],
 };
 
-const baseNavGroups: NavGroup[] = [
-  {
-    label: "Belege",
-    defaultOpen: true,
-    items: [
-      { href: "/documents", label: de.nav.documents, icon: FileText },
-      { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
-      { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
-      { href: "/email", label: de.emailImport.title, icon: Mail },
-    ],
-  },
-  {
-    label: "Buchhaltung",
-    defaultOpen: true,
-    items: [
-      { href: "/journal", label: de.journal.title, icon: BookOpen },
-      { href: "/bank", label: de.bank.title, icon: Wallet },
-      { href: "/vat", label: de.vatReturn.title, icon: Receipt },
-      { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
-      { href: "/assets", label: de.assets.title, icon: Landmark },
-      { href: "/exports", label: de.nav.exports, icon: Download },
-    ],
-  },
-  {
-    label: "Kontrolle",
-    defaultOpen: true,
-    items: [
-      { href: "/periods", label: de.periods.title, icon: CalendarCheck },
-      { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
-      { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
-      { href: "/reports", label: de.reports.title, icon: BarChart3 },
-      { href: "/reports/monthly-summary", label: de.monthlySummary.title, icon: FileBarChart },
-    ],
-  },
-  {
-    label: "Automatisierung",
-    items: [
-      { href: "/rules", label: de.nav.rules, icon: Workflow },
-      { href: "/corrections", label: de.correctionsDashboard.title, icon: GitCompareArrows },
-      { href: "/settings/autopilot", label: de.autopilot.title, icon: Zap },
-      { href: "/settings/control-center", label: "Control Center", icon: Activity },
-      { href: "/settings/ai", label: "KI-Einstellungen", icon: Brain },
-    ],
-  },
-  {
-    label: "Verwaltung",
-    items: [
-      { href: "/contracts", label: de.contracts.title, icon: FileSignature },
-      { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },
-      { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
-      { href: "/integrations", label: de.integrations.title, icon: Plug },
-      { href: "/settings", label: de.nav.settings, icon: Settings },
-      { href: "/settings/system-health", label: de.systemHealth.title, icon: Activity },
-      { href: "/settings/phase8-gate", label: "Phase-8-Gate", icon: ShieldCheck },
-    ],
-  },
-];
+const belegeGroup: NavGroup = {
+  label: "Belege",
+  defaultOpen: true,
+  items: [
+    { href: "/documents", label: de.nav.documents, icon: FileText },
+    { href: "/email", label: de.emailImport.title, icon: Mail },
+    { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
+    { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
+  ],
+};
+
+const buchhaltungGroup: NavGroup = {
+  label: "Buchhaltung",
+  defaultOpen: true,
+  items: [
+    { href: "/journal", label: de.journal.title, icon: BookOpen },
+    { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
+    { href: "/bank", label: de.bank.title, icon: Wallet },
+    { href: "/vat", label: de.vatReturn.title, icon: Receipt },
+    { href: "/assets", label: de.assets.title, icon: Landmark },
+    { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
+    { href: "/exports", label: de.nav.exports, icon: Download },
+  ],
+};
+
+const kontrolleGroup: NavGroup = {
+  label: "Kontrolle",
+  items: [
+    { href: "/periods", label: de.periods.title, icon: CalendarCheck },
+    { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+    { href: "/reports", label: de.reports.title, icon: BarChart3 },
+    { href: "/reports/monthly-summary", label: de.monthlySummary.title, icon: FileBarChart },
+    { href: "/contracts", label: de.contracts.title, icon: FileSignature },
+  ],
+};
+
+const systemGroup: NavGroup = {
+  label: "System",
+  items: [
+    { href: "/rules", label: de.nav.rules, icon: Workflow },
+    { href: "/settings/autopilot", label: de.autopilot.title, icon: Zap },
+    { href: "/settings/control-center", label: de.controlCenter.title, icon: Activity },
+    { href: "/integrations", label: de.integrations.title, icon: Plug },
+    { href: "/settings", label: de.nav.settings, icon: Settings },
+    { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
+  ],
+};
 
 const clientGroup: NavGroup = {
   label: de.clientPortal.title,
@@ -103,11 +92,18 @@ export function Sidebar() {
   const { companies, activeCompany, switchCompany, isMultiCompany } = useCompany();
   const role = activeCompany?.role || "";
   const isViewer = role === "viewer" || role === "readonly";
-  const navGroups = isViewer
+  const isReviewer = role === "reviewer";
+  const isAdminOrTrustee = role === "admin" || role === "trustee";
+
+  const navGroups: NavGroup[] = isViewer
     ? [clientGroup]
-    : isMultiCompany
-      ? [trusteeGroup, ...baseNavGroups]
-      : baseNavGroups;
+    : (() => {
+        const groups: NavGroup[] = [];
+        if (isMultiCompany && isAdminOrTrustee) groups.push(trusteeGroup);
+        groups.push(belegeGroup, buchhaltungGroup, kontrolleGroup);
+        if (!isReviewer) groups.push(systemGroup);
+        return groups;
+      })();
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );

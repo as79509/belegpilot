@@ -31,7 +31,7 @@ export default function DocumentsPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
   // Read filters from URL
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") ?? "needs_review");
   const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
   const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
   const [amountFrom, setAmountFrom] = useState(searchParams.get("amountFrom") || "");

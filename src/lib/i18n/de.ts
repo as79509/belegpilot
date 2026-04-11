@@ -1184,7 +1184,7 @@ export const de = {
     pipeline: {
       autoReady: "Automatisch freigegeben",
       prefilled: "Felder vorbelegt",
-      shadow: "Shadow-Modus",
+      shadow: "Beobachtungsmodus",
       blocked: "Blockiert",
       wouldBeEligible: "Wäre freigegeben worden",
       allChecksPassed: "Alle Prüfungen bestanden",
@@ -1240,7 +1240,7 @@ export const de = {
 
   telemetry: {
     title: "Telemetrie",
-    pipeline: "Pipeline-Stabilität",
+    pipeline: "Verarbeitungsstabilität",
     successRate: "Erfolgsquote",
     stuckProcessing: "Hängende Verarbeitungen",
     failed: "Fehlgeschlagen",
@@ -1254,7 +1254,7 @@ export const de = {
     drift: "Drift-Erkennung",
     driftAlerts: "Drift-Warnungen",
     noDrift: "Keine Auffälligkeiten",
-    calibration: "Confidence-Kalibrierung",
+    calibration: "Erkennungssicherheit",
     isCalibrated: "Kalibriert",
     notCalibrated: "Nicht kalibriert — Confidence-Stufen stimmen nicht mit Trefferquote überein",
     corrections: "Korrekturen",
@@ -1273,15 +1273,15 @@ export const de = {
   },
 
   controlCenter: {
-    title: "Autopilot Control Center",
-    pipelineHealth: "Pipeline-Gesundheit",
+    title: "Kontrollzentrum",
+    pipelineHealth: "Verarbeitungsstatus",
     suggestionQuality: "Vorschlagsqualität",
     autopilotPerformance: "Autopilot-Leistung",
     driftAlerts: "Drift-Warnungen",
-    confidenceCalibration: "Confidence-Kalibrierung",
+    confidenceCalibration: "Erkennungssicherheit-Kalibrierung",
     correctionsOverview: "Korrekturen-Übersicht",
     feedbackSection: "Feedback geben",
-    openControlCenter: "Control Center öffnen",
+    openControlCenter: "Kontrollzentrum öffnen",
     healthy: "Gesund",
     degraded: "Eingeschränkt",
     critical: "Kritisch",
@@ -1486,7 +1486,7 @@ export const de = {
   // System Health (Phase 8.9.1)
   systemHealth: {
     title: "Systemzustand",
-    pipeline: "Pipeline",
+    pipeline: "Verarbeitung",
     activeJobs: "Aktive Jobs",
     stuckDocs: "Hängende Belege",
     failedDocs: "Fehlgeschlagene Belege",
@@ -1552,7 +1552,7 @@ export const de = {
     category: "Kategorie",
     parentNumber: "Übergeordnetes Konto",
     isActive: "Aktiv",
-    aiGovernance: "AI-Berechtigung",
+    aiGovernance: "Freigabesteuerung",
     governance: {
       ai_suggest: "AI darf vorschlagen",
       ai_autopilot: "AI darf Autopilot nutzen",
