@@ -1141,6 +1141,45 @@ export const de = {
     vatDeviation: "MwSt-Abweichung",
   },
 
+  drift: {
+    title: "Drift-Erkennung",
+    score: "Drift-Score",
+    noDrift: "Kein Drift erkannt \u2014 System stabil",
+    driftDetected: "Drift erkannt \u2014 Qualit\u00e4t sinkt",
+    recommendation: {
+      keep: "Modus beibehalten",
+      downgrade: "R\u00fcckstufen empfohlen",
+      emergency_stop: "Notaus empfohlen",
+    },
+    signals: {
+      correction_spike: "Korrekturrate gestiegen",
+      accuracy_drop: "Autopilot-Genauigkeit gesunken",
+      confidence_drop: "Konfidenz gesunken",
+      rejection_spike: "Ablehnungsrate gestiegen",
+    },
+    autoDowngrade: "Auto-Downgrade pr\u00fcfen",
+    downgraded: "Autopilot von {from} auf {to} zur\u00fcckgestuft",
+  },
+
+  supplierTrust: {
+    title: "Lieferanten-Vertrauen",
+    trustScore: "Trust Score",
+    riskLevel: {
+      low: "Niedrig",
+      medium: "Mittel",
+      high: "Hoch",
+    },
+    recommendedMode: "Empfohlener Modus",
+    factors: {
+      correctionRate: "Korrekturrate",
+      accountStability: "Kontostabilit\u00e4t",
+      vatStability: "MwSt-Stabilit\u00e4t",
+      autopilotAccuracy: "Autopilot-Genauigkeit",
+      bananaChangeRate: "Banana-\u00c4nderungsrate",
+      documentCount: "Beleganzahl",
+    },
+  },
+
   autopilot: {
     title: "Autopilot",
     config: "Konfiguration",
@@ -2167,6 +2206,35 @@ export const de = {
       rows: "Zeilen",
       noImports: "Noch keine Banana-Dateien importiert",
     },
+  },
+  analytics: {
+    title: "Business Intelligence",
+    crossClient: "Mandantenvergleich",
+    riskScore: "Risiko-Score",
+    needsAttention: "Handlungsbedarf",
+    correctionRate: "Korrekturrate",
+    autopilotEligibility: "Autopilot-Eignung",
+    periodQuality: "Periodenqualit\u00e4t",
+    totalDocuments: "Belege gesamt",
+    needsReview: "Zur Pr\u00fcfung",
+    overdueDocuments: "\u00dcberf\u00e4llige Belege",
+    unmatchedTransactions: "Ungekl\u00e4rte Zahlungen",
+    bananaMappingRate: "Banana-Mapping",
+    lastExport: "Letzter Export",
+    dataQualityGate: "Datenqualit\u00e4t",
+    insufficientData: "Zu wenige Daten f\u00fcr belastbare Vergleiche. Mindestens 3 Mandanten mit je 10+ Belegen ben\u00f6tigt.",
+    riskFactors: {
+      highCorrectionRate: "Hohe Korrekturrate",
+      manyNeedsReview: "Viele offene Pr\u00fcfungen",
+      overdueDocuments: "\u00dcberf\u00e4llige Belege",
+      unmatchedTransactions: "Ungekl\u00e4rte Zahlungen",
+      lowPeriodQuality: "Niedrige Periodenqualit\u00e4t",
+      lowBananaMapping: "L\u00fcckenhaftes Banana-Mapping",
+      lowConfidence: "Niedrige AI-Konfidenz",
+    },
+    avgCorrectionRate: "Durchschn. Korrekturrate",
+    avgAutopilot: "Durchschn. Autopilot-Eignung",
+    clientsNeedingAttention: "Mandanten mit Handlungsbedarf",
   },
 } as const;
 
