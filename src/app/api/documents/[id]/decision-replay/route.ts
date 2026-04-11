@@ -48,29 +48,31 @@ export async function GET(
     });
 
     // Angewandte Regeln aus rules-engine ProcessingStep extrahieren
+    // Rules über IDs laden (primär), Fallback auf Namen (Legacy)
     const rulesStep = steps.find((s) => s.stepName === "rules-engine" || s.stepName === "apply-rules");
-    const matchedRuleNames: string[] = (() => {
-      if (!rulesStep?.metadata) return [];
-      const meta = rulesStep.metadata as any;
-      const arr = meta?.rulesMatched;
-      return Array.isArray(arr) ? arr.filter((n) => typeof n === "string") : [];
-    })();
+    const rulesMeta = rulesStep?.metadata as any;
 
-    const rulesApplied = matchedRuleNames.length
-      ? await prisma.rule
-          .findMany({
-            where: { companyId: ctx.companyId, name: { in: matchedRuleNames } },
-            select: { id: true, name: true, ruleType: true, actions: true },
-          })
-          .then((rules) =>
-            rules.map((r) => ({
-              id: r.id,
-              name: r.name,
-              ruleType: r.ruleType,
-              actions: r.actions,
-            }))
-          )
+    const ruleIds: string[] = Array.isArray(rulesMeta?.rulesMatchedIds)
+      ? rulesMeta.rulesMatchedIds.filter((id: any) => typeof id === "string")
       : [];
+    const ruleNames: string[] = Array.isArray(rulesMeta?.rulesMatched)
+      ? rulesMeta.rulesMatched.filter((n: any) => typeof n === "string")
+      : [];
+
+    let rulesApplied: any[] = [];
+    if (ruleIds.length > 0) {
+      // ID-basiert: findet auch globale Regeln (kein Company-Filter nötig)
+      rulesApplied = await prisma.rule.findMany({
+        where: { id: { in: ruleIds } },
+        select: { id: true, name: true, ruleType: true, conditions: true, actions: true, companyId: true },
+      });
+    } else if (ruleNames.length > 0) {
+      // Legacy-Fallback: nur Namen, nur aktuelle Company
+      rulesApplied = await prisma.rule.findMany({
+        where: { name: { in: ruleNames }, companyId: ctx.companyId },
+        select: { id: true, name: true, ruleType: true, conditions: true, actions: true, companyId: true },
+      });
+    }
 
     // Timeline normalisieren
     const timeline = steps.map((s) => ({
@@ -98,12 +100,21 @@ export async function GET(
       : null;
 
     const autopilotPayload = autopilotEvent
-      ? {
-          decision: autopilotEvent.decision,
-          mode: autopilotEvent.mode,
-          safetyChecks: autopilotEvent.safetyChecks as Record<string, boolean>,
-          blockedBy: autopilotEvent.blockedBy,
-        }
+      ? (() => {
+          // safetyChecks enthält den vollständigen Decision Snapshot
+          const snapshot = autopilotEvent.safetyChecks as any;
+          return {
+            decision: autopilotEvent.decision,
+            mode: autopilotEvent.mode,
+            blockedBy: autopilotEvent.blockedBy,
+            // Strukturierter Snapshot statt flacher Cast
+            safetyChecks: snapshot?.checks || {},
+            suggestion: snapshot?.suggestion || null,
+            action: snapshot?.action || null,
+            eligible: snapshot?.eligible ?? (autopilotEvent.decision === "eligible"),
+            decidedAt: snapshot?.decidedAt || null,
+          };
+        })()
       : null;
 
     const correctionsPayload = corrections.map((c) => ({

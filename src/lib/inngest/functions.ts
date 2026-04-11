@@ -282,6 +282,7 @@ export const processDocument = inngest.createFunction(
           metadata: {
             rulesEvaluated: result.matches.length,
             rulesMatched: result.matches.map((m) => m.ruleName),
+            rulesMatchedIds: result.matches.map((m) => m.ruleId),
             fieldsUpdated: Object.keys(result.updates),
             autoApprove: result.shouldAutoApprove,
           },
