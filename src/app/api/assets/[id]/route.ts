@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getActiveCompany();
@@ -15,6 +16,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!hasPermission(ctx.session.user.role, "assets:write")) {
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
     const { id } = await params;
     const body = await req.json();
     const fields = ["name", "category", "location", "costCenter", "assignedTo", "description", "serialNumber", "licensePlate", "privateUsePercent", "assetAccount", "depreciationAccount"];
@@ -28,6 +32,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  if (!hasPermission(ctx.session.user.role, "assets:write")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
   const { id } = await params;
   await prisma.asset.update({
     where: { id },
