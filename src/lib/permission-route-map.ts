@@ -110,9 +110,11 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   // Integrations
   "integrations/[providerId]/import": { POST: "integrations:write" },
 
-  // Banana Mapping
+  // Banana Mapping + Export + Round Trip
   "banana/mapping": { POST: "integrations:write" },
   "banana/mapping/vat-codes": { POST: "integrations:write" },
+  "banana/export": { POST: "exports:create" },
+  "banana/round-trip": { POST: "integrations:write" },
 };
 
 /**

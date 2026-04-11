@@ -10,13 +10,34 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeftRight, Zap, AlertTriangle, CheckCircle2, XCircle, Pencil,
+  ArrowLeftRight, Zap, AlertTriangle, CheckCircle2, XCircle, Pencil, Download, Search, Upload, RefreshCw,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { EntityHeader, EmptyState, InfoPanel } from "@/components/ds";
 import { useCompany } from "@/lib/contexts/company-context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface RoundTripResult {
+  totalRows: number;
+  matched: number;
+  modified: number;
+  newInBanana: number;
+  unmatched: number;
+  importBatchId: string;
+  deltas: Array<{ journalEntryId: string | null; field: string; bpValue: string | null; bananaValue: string | null }>;
+  learnSignals: Array<{ type: string; message: string; frequency: number; suggestRuleUpdate: boolean }>;
+}
+
+interface RoundTripBatch {
+  importBatchId: string;
+  importedAt: string;
+  totalRows: number;
+  matched: number;
+  modified: number;
+  newInBanana: number;
+  unmatched: number;
+}
 
 interface MappingOverview {
   accounts: {
@@ -53,6 +74,29 @@ interface VatCode {
   notes: string | null;
 }
 
+interface ExportReadiness {
+  ready: number;
+  blocked: number;
+  total: number;
+  readyRate: number;
+  issues: Array<{
+    journalEntryId: string; entryDate: string; description: string;
+    debitAccount: string; creditAccount: string; amount: number;
+    reason: string; severity: "error";
+  }>;
+  topBlockReasons: Array<{ reason: string; count: number }>;
+}
+
+
+
+const BLOCK_REASON_LABEL: Record<string, string> = {
+  debit_account_unmapped: de.banana.export.blockReasons.debit_account_unmapped,
+  credit_account_unmapped: de.banana.export.blockReasons.credit_account_unmapped,
+  vat_code_unmapped: de.banana.export.blockReasons.vat_code_unmapped,
+  period_locked: de.banana.export.blockReasons.period_locked,
+  entry_incomplete: de.banana.export.blockReasons.entry_incomplete,
+};
+
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   mapped: { label: de.banana.mappingStatus.mapped, className: "bg-green-100 text-green-800" },
   unmapped: { label: de.banana.mappingStatus.unmapped, className: "bg-red-100 text-red-800" },
@@ -70,7 +114,7 @@ export default function BananaPage() {
   const [vatCodes, setVatCodes] = useState<VatCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoMapping, setAutoMapping] = useState(false);
-  const [activeTab, setActiveTab] = useState<"accounts" | "vat">("accounts");
+  const [activeTab, setActiveTab] = useState<"accounts" | "vat" | "export" | "roundtrip">("accounts");
   const [accountFilter, setAccountFilter] = useState<"" | "unmapped" | "uncertain" | "mapped">("");
 
   // Inline edit state
@@ -80,6 +124,20 @@ export default function BananaPage() {
   const [editingVatId, setEditingVatId] = useState<string | null>(null);
   const [editVatCode, setEditVatCode] = useState("");
   const [editVatLabel, setEditVatLabel] = useState("");
+
+  // Round Trip state
+  const [rtImporting, setRtImporting] = useState(false);
+  const [rtResult, setRtResult] = useState<RoundTripResult | null>(null);
+  const [rtBatches, setRtBatches] = useState<RoundTripBatch[]>([]);
+  const [rtLoadingBatches, setRtLoadingBatches] = useState(false);
+
+  // Export tab state
+  const now = new Date();
+  const [exportYear, setExportYear] = useState(now.getFullYear());
+  const [exportMonth, setExportMonth] = useState(now.getMonth() + 1);
+  const [readiness, setReadiness] = useState<ExportReadiness | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -205,6 +263,94 @@ export default function BananaPage() {
     setEditingVatId(vat.id);
     setEditVatCode(vat.bananaVatCode || "");
     setEditVatLabel(vat.bananaVatLabel || "");
+  }
+
+  async function handleCheckReadiness() {
+    setCheckingReadiness(true);
+    setReadiness(null);
+    try {
+      const res = await fetch(`/api/banana/export/readiness?year=${exportYear}&month=${exportMonth}`);
+      if (res.ok) {
+        setReadiness(await res.json());
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setCheckingReadiness(false);
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/banana/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: exportYear, month: exportMonth }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const exportedCount = res.headers.get("X-Export-Count") || "0";
+        const skippedCount = res.headers.get("X-Skipped-Count") || "0";
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `banana-export-${exportYear}-${String(exportMonth).padStart(2, "0")}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(
+          de.banana.export.exportSuccess
+            .replace("{count}", exportedCount)
+            .replace("{skipped}", skippedCount)
+        );
+        handleCheckReadiness();
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function fetchRoundTripBatches() {
+    setRtLoadingBatches(true);
+    try {
+      const res = await fetch("/api/banana/round-trip");
+      if (res.ok) {
+        const data = await res.json();
+        setRtBatches(data.batches);
+      }
+    } catch { /* non-critical */ }
+    finally { setRtLoadingBatches(false); }
+  }
+
+  async function handleRoundTripImport(file: File) {
+    setRtImporting(true);
+    setRtResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/banana/round-trip", { method: "POST", body: formData });
+      if (res.ok) {
+        const result = await res.json();
+        setRtResult(result);
+        toast.success(de.banana.roundTrip.matched.replace("{count}", String(result.matched)) + " / " + de.banana.roundTrip.modified.replace("{count}", String(result.modified)));
+        fetchRoundTripBatches();
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRtImporting(false);
+    }
   }
 
   const pct = (rate: number) => `${Math.round(rate * 100)}%`;
@@ -361,6 +507,26 @@ export default function BananaPage() {
         >
           {de.banana.vatCodeMapping}
         </button>
+        <button
+          type="button"
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+            activeTab === "export" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setActiveTab("export")}
+        >
+          {de.banana.export.title}
+        </button>
+        <button
+          type="button"
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+            activeTab === "roundtrip" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => { setActiveTab("roundtrip"); fetchRoundTripBatches(); }}
+        >
+          {de.banana.roundTrip.title}
+        </button>
       </div>
 
       {/* Tab 1: Account Mapping */}
@@ -368,32 +534,16 @@ export default function BananaPage() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-4">
-              <Button
-                variant={accountFilter === "" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setAccountFilter("")}
-              >
+              <Button variant={accountFilter === "" ? "default" : "outline"} size="sm" onClick={() => setAccountFilter("")}>
                 {de.banana.allAccounts}
               </Button>
-              <Button
-                variant={accountFilter === "unmapped" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setAccountFilter("unmapped")}
-              >
+              <Button variant={accountFilter === "unmapped" ? "default" : "outline"} size="sm" onClick={() => setAccountFilter("unmapped")}>
                 {de.banana.mappingStatus.unmapped}
               </Button>
-              <Button
-                variant={accountFilter === "uncertain" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setAccountFilter("uncertain")}
-              >
+              <Button variant={accountFilter === "uncertain" ? "default" : "outline"} size="sm" onClick={() => setAccountFilter("uncertain")}>
                 {de.banana.mappingStatus.uncertain}
               </Button>
-              <Button
-                variant={accountFilter === "mapped" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setAccountFilter("mapped")}
-              >
+              <Button variant={accountFilter === "mapped" ? "default" : "outline"} size="sm" onClick={() => setAccountFilter("mapped")}>
                 {de.banana.mappingStatus.mapped}
               </Button>
             </div>
@@ -418,56 +568,37 @@ export default function BananaPage() {
                   {accounts.map((acc) => {
                     const badge = STATUS_BADGE[acc.bananaMappingStatus] ?? STATUS_BADGE.unmapped;
                     const isEditing = editingAccountId === acc.id;
-
                     return (
                       <TableRow key={acc.id}>
                         <TableCell className="font-mono text-sm">{acc.accountNumber}</TableCell>
                         <TableCell className="text-sm">{acc.name}</TableCell>
                         <TableCell>
                           {isEditing ? (
-                            <Input
-                              value={editBananaNum}
-                              onChange={(e) => setEditBananaNum(e.target.value)}
-                              className="h-8 font-mono text-sm w-28"
-                            />
+                            <Input value={editBananaNum} onChange={(e) => setEditBananaNum(e.target.value)} className="h-8 font-mono text-sm w-28" />
                           ) : (
-                            <span className="font-mono text-sm">{acc.bananaAccountNumber || "—"}</span>
+                            <span className="font-mono text-sm">{acc.bananaAccountNumber || "\u2014"}</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {isEditing ? (
-                            <Input
-                              value={editBananaDesc}
-                              onChange={(e) => setEditBananaDesc(e.target.value)}
-                              className="h-8 text-sm w-40"
-                            />
+                            <Input value={editBananaDesc} onChange={(e) => setEditBananaDesc(e.target.value)} className="h-8 text-sm w-40" />
                           ) : (
-                            <span className="text-sm">{acc.bananaDescription || "—"}</span>
+                            <span className="text-sm">{acc.bananaDescription || "\u2014"}</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={cn("text-xs font-medium", badge.className)}>
-                            {badge.label}
-                          </Badge>
+                          <Badge variant="secondary" className={cn("text-xs font-medium", badge.className)}>{badge.label}</Badge>
                         </TableCell>
                         {canMutate && (
                           <TableCell>
                             {isEditing ? (
                               <div className="flex gap-1.5">
-                                <Button size="sm" variant="default" onClick={() => saveAccountMapping(acc.id, "mapped")}>
-                                  {de.banana.setMapping}
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => saveAccountMapping(acc.id, "uncertain")}>
-                                  {de.banana.markUncertain}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingAccountId(null)}>
-                                  Abbrechen
-                                </Button>
+                                <Button size="sm" variant="default" onClick={() => saveAccountMapping(acc.id, "mapped")}>{de.banana.setMapping}</Button>
+                                <Button size="sm" variant="outline" onClick={() => saveAccountMapping(acc.id, "uncertain")}>{de.banana.markUncertain}</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingAccountId(null)}>Abbrechen</Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => startEditAccount(acc)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => startEditAccount(acc)}><Pencil className="h-3.5 w-3.5" /></Button>
                             )}
                           </TableCell>
                         )}
@@ -505,53 +636,36 @@ export default function BananaPage() {
                   {vatCodes.map((vat) => {
                     const badge = STATUS_BADGE[vat.mappingStatus] ?? STATUS_BADGE.unmapped;
                     const isEditing = editingVatId === vat.id;
-
                     return (
                       <TableRow key={vat.id}>
                         <TableCell className="font-mono text-sm">{vat.internalRate}%</TableCell>
                         <TableCell className="text-sm">{vat.internalLabel}</TableCell>
                         <TableCell>
                           {isEditing ? (
-                            <Input
-                              value={editVatCode}
-                              onChange={(e) => setEditVatCode(e.target.value)}
-                              className="h-8 font-mono text-sm w-24"
-                            />
+                            <Input value={editVatCode} onChange={(e) => setEditVatCode(e.target.value)} className="h-8 font-mono text-sm w-24" />
                           ) : (
-                            <span className="font-mono text-sm">{vat.bananaVatCode || "—"}</span>
+                            <span className="font-mono text-sm">{vat.bananaVatCode || "\u2014"}</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {isEditing ? (
-                            <Input
-                              value={editVatLabel}
-                              onChange={(e) => setEditVatLabel(e.target.value)}
-                              className="h-8 text-sm w-48"
-                            />
+                            <Input value={editVatLabel} onChange={(e) => setEditVatLabel(e.target.value)} className="h-8 text-sm w-48" />
                           ) : (
-                            <span className="text-sm">{vat.bananaVatLabel || "—"}</span>
+                            <span className="text-sm">{vat.bananaVatLabel || "\u2014"}</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={cn("text-xs font-medium", badge.className)}>
-                            {badge.label}
-                          </Badge>
+                          <Badge variant="secondary" className={cn("text-xs font-medium", badge.className)}>{badge.label}</Badge>
                         </TableCell>
                         {canMutate && (
                           <TableCell>
                             {isEditing ? (
                               <div className="flex gap-1.5">
-                                <Button size="sm" variant="default" onClick={() => saveVatMapping(vat.id)}>
-                                  {de.banana.setMapping}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingVatId(null)}>
-                                  Abbrechen
-                                </Button>
+                                <Button size="sm" variant="default" onClick={() => saveVatMapping(vat.id)}>{de.banana.setMapping}</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingVatId(null)}>Abbrechen</Button>
                               </div>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => startEditVat(vat)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => startEditVat(vat)}><Pencil className="h-3.5 w-3.5" /></Button>
                             )}
                           </TableCell>
                         )}
@@ -563,6 +677,228 @@ export default function BananaPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Tab 3: Export */}
+      {activeTab === "export" && (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-end gap-3">
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium">{de.banana.export.selectPeriod}</label>
+                  <div className="flex gap-2">
+                    <select className="h-9 border rounded-md px-2 text-sm bg-white w-24" value={exportMonth} onChange={(e) => setExportMonth(parseInt(e.target.value, 10))}>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>{(i + 1).toString().padStart(2, "0")}</option>
+                      ))}
+                    </select>
+                    <select className="h-9 border rounded-md px-2 text-sm bg-white w-28" value={exportYear} onChange={(e) => setExportYear(parseInt(e.target.value, 10))}>
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const y = now.getFullYear() - 2 + i;
+                        return <option key={y} value={y}>{y}</option>;
+                      })}
+                    </select>
+                  </div>
+                </div>
+                <Button onClick={handleCheckReadiness} variant="outline">
+                  <Search className="h-4 w-4 mr-1.5" />
+                  {de.banana.export.checkReadiness}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {checkingReadiness && (
+            <div className="grid gap-4 md:grid-cols-3">
+              {[1, 2, 3].map(i => (
+                <Card key={i}><CardContent className="pt-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+              ))}
+            </div>
+          )}
+
+          {readiness && !checkingReadiness && (
+            <>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <span className="text-sm font-medium">{de.banana.export.ready.replace("{count}", String(readiness.ready))}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2">
+                      {readiness.blocked > 0 ? <XCircle className="h-5 w-5 text-red-600" /> : <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                      <span className={cn("text-sm font-medium", readiness.blocked > 0 && "text-red-700")}>
+                        {de.banana.export.blocked.replace("{count}", String(readiness.blocked))}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <h3 className="text-xs font-medium text-muted-foreground mb-1">{de.banana.export.exportRate}</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-bold">{pct(readiness.readyRate)}</span>
+                      <span className="text-xs text-muted-foreground">{readiness.ready} / {readiness.total}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 w-full rounded-full bg-muted">
+                      <div
+                        className={cn("h-2 rounded-full transition-all", readiness.readyRate >= 0.9 ? "bg-green-500" : readiness.readyRate >= 0.5 ? "bg-amber-500" : "bg-red-500")}
+                        style={{ width: pct(readiness.readyRate) }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {readiness.topBlockReasons.length > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <h3 className="text-sm font-semibold mb-2">{de.banana.export.topBlockReasons}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {readiness.topBlockReasons.map((r) => (
+                        <Badge key={r.reason} variant="secondary" className="bg-red-100 text-red-800">
+                          {BLOCK_REASON_LABEL[r.reason] || r.reason} ({r.count})
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {readiness.issues.length > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <h3 className="text-sm font-semibold mb-3">{de.banana.issues.title}</h3>
+                    <div className="max-h-80 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Datum</TableHead>
+                            <TableHead>Beschreibung</TableHead>
+                            <TableHead>Soll</TableHead>
+                            <TableHead>Haben</TableHead>
+                            <TableHead className="text-right">Betrag</TableHead>
+                            <TableHead>Grund</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {readiness.issues.slice(0, 50).map((issue, i) => (
+                            <TableRow key={`${issue.journalEntryId}-${issue.reason}-${i}`}>
+                              <TableCell className="text-sm">{issue.entryDate}</TableCell>
+                              <TableCell className="text-sm max-w-48 truncate">{issue.description}</TableCell>
+                              <TableCell className="font-mono text-sm">{issue.debitAccount}</TableCell>
+                              <TableCell className="font-mono text-sm">{issue.creditAccount}</TableCell>
+                              <TableCell className="text-sm text-right">{issue.amount.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                                  {BLOCK_REASON_LABEL[issue.reason] || issue.reason}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {readiness.issues.length > 50 && (
+                      <p className="text-xs text-muted-foreground mt-2">+ {readiness.issues.length - 50} weitere...</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {readiness.total === 0 && (
+                <EmptyState icon={ArrowLeftRight} title={de.banana.export.noEntries} />
+              )}
+
+              {readiness.ready > 0 && canMutate && (
+                <div className="flex justify-end">
+                  <Button onClick={handleExport} size="lg">
+                    <Download className="h-4 w-4 mr-2" />
+                    {exporting ? "Exportiere..." : de.banana.export.generate}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Round Trip */}
+      {activeTab === "roundtrip" && (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="pt-4">
+              <h3 className="text-sm font-semibold mb-3">{de.banana.roundTrip.import}</h3>
+              <p className="text-xs text-muted-foreground mb-3">{de.banana.roundTrip.importHint}</p>
+              <label className="cursor-pointer">
+                <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRoundTripImport(f); e.target.value = ""; }} disabled={rtImporting || !canMutate} />
+                <span className={cn("inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium", rtImporting || !canMutate ? "bg-primary/50 text-primary-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>
+                  <Upload className="h-4 w-4" />
+                  {rtImporting ? de.banana.roundTrip.importing : de.banana.roundTrip.import}
+                </span>
+              </label>
+            </CardContent>
+          </Card>
+
+          {rtResult && (
+            <>
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" /><span className="text-sm font-medium">{de.banana.roundTrip.matched.replace("{count}", String(rtResult.matched))}</span></div></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><RefreshCw className={cn("h-5 w-5", rtResult.modified > 0 ? "text-amber-600" : "text-green-600")} /><span className={cn("text-sm font-medium", rtResult.modified > 0 && "text-amber-700")}>{de.banana.roundTrip.modified.replace("{count}", String(rtResult.modified))}</span></div></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-blue-600" /><span className="text-sm font-medium">{de.banana.roundTrip.newInBanana.replace("{count}", String(rtResult.newInBanana))}</span></div></CardContent></Card>
+                <Card><CardContent className="pt-4"><div className="flex items-center gap-2">{rtResult.unmatched > 0 ? <XCircle className="h-5 w-5 text-red-600" /> : <CheckCircle2 className="h-5 w-5 text-green-600" />}<span className={cn("text-sm font-medium", rtResult.unmatched > 0 && "text-red-700")}>{de.banana.roundTrip.unmatched.replace("{count}", String(rtResult.unmatched))}</span></div></CardContent></Card>
+              </div>
+              {rtResult.deltas.length > 0 && (
+                <Card><CardContent className="pt-4">
+                  <h3 className="text-sm font-semibold mb-3">{de.banana.roundTrip.deltas}</h3>
+                  <div className="max-h-80 overflow-y-auto">
+                    <Table><TableHeader><TableRow><TableHead>{de.banana.roundTrip.field}</TableHead><TableHead>{de.banana.roundTrip.bpValue}</TableHead><TableHead>{de.banana.roundTrip.bananaValue}</TableHead></TableRow></TableHeader>
+                      <TableBody>{rtResult.deltas.map((d, i) => (<TableRow key={i}><TableCell className="text-sm font-medium">{d.field}</TableCell><TableCell className="font-mono text-sm">{d.bpValue || "\u2014"}</TableCell><TableCell className="font-mono text-sm">{d.bananaValue || "\u2014"}</TableCell></TableRow>))}</TableBody>
+                    </Table>
+                  </div>
+                </CardContent></Card>
+              )}
+              {rtResult.learnSignals.length > 0 && (
+                <Card><CardContent className="pt-4">
+                  <h3 className="text-sm font-semibold mb-3">{de.banana.roundTrip.learnSignals}</h3>
+                  <div className="space-y-2">
+                    {rtResult.learnSignals.map((signal, i) => (
+                      <InfoPanel key={i} tone={signal.suggestRuleUpdate ? "warning" : "info"} icon={AlertTriangle}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{signal.message}</span>
+                          {signal.suggestRuleUpdate && <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs ml-2">{de.banana.roundTrip.suggestRuleUpdate}</Badge>}
+                        </div>
+                      </InfoPanel>
+                    ))}
+                  </div>
+                </CardContent></Card>
+              )}
+            </>
+          )}
+
+          <Card><CardContent className="pt-4">
+            <h3 className="text-sm font-semibold mb-3">{de.banana.roundTrip.importHistory}</h3>
+            {rtLoadingBatches ? <Skeleton className="h-20 w-full" /> : rtBatches.length === 0 ? <EmptyState icon={RefreshCw} title={de.banana.roundTrip.noImports} /> : (
+              <Table><TableHeader><TableRow><TableHead>{de.banana.roundTrip.batch}</TableHead><TableHead>Datum</TableHead><TableHead>{de.banana.roundTrip.rows}</TableHead><TableHead>Zugeordnet</TableHead><TableHead>Ge\u00e4ndert</TableHead><TableHead>Ungekl\u00e4rt</TableHead></TableRow></TableHeader>
+                <TableBody>{rtBatches.map((batch) => (
+                  <TableRow key={batch.importBatchId}>
+                    <TableCell className="font-mono text-xs">{batch.importBatchId.slice(0, 8)}\u2026</TableCell>
+                    <TableCell className="text-sm">{new Date(batch.importedAt).toLocaleDateString("de-CH")}</TableCell>
+                    <TableCell className="text-sm">{batch.totalRows}</TableCell>
+                    <TableCell><Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">{batch.matched}</Badge></TableCell>
+                    <TableCell><Badge variant="secondary" className={cn("text-xs", batch.modified > 0 ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800")}>{batch.modified}</Badge></TableCell>
+                    <TableCell><Badge variant="secondary" className={cn("text-xs", batch.unmatched > 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800")}>{batch.unmatched}</Badge></TableCell>
+                  </TableRow>
+                ))}</TableBody>
+              </Table>
+            )}
+          </CardContent></Card>
+        </div>
       )}
     </div>
   );

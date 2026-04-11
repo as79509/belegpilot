@@ -155,6 +155,7 @@ model Company {
   notifications      Notification[]
   suggestionEvaluations SuggestionEvaluation[]
   vatCodeMappings       VatCodeMapping[]
+  bananaRoundTrips      BananaRoundTripEntry[]
 
   @@map("companies")
 }
@@ -265,6 +266,7 @@ model Document {
   autopilotEvents    AutopilotEvent[]
   bankTransactions   BankTransaction[]
   evaluations        SuggestionEvaluation[]
+  bananaRoundTrips   BananaRoundTripEntry[]
 
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -495,6 +497,7 @@ model JournalEntry {
   company  Company   @relation(fields: [companyId], references: [id])
   document Document? @relation(fields: [documentId], references: [id])
   user     User?     @relation("JournalEntryCreator", fields: [createdBy], references: [id])
+  bananaRoundTrips BananaRoundTripEntry[]
 
   @@index([companyId, entryDate])
   @@index([companyId, entryType])
@@ -1171,6 +1174,46 @@ model SuggestionEvaluation {
   @@index([companyId, source])
   @@index([documentId])
   @@map("suggestion_evaluations")
+}
+
+model BananaRoundTripEntry {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+
+  // Matching
+  journalEntryId  String?  @map("journal_entry_id") @db.Uuid
+  documentId      String?  @map("document_id") @db.Uuid
+  matchStatus     String   @default("unmatched") @map("match_status")
+  // "matched" | "unmatched" | "modified" | "new_in_banana" | "deleted_in_banana"
+  matchConfidence Float?   @map("match_confidence")
+  matchMethod     String?  @map("match_method")  // "reference" | "doc_number" | "amount_date" | "manual"
+
+  // Banana-Daten (importierte Zeile)
+  bananaDate      DateTime? @map("banana_date")
+  bananaDoc       String?  @map("banana_doc")
+  bananaDescription String? @map("banana_description") @db.Text
+  bananaDebitAccount  String? @map("banana_debit_account")
+  bananaCreditAccount String? @map("banana_credit_account")
+  bananaAmount    Decimal? @map("banana_amount") @db.Decimal(12, 2)
+  bananaVatCode   String?  @map("banana_vat_code")
+  bananaVatAmount Decimal? @map("banana_vat_amount") @db.Decimal(12, 2)
+
+  // Abweichungen (wenn matched + modified)
+  deltas          Json?    // { field: "debitAccount", bpValue: "6000", bananaValue: "6010" }[]
+  deltaCount      Int      @default(0) @map("delta_count")
+
+  // Import-Metadaten
+  importBatchId   String   @map("import_batch_id")
+  importedAt      DateTime @default(now()) @map("imported_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  document        Document? @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, matchStatus])
+  @@index([companyId, importBatchId])
+  @@index([journalEntryId])
+  @@map("banana_round_trip_entries")
 }
 
 model VatCodeMapping {
