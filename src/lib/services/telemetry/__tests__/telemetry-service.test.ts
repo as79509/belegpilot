@@ -43,6 +43,7 @@ function setEmptyDefaults() {
   mockPatternCount.mockResolvedValue(0);
   mockSupplierFindMany.mockResolvedValue([]);
   mockProcessingStepAggregate.mockResolvedValue({ _avg: { durationMs: null } });
+  (prisma.correctionEvent as any).groupBy.mockResolvedValue([]);
 }
 
 describe("computeTelemetry", () => {
