@@ -4,6 +4,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     autopilotConfig: { findUnique: vi.fn() },
     autopilotEvent: { create: vi.fn() },
+    account: { findFirst: vi.fn() },
   },
 }));
 
@@ -22,6 +23,7 @@ import { generateSuggestion } from "@/lib/services/suggestions/suggestion-engine
 
 const mockConfigFind = prisma.autopilotConfig.findUnique as ReturnType<typeof vi.fn>;
 const mockEventCreate = prisma.autopilotEvent.create as ReturnType<typeof vi.fn>;
+const mockAccountFind = (prisma as any).account.findFirst as ReturnType<typeof vi.fn>;
 const mockRunSafety = runSafetyChecks as ReturnType<typeof vi.fn>;
 const mockGenerateSuggestion = generateSuggestion as ReturnType<typeof vi.fn>;
 
@@ -68,6 +70,8 @@ describe("evaluateAutopilot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEventCreate.mockResolvedValue({});
+    // Default: suggested account is approved for autopilot
+    mockAccountFind.mockResolvedValue({ aiGovernance: "ai_autopilot", accountNumber: "6500" });
   });
 
   it("Config disabled → mode 'disabled', action 'none'", async () => {

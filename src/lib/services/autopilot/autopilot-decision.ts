@@ -66,6 +66,46 @@ export async function evaluateAutopilot(
     });
   }
 
+  // 3b. Konto-Governance für vorgeschlagenes Konto prüfen
+  // Der bestehende Safety-Check (accountGovernance) prüft nur document.accountCode.
+  // Hier prüfen wir zusätzlich das VORGESCHLAGENE Konto aus der Suggestion.
+  if (suggestion?.suggestedAccount) {
+    const suggestedAccountRecord = await prisma.account.findFirst({
+      where: {
+        companyId,
+        accountNumber: suggestion.suggestedAccount,
+        isActive: true,
+      },
+      select: { aiGovernance: true, accountNumber: true },
+    });
+
+    if (!suggestedAccountRecord) {
+      safetyResult.eligible = false;
+      safetyResult.checks.suggestedAccountGovernance = {
+        passed: false,
+        detail: "Vorgeschlagenes Konto " + suggestion.suggestedAccount + " nicht im Kontenplan",
+      };
+      safetyResult.blockedBy = safetyResult.blockedBy || "suggestedAccountGovernance";
+    } else if (suggestedAccountRecord.aiGovernance !== "ai_autopilot") {
+      safetyResult.eligible = false;
+      safetyResult.checks.suggestedAccountGovernance = {
+        passed: false,
+        detail: "Vorgeschlagenes Konto " + suggestion.suggestedAccount + " ist " + suggestedAccountRecord.aiGovernance + ", nicht ai_autopilot",
+      };
+      safetyResult.blockedBy = safetyResult.blockedBy || "suggestedAccountGovernance";
+    } else {
+      safetyResult.checks.suggestedAccountGovernance = {
+        passed: true,
+        detail: "Vorgeschlagenes Konto " + suggestion.suggestedAccount + " ist für Autopilot freigegeben",
+      };
+    }
+  }
+
+  // Wenn Governance blockiert hat, keine Suggestion verwenden
+  if (!safetyResult.eligible) {
+    suggestion = null;
+  }
+
   // 4. Bestimme Aktion basierend auf Mode
   let action: "none" | "prefill" | "auto_ready" = "none";
 

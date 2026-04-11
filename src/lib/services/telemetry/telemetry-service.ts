@@ -292,6 +292,70 @@ export async function computeTelemetry(
   const medAcc = calcAccuracy(medSugg);
   const lowAcc = calcAccuracy(lowSugg);
 
+  // ── avgProcessingTimeMs: Durchschnitt durationMs aller completed Steps ──
+  const avgProcessingResult = await prisma.processingStep.aggregate({
+    where: {
+      status: "completed",
+      durationMs: { not: null },
+      startedAt: dateFilter,
+      document: { companyId },
+    },
+    _avg: { durationMs: true },
+  });
+  const avgProcessingTimeMs = avgProcessingResult._avg.durationMs ?? null;
+
+  // ── autoReadyCount, prefillCount, shadowCount: echte Autopilot-Zählung ──
+  const [autoReadyCount, prefillCount, shadowCount] = await Promise.all([
+    prisma.autopilotEvent.count({
+      where: { companyId, decision: "eligible", mode: "auto_ready", createdAt: dateFilter },
+    }),
+    prisma.autopilotEvent.count({
+      where: { companyId, decision: "eligible", mode: "prefill", createdAt: dateFilter },
+    }),
+    prisma.autopilotEvent.count({
+      where: { companyId, decision: "eligible", mode: "shadow", createdAt: dateFilter },
+    }),
+  ]);
+
+  // ── postAutopilotCorrectionRate: Anteil der auto-ready Docs die nachher korrigiert wurden ──
+  let postAutopilotCorrectionRate = 0;
+  if (autoReadyCount > 0) {
+    const autoReadyEvents = await prisma.autopilotEvent.findMany({
+      where: { companyId, decision: "eligible", mode: "auto_ready", createdAt: dateFilter },
+      select: { documentId: true },
+      take: 500,
+    });
+    const autoReadyDocIds = [...new Set(autoReadyEvents.map((e) => e.documentId))];
+
+    if (autoReadyDocIds.length > 0) {
+      const correctedCount = await prisma.correctionEvent.groupBy({
+        by: ["documentId"],
+        where: { documentId: { in: autoReadyDocIds }, companyId },
+      });
+      postAutopilotCorrectionRate = correctedCount.length / autoReadyDocIds.length;
+    }
+  }
+
+  // ── topFieldAccuracy: Proxy aus BookingSuggestion-Outcomes ──
+  // PROXY-WARNUNG: topFieldAccuracy ist ein Näherungswert basierend auf Suggestion-Outcomes.
+  // Echtes Field-Level-Tracking erfordert ein SuggestionEvaluation Model (Phase 10+).
+  const suggestionOutcomes = await prisma.bookingSuggestion.groupBy({
+    by: ["status"],
+    where: { companyId, createdAt: dateFilter },
+    _count: true,
+  });
+  const suggOutcomeCounts = Object.fromEntries(
+    suggestionOutcomes.map((s) => [s.status, s._count])
+  );
+  const totalSuggOutcomes = suggestionOutcomes.reduce((sum, s) => sum + s._count, 0) || 1;
+  const suggAccepted = suggOutcomeCounts["accepted"] || 0;
+  const suggModified = suggOutcomeCounts["modified"] || 0;
+  const topFieldAccuracy = {
+    accountCode: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
+    expenseCategory: (suggAccepted + suggModified * 0.3) / totalSuggOutcomes,
+    costCenter: (suggAccepted + suggModified * 0.5) / totalSuggOutcomes,
+  };
+
   return {
     pipeline: {
       totalUploaded,
@@ -299,7 +363,7 @@ export async function computeTelemetry(
       successRate: totalUploaded > 0 ? totalProcessed / totalUploaded : 0,
       stuckProcessing,
       failedCount,
-      avgProcessingTimeMs: null, // Würde ProcessingStep-Timestamps brauchen — vereinfacht
+      avgProcessingTimeMs,
     },
     suggestions: {
       coverage: totalUploaded > 0 ? docsWithSuggestion.length / totalUploaded : 0,
@@ -310,17 +374,17 @@ export async function computeTelemetry(
       acceptanceRate:
         totalSuggestions > 0 ? (acceptedSugg + modifiedSugg) / totalSuggestions : 0,
       modifiedRate: totalSuggestions > 0 ? modifiedSugg / totalSuggestions : 0,
-      topFieldAccuracy: { accountCode: 0, expenseCategory: 0, costCenter: 0 }, // TODO: Feld-Level Tracking
+      topFieldAccuracy,
     },
     autopilot: {
       totalEvents: apTotal,
       eligibleCount: apEligible,
       blockedCount: apBlocked,
       eligibleRate: apTotal > 0 ? apEligible / apTotal : 0,
-      autoReadyCount: 0, // TODO: aus ProcessingSteps zählen
-      prefillCount: 0,
-      shadowCount: 0,
-      postAutopilotCorrectionRate: 0, // TODO: aus CorrectionEvents nach auto-ready
+      autoReadyCount,
+      prefillCount,
+      shadowCount,
+      postAutopilotCorrectionRate,
       topBlockReasons,
     },
     drift: { alerts: driftAlerts },

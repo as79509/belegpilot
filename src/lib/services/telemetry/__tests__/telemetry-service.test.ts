@@ -5,9 +5,10 @@ vi.mock("@/lib/db", () => ({
     document: { count: vi.fn(), findMany: vi.fn() },
     bookingSuggestion: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     autopilotEvent: { count: vi.fn(), findMany: vi.fn() },
-    correctionEvent: { count: vi.fn(), findMany: vi.fn() },
+    correctionEvent: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     correctionPattern: { count: vi.fn() },
     supplier: { findMany: vi.fn() },
+    processingStep: { aggregate: vi.fn() },
   },
 }));
 
@@ -25,6 +26,7 @@ const mockCorrCount = prisma.correctionEvent.count as ReturnType<typeof vi.fn>;
 const mockCorrFindMany = prisma.correctionEvent.findMany as ReturnType<typeof vi.fn>;
 const mockPatternCount = prisma.correctionPattern.count as ReturnType<typeof vi.fn>;
 const mockSupplierFindMany = prisma.supplier.findMany as ReturnType<typeof vi.fn>;
+const mockProcessingStepAggregate = (prisma as any).processingStep.aggregate as ReturnType<typeof vi.fn>;
 
 const COMPANY_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -40,6 +42,7 @@ function setEmptyDefaults() {
   mockCorrFindMany.mockResolvedValue([]);
   mockPatternCount.mockResolvedValue(0);
   mockSupplierFindMany.mockResolvedValue([]);
+  mockProcessingStepAggregate.mockResolvedValue({ _avg: { durationMs: null } });
 }
 
 describe("computeTelemetry", () => {
