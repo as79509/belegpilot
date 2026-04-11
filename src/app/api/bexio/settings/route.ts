@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
@@ -22,7 +23,9 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (ctx.session.user.role !== "admin") return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  if (!hasPermission(ctx.session.user.role, "integrations:write")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   const { accessToken } = await request.json();
   if (!accessToken?.trim()) return NextResponse.json({ error: "Token ist erforderlich" }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(
@@ -10,20 +11,11 @@ export async function POST(
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
-  const { id } = await params;
-
-  // Permission check: only admin or trustee
-  const user = await prisma.user.findUnique({
-    where: { id: ctx.session.user.id },
-    select: { role: true },
-  });
-
-  if (!user || !["admin", "trustee"].includes(user.role)) {
-    return NextResponse.json(
-      { error: "Nur Administratoren und Treuhänder können MwSt-Abrechnungen freigeben" },
-      { status: 403 }
-    );
+  if (!hasPermission(ctx.session.user.role, "vat:approve")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
   }
+
+  const { id } = await params;
 
   const vatReturn = await prisma.vatReturn.findFirst({
     where: { id, companyId: ctx.companyId },

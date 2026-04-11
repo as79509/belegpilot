@@ -1,93 +1,55 @@
 import { describe, it, expect } from "vitest";
-import * as fs from "fs";
-import * as path from "path";
+import { hasPermission, ROLE_PERMISSIONS } from "@/lib/permissions";
 
-const apiDir = path.resolve("src/app/api");
-
-function readRoute(relativePath: string): string | null {
-  const fullPath = path.join(apiDir, relativePath);
-  if (!fs.existsSync(fullPath)) return null;
-  return fs.readFileSync(fullPath, "utf-8");
-}
+/**
+ * Tests that the permission system correctly restricts roles.
+ * The actual route-level enforcement is tested in permission-enforcement.test.ts.
+ * This test validates the ROLE_PERMISSIONS configuration.
+ */
 
 describe("Rollen-Berechtigungen", () => {
-  const ADMIN_ONLY_ROUTES = [
-    "rules/route.ts",
-    "rules/[id]/route.ts",
-    "rules/quick/route.ts",
-    "rules/templates/route.ts",
-  ];
+  it("admin hat alle Permissions (*)", () => {
+    expect(hasPermission("admin", "documents:write")).toBe(true);
+    expect(hasPermission("admin", "system:admin")).toBe(true);
+    expect(hasPermission("admin", "vat:approve")).toBe(true);
+    expect(hasPermission("admin", "rules:delete")).toBe(true);
+  });
 
-  const ADMIN_TRUSTEE_ROUTES = [
-    "knowledge/route.ts",
-    "escalation-rules/route.ts",
-    "escalation-rules/defaults/route.ts",
-    "expected-documents/route.ts",
-  ];
+  it("trustee hat Schreibzugriff auf Stammdaten und Buchhaltung", () => {
+    expect(hasPermission("trustee", "journal:write")).toBe(true);
+    expect(hasPermission("trustee", "suppliers:write")).toBe(true);
+    expect(hasPermission("trustee", "rules:write")).toBe(true);
+    expect(hasPermission("trustee", "knowledge:write")).toBe(true);
+    expect(hasPermission("trustee", "vat:approve")).toBe(true);
+    expect(hasPermission("trustee", "periods:lock")).toBe(true);
+    expect(hasPermission("trustee", "escalation:write")).toBe(true);
+    // But not system:admin
+    expect(hasPermission("trustee", "system:admin")).toBe(false);
+  });
 
-  const REVIEWER_ROUTES = [
-    "documents/[id]/approve/route.ts",
-    "documents/[id]/reject/route.ts",
-    "documents/bulk-approve/route.ts",
-    "documents/[id]/route.ts",
-  ];
+  it("reviewer kann Belege genehmigen aber keine Regeln schreiben", () => {
+    expect(hasPermission("reviewer", "documents:approve")).toBe(true);
+    expect(hasPermission("reviewer", "documents:write")).toBe(true);
+    expect(hasPermission("reviewer", "rules:write")).toBe(false);
+    expect(hasPermission("reviewer", "knowledge:write")).toBe(false);
+    expect(hasPermission("reviewer", "vat:approve")).toBe(false);
+  });
 
-  it("admin-only POST/PATCH/DELETE Routes prüfen admin Rolle", () => {
-    for (const route of ADMIN_ONLY_ROUTES) {
-      const content = readRoute(route);
-      if (!content) continue;
-      // POST/PATCH handlers should check admin role
-      if (content.includes("POST") || content.includes("PATCH") || content.includes("DELETE")) {
-        const hasAdminCheck = content.includes('"admin"');
-        expect(hasAdminCheck, `${route} should check admin role`).toBe(true);
-      }
+  it("viewer/readonly hat keinen Schreibzugriff", () => {
+    const writePerms = [
+      "documents:write", "documents:approve", "rules:write", "knowledge:write",
+      "journal:write", "suppliers:write", "system:admin", "vat:write",
+    ] as const;
+
+    for (const perm of writePerms) {
+      expect(hasPermission("viewer", perm), `viewer should not have ${perm}`).toBe(false);
+      expect(hasPermission("readonly", perm), `readonly should not have ${perm}`).toBe(false);
     }
   });
 
-  it("admin/trustee Routes prüfen admin oder trustee Rolle", () => {
-    for (const route of ADMIN_TRUSTEE_ROUTES) {
-      const content = readRoute(route);
-      if (!content) continue;
-      if (content.includes("POST") || content.includes("PATCH") || content.includes("DELETE")) {
-        const hasRoleCheck = content.includes('"admin"') || content.includes('"trustee"');
-        expect(hasRoleCheck, `${route} should check admin/trustee role`).toBe(true);
-      }
-    }
-  });
-
-  it("reviewer Routes prüfen admin oder reviewer Rolle", () => {
-    for (const route of REVIEWER_ROUTES) {
-      const content = readRoute(route);
-      if (!content) continue;
-      const hasRoleCheck = content.includes('"admin"') || content.includes('"reviewer"');
-      expect(hasRoleCheck, `${route} should check admin/reviewer role`).toBe(true);
-    }
-  });
-
-  it("period lock/unlock nur admin/trustee", () => {
-    const content = readRoute("periods/[id]/route.ts");
-    expect(content).not.toBeNull();
-    expect(content).toContain('"admin"');
-    expect(content).toContain('"trustee"');
-  });
-
-  it("readonly Rolle hat keinen Schreibzugriff auf sensible Routes", () => {
-    // Readonly should never appear in role check arrays that allow writes
-    const sensitiveRoutes = [
-      "documents/[id]/approve/route.ts",
-      "rules/route.ts",
-      "knowledge/route.ts",
-    ];
-    for (const route of sensitiveRoutes) {
-      const content = readRoute(route);
-      if (!content) continue;
-      // "readonly" should NOT be in any includes() role check
-      const hasReadonlyWrite = content.includes('"readonly"') &&
-        (content.includes("POST") || content.includes("PATCH") || content.includes("DELETE"));
-      // It's OK if readonly is mentioned in a GET handler, but not in write handlers
-      // For safety, just verify it's not in the role check arrays
-      const roleCheckPattern = /includes\(.*"readonly".*\)/;
-      expect(roleCheckPattern.test(content || ""), `${route} should not allow readonly role for writes`).toBe(false);
-    }
+  it("unbekannte Rolle hat keine Permissions", () => {
+    expect(hasPermission("unknown", "documents:read")).toBe(false);
+    expect(hasPermission(null, "documents:read")).toBe(false);
+    expect(hasPermission(undefined, "documents:read")).toBe(false);
   });
 });

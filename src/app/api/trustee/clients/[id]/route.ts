@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -28,13 +29,15 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!hasPermission(session.user.role, "system:admin")) {
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const { id } = await params;
     const access = await prisma.userCompany.findUnique({
       where: { userId_companyId: { userId: session.user.id, companyId: id } },
     });
-    if (!access || !["admin", "trustee"].includes(access.role))
-      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    if (!access) return NextResponse.json({ error: "Kein Zugriff" }, { status: 403 });
 
     const body = await request.json();
     const fields = [

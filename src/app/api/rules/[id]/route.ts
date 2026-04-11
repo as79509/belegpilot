@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
 
@@ -25,8 +26,9 @@ export async function PATCH(
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (ctx.session.user.role !== "admin")
+    if (!hasPermission(ctx.session.user.role, "rules:write")) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const { id } = await params;
     const rule = await prisma.rule.findFirst({
@@ -55,8 +57,9 @@ export async function DELETE(
 ) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (ctx.session.user.role !== "admin")
+  if (!hasPermission(ctx.session.user.role, "rules:write")) {
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   const { id } = await params;
   const rule = await prisma.rule.findFirst({

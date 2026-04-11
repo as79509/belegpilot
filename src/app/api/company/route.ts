@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { logAudit, computeChanges } from "@/lib/services/audit/audit-service";
 
@@ -26,7 +27,9 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  if (ctx.session.user.role !== "admin") return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  if (!hasPermission(ctx.session.user.role, "company:write")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   const body = await request.json();
   const old = await prisma.company.findUnique({ where: { id: ctx.companyId } });

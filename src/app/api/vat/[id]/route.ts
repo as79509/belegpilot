@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 
 export async function GET(
   _request: NextRequest,
@@ -24,6 +25,10 @@ export async function PATCH(
 ) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+
+  if (!hasPermission(ctx.session.user.role, "vat:write")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   const { id } = await params;
   const existing = await prisma.vatReturn.findFirst({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { logAudit } from "@/lib/services/audit/audit-service";
 import { createNotification, NotificationTemplates } from "@/lib/services/notifications/notification-service";
 import { generateQualityReport } from "@/lib/services/quality/period-quality";
@@ -18,6 +19,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+    if (!hasPermission(ctx.session.user.role, "periods:lock")) {
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
     const { id } = await params;
 
     const period = await prisma.monthlyPeriod.findFirst({

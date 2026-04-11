@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import archiver from "archiver";
@@ -8,8 +9,9 @@ export async function POST(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "reviewer"].includes(ctx.session.user.role))
+    if (!hasPermission(ctx.session.user.role, "exports:create")) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const body = await request.json();
     let documentIds: string[] = body.documentIds || [];

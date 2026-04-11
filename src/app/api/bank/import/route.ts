@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { parseCamt053 } from "@/lib/services/bank/camt053-parser";
 import { autoMatchTransactions } from "@/lib/services/bank/matching-engine";
 
 export async function POST(request: NextRequest) {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+
+  if (!hasPermission(ctx.session.user.role, "bank:write")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   try {
     const formData = await request.formData();

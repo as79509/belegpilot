@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
@@ -21,8 +22,9 @@ export async function POST(request: NextRequest) {
   try {
     const ctx2 = await getActiveCompany();
     if (!ctx2) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (ctx2.session.user.role !== "admin")
+    if (!hasPermission(ctx2.session.user.role, "rules:write")) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const body = await request.json();
     const { name, ruleType, conditions, actions, priority, isActive } = body;

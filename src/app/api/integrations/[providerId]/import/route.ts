@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import "@/lib/services/integrations/providers/csv-provider";
 import "@/lib/services/integrations/providers/bexio-provider";
 import { getAdapter } from "@/lib/services/integrations/provider-registry";
@@ -13,8 +14,7 @@ export async function POST(
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
-  const user = await prisma.user.findUnique({ where: { id: ctx.session.user.id }, select: { role: true } });
-  if (!user || !["admin", "trustee"].includes(user.role)) {
+  if (!hasPermission(ctx.session.user.role, "integrations:write")) {
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
   }
 

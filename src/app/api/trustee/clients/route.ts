@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
@@ -27,8 +28,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (!["admin", "trustee"].includes(session.user.role))
+    if (!hasPermission(session.user.role, "system:admin")) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const body = await request.json();
     if (!body.name?.trim()) return NextResponse.json({ error: "Firmenname erforderlich" }, { status: 400 });

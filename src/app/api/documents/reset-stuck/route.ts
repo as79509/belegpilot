@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { inngest } from "@/lib/inngest/client";
 import { rateLimit } from "@/lib/rate-limit";
@@ -8,8 +9,9 @@ export async function POST() {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (ctx.session.user.role !== "admin")
-      return NextResponse.json({ error: "Nur Administratoren" }, { status: 403 });
+    if (!hasPermission(ctx.session.user.role, "system:admin")) {
+      return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+    }
 
     const { allowed } = rateLimit(`reset-stuck:${ctx.session.user.id}`, 5, 60_000);
     if (!allowed) {

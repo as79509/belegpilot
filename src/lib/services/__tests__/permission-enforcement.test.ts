@@ -36,9 +36,7 @@ function isExempt(routePath: string): boolean {
 describe("Permission Enforcement Audit", () => {
   const routes = findRouteFiles(apiDir);
 
-  // NOTE: This test is .skip because hasPermission calls are not yet in all routes.
-  // Will be activated in Phase 9X.1b.
-  it.skip("alle mutierenden Routes haben hasPermission oder sind Ausnahmen — wird in 9X.1b aktiviert", () => {
+  it("alle mutierenden Routes haben hasPermission oder sind Ausnahmen", () => {
     const missing: string[] = [];
 
     for (const routeFile of routes) {

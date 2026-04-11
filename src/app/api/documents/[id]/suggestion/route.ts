@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { generateSuggestion } from "@/lib/services/suggestions/suggestion-engine";
 import { logAudit } from "@/lib/services/audit/audit-service";
@@ -81,7 +82,7 @@ export async function POST(
     if (!ctx) {
       return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
     }
-    if (!["admin", "reviewer"].includes(ctx.session.user.role)) {
+    if (!hasPermission(ctx.session.user.role, "documents:write")) {
       return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
     }
 
