@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
 import {
   getOrCreateSession,
   completeStep,
   navigateToStep,
+  saveDraft,
 } from "@/lib/services/onboarding/wizard-service";
 
 export async function GET() {
@@ -30,15 +32,49 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, step, data } = body;
-
-    // Ensure session exists
     const current = await getOrCreateSession(ctx.companyId, ctx.session.user.id);
 
     if (action === "complete_step") {
       if (!step || typeof step !== "number") {
         return NextResponse.json({ error: "Schritt-Nummer erforderlich" }, { status: 400 });
       }
-      const state = await completeStep(current.session.id, step, data || {});
+
+      // Save Company fields for Step 1+2
+      if (step === 1 && data) {
+        await prisma.company.update({
+          where: { id: ctx.companyId },
+          data: {
+            name: data.name || undefined,
+            legalName: data.legalName || undefined,
+            legalForm: data.legalForm || undefined,
+            uid: data.uid || undefined,
+            vatNumber: data.vatNumber || undefined,
+            industry: data.industry || undefined,
+            subIndustry: data.subIndustry || undefined,
+            employeeCount: data.employeeCount ? parseInt(data.employeeCount) : undefined,
+            phone: data.phone || undefined,
+            email: data.email || undefined,
+            website: data.website || undefined,
+            businessModel: data.businessModel || undefined,
+          },
+        });
+      }
+      if (step === 2 && data) {
+        await prisma.company.update({
+          where: { id: ctx.companyId },
+          data: {
+            vatLiable: data.vatLiable ?? undefined,
+            vatMethod: data.vatMethod || undefined,
+            vatInterval: data.vatInterval || undefined,
+            vatFlatRate: data.vatFlatRate ? parseFloat(data.vatFlatRate) : undefined,
+            fiscalYearStart: data.fiscalYearStart ? parseInt(data.fiscalYearStart) : undefined,
+            costCentersEnabled: data.costCentersEnabled ?? undefined,
+            projectsEnabled: data.projectsEnabled ?? undefined,
+          },
+        });
+      }
+
+      const state = await completeStep(current.sessionId, step, data || {});
       return NextResponse.json(state);
     }
 
@@ -46,8 +82,16 @@ export async function POST(request: NextRequest) {
       if (!step || typeof step !== "number") {
         return NextResponse.json({ error: "Schritt-Nummer erforderlich" }, { status: 400 });
       }
-      const state = await navigateToStep(current.session.id, step);
+      const state = await navigateToStep(current.sessionId, step);
       return NextResponse.json(state);
+    }
+
+    if (action === "save_draft") {
+      if (!step || typeof step !== "number") {
+        return NextResponse.json({ error: "Schritt-Nummer erforderlich" }, { status: 400 });
+      }
+      await saveDraft(current.sessionId, step, data || {});
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });

@@ -12,99 +12,74 @@ export async function validateStep1(companyId: string): Promise<StepValidation> 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
     select: {
-      name: true,
-      legalName: true,
-      industry: true,
-      vatNumber: true,
-      uid: true,
-      legalForm: true,
-      subIndustry: true,
-      employeeCount: true,
-      website: true,
-      phone: true,
-      email: true,
-      businessModel: true,
-      address: true,
+      name: true, legalName: true, legalForm: true, uid: true,
+      vatNumber: true, industry: true, subIndustry: true,
+      address: true, employeeCount: true, phone: true, email: true,
+      website: true, businessModel: true,
     },
   });
 
-  const requiredFields = ["name", "legalName", "industry"];
-  const hasVatOrUid = !!(company.vatNumber || company.uid);
-  const optionalFields = [
-    "legalForm", "subIndustry", "employeeCount", "website",
-    "phone", "email", "businessModel", "address",
-  ];
+  const required = ["name", "legalName", "industry"];
+  const needsOneOf = ["vatNumber", "uid"];
+  const optional = ["legalForm", "subIndustry", "address", "employeeCount", "phone", "email", "website", "businessModel"];
 
-  const filled: string[] = [];
-  const missing: string[] = [];
-  const optionalMissing: string[] = [];
+  const filled = Object.entries(company)
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k]) => k);
+  const missingRequired = required.filter((f) => !filled.includes(f));
+  const hasIdentifier = needsOneOf.some((f) => filled.includes(f));
+  if (!hasIdentifier) missingRequired.push("vatNumber oder UID");
 
-  for (const f of requiredFields) {
-    if ((company as any)[f]) filled.push(f);
-    else missing.push(f);
-  }
-
-  if (hasVatOrUid) filled.push("vatNumber/uid");
-  else missing.push("vatNumber/uid");
-
-  for (const f of optionalFields) {
-    if ((company as any)[f]) filled.push(f);
-    else optionalMissing.push(f);
-  }
-
-  const totalFields = requiredFields.length + 1 + optionalFields.length;
-  const completionRate = filled.length / totalFields;
-  const complete = missing.length === 0;
-
-  return { complete, filledFields: filled, missingFields: missing, optionalMissing, completionRate };
-}
-
-export async function validateStep2(companyId: string): Promise<StepValidation> {
-  const company = await prisma.company.findUniqueOrThrow({
-    where: { id: companyId },
-    select: {
-      vatLiable: true,
-      vatMethod: true,
-      vatInterval: true,
-      chartOfAccounts: true,
-      costCentersEnabled: true,
-      fiscalYearStart: true,
-    },
-  });
-
-  const accountCount = await prisma.account.count({ where: { companyId, isActive: true } });
-  const bankAccountCount = await prisma.bankAccount.count({ where: { companyId, isActive: true } });
-
-  const filled: string[] = [];
-  const missing: string[] = [];
-  const optionalMissing: string[] = [];
-
-  // Required: vatLiable is always set (default true), so check chart
-  filled.push("vatLiable");
-  if (accountCount >= 10 || company.chartOfAccounts) {
-    filled.push("chartOfAccounts");
-  } else {
-    missing.push("chartOfAccounts");
-  }
-
-  // Optional
-  if (company.vatMethod) filled.push("vatMethod"); else optionalMissing.push("vatMethod");
-  if (company.vatInterval) filled.push("vatInterval"); else optionalMissing.push("vatInterval");
-  if (company.fiscalYearStart != null) filled.push("fiscalYearStart"); else optionalMissing.push("fiscalYearStart");
-  if (bankAccountCount > 0) filled.push("bankAccounts"); else optionalMissing.push("bankAccounts");
-  if (company.costCentersEnabled) filled.push("costCentersEnabled");
-
-  const totalFields = 2 + 5; // required + optional
-  const completionRate = filled.length / totalFields;
-  const complete = missing.length === 0;
+  const optionalMissing = optional.filter((f) => !filled.includes(f));
+  const totalFields = required.length + 1 + optional.length;
 
   return {
-    complete,
+    complete: missingRequired.length === 0,
+    filledFields: filled,
+    missingFields: missingRequired,
+    optionalMissing,
+    completionRate: Math.min(1, filled.length / totalFields),
+  };
+}
+
+export async function validateStep2(companyId: string): Promise<StepValidation & { accountCount: number; bankCount: number }> {
+  const [company, accountCount, bankCount] = await Promise.all([
+    prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: {
+        vatLiable: true, vatMethod: true, vatInterval: true,
+        chartOfAccounts: true, costCentersEnabled: true,
+        projectsEnabled: true, fiscalYearStart: true,
+      },
+    }),
+    prisma.account.count({ where: { companyId, isActive: true } }),
+    prisma.bankAccount.count({ where: { companyId } }),
+  ]);
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const optionalMissing: string[] = [];
+
+  filled.push("vatLiable");
+  if (company.vatLiable && !company.vatMethod) missing.push("vatMethod");
+  else if (company.vatMethod) filled.push("vatMethod");
+
+  if (accountCount >= 10) filled.push("kontenplan");
+  else missing.push("kontenplan (mindestens 10 Konten)");
+
+  if (company.vatInterval) filled.push("vatInterval"); else optionalMissing.push("vatInterval");
+  if (company.fiscalYearStart) filled.push("fiscalYearStart"); else optionalMissing.push("fiscalYearStart");
+  if (bankCount > 0) filled.push("bankkonten"); else optionalMissing.push("bankkonten");
+
+  const totalFields = filled.length + missing.length + optionalMissing.length;
+
+  return {
+    complete: missing.length === 0,
     filledFields: filled,
     missingFields: missing,
     optionalMissing,
-    completionRate,
-    // Attach counts for UI
-    ...(({ accountCount, bankAccountCount }) as any),
+    completionRate: Math.min(1, filled.length / Math.max(totalFields, 1)),
+    accountCount,
+    bankCount,
   };
 }

@@ -1270,12 +1270,9 @@ model OnboardingSession {
 
   // Status
   status            String    @default("in_progress")
+  firstUsefulState  Boolean   @default(false) @map("first_useful_state")
   readinessScore    Float?    @map("readiness_score")
   moduleReadiness   Json?     @map("module_readiness")
-
-  // Unsicherheiten
-  uncertainties     Json      @default("[]")
-  openQuestions     Json      @default("[]") @map("open_questions")
 
   // Go-Live
   goLiveAt          DateTime? @map("go_live_at")
@@ -1290,6 +1287,7 @@ model OnboardingSession {
   company           Company   @relation(fields: [companyId], references: [id])
   startedByUser     User      @relation("OnboardingStartedBy", fields: [startedBy], references: [id])
   businessProfile   BusinessProfile?
+  knownUnknowns     OnboardingKnownUnknown[]
 
   @@map("onboarding_sessions")
 }
@@ -1329,4 +1327,33 @@ model BusinessProfile {
   session           OnboardingSession @relation(fields: [sessionId], references: [id])
 
   @@map("business_profiles")
+}
+
+model OnboardingKnownUnknown {
+  id                String    @id @default(uuid()) @db.Uuid
+  sessionId         String    @map("session_id") @db.Uuid
+  companyId         String    @map("company_id") @db.Uuid
+
+  area              String
+  description       String    @db.Text
+  criticality       String    @default("medium")
+  responsibleRole   String?   @map("responsible_role")
+  blocksGoLive      Boolean   @default(false) @map("blocks_go_live")
+  reducesReadiness  Boolean   @default(true) @map("reduces_readiness")
+  suggestedAction   String?   @map("suggested_action") @db.Text
+
+  // Resolution
+  status            String    @default("open")
+  resolvedAt        DateTime? @map("resolved_at")
+  resolvedBy        String?   @map("resolved_by") @db.Uuid
+  resolution        String?   @db.Text
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  session           OnboardingSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, status])
+  @@index([companyId, area])
+  @@map("onboarding_known_unknowns")
 }
