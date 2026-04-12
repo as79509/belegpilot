@@ -42,6 +42,38 @@ export async function evaluateAutopilot(
     };
   }
 
+  // 1b. Supplier-Level Override prüfen
+  const override = document.supplierId
+    ? await prisma.supplierAutopilotOverride.findUnique({
+        where: { companyId_supplierId: { companyId, supplierId: document.supplierId } },
+      })
+    : null;
+
+  const effectiveMode = override?.mode || config.mode;
+
+  if (override?.mode === "disabled") {
+    await prisma.autopilotEvent.create({
+      data: {
+        companyId,
+        documentId: document.id,
+        mode: "disabled",
+        decision: "blocked",
+        safetyChecks: { blockedBy: "supplier_override_disabled", overrideMode: "disabled" } as any,
+        blockedBy: "supplier_override_disabled",
+        confidenceScore: document.confidenceScore || 0,
+        suggestedAccount: null,
+        supplierName: document.supplierNameNormalized,
+      },
+    });
+    return {
+      mode: "disabled",
+      eligible: false,
+      safetyResult: { eligible: false, checks: {}, blockedBy: "supplier_override_disabled" },
+      suggestion: null,
+      action: "none",
+    };
+  }
+
   // 2. Safety Checks
   const safetyResult = await runSafetyChecks(companyId, document, {
     minHistoryMatches: config.minHistoryMatches,
@@ -110,11 +142,11 @@ export async function evaluateAutopilot(
   let action: "none" | "prefill" | "auto_ready" = "none";
 
   if (safetyResult.eligible && suggestion) {
-    if (config.mode === "shadow") {
+    if (effectiveMode === "shadow") {
       action = "none"; // Nur beobachten
-    } else if (config.mode === "prefill") {
+    } else if (effectiveMode === "prefill") {
       action = "prefill";
-    } else if (config.mode === "auto_ready") {
+    } else if (effectiveMode === "auto_ready") {
       action = "auto_ready";
     }
   }
@@ -135,10 +167,11 @@ export async function evaluateAutopilot(
           consistencyRate: suggestion.consistencyRate || null,
         }
       : null,
-    mode: config.mode,
+    mode: effectiveMode,
     action,
     eligible: safetyResult.eligible,
     blockedBy: safetyResult.blockedBy,
+    supplierOverride: override ? { mode: override.mode, reason: override.reason } : null,
     decidedAt: new Date().toISOString(),
   };
 
@@ -146,7 +179,7 @@ export async function evaluateAutopilot(
     data: {
       companyId,
       documentId: document.id,
-      mode: config.mode,
+      mode: effectiveMode,
       decision: safetyResult.eligible ? "eligible" : "blocked",
       safetyChecks: decisionSnapshot as any,
       blockedBy: safetyResult.blockedBy,
@@ -157,7 +190,7 @@ export async function evaluateAutopilot(
   });
 
   return {
-    mode: config.mode as any,
+    mode: effectiveMode as any,
     eligible: safetyResult.eligible,
     safetyResult,
     suggestion,

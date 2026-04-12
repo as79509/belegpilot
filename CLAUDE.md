@@ -20,8 +20,10 @@ Buchhaltungsautomatisierung für Schweizer KMU. Verarbeitet Eingangsrechnungen v
 - Berechtigungen via `hasPermission(role, "resource:action")` aus `@/lib/permissions`
 
 ## Aktueller Stand
-Phase 8 KOMPLETT (inkl. 8.9.2 Rollen, Governance, Security-Härtung).
-28 Prisma-Models, 93+ API-Routes, ~21 Test-Dateien, 30 Seiten, ~283 Source-Dateien, ~103k LOC.
+Phase 10 + 10X KOMPLETT. 39 Prisma-Models, 141 API-Routes, 37 Seiten, 19+ Test-Dateien (309+ Tests), 388 Source-Dateien, 2258 i18n-Zeilen.
+
+Phase 10: SuggestionEvaluation, Banana Export/Round Trip, Drift Detection, Auto-Downgrade, Supplier Trust Score, Supplier Autopilot Override, Confidence Calibration.
+Phase 10X: Dead-End Elimination, Flow Integration Audit, Operational Smoke Matrix (29/30 ✅, 1 ⚠️).
 
 ## Architektur (Kurzfassung)
 
@@ -32,14 +34,18 @@ Phase 8 KOMPLETT (inkl. 8.9.2 Rollen, Governance, Security-Härtung).
 - `validation/` — 11 Validation-Checks
 - `rules/` — Rules-Engine + `detectRuleConflicts` (Phase 8.9.2) + Eskalation
 - `suggestions/` — Smart Suggestions
-- `autopilot/` — Decision-Engine, Modi, Kill-Switch
+- `autopilot/` — Decision-Engine, Modi, Kill-Switch, Drift Detection, Auto-Downgrade, Supplier Trust, Confidence Calibration, Supplier Override
 - `corrections/` — Korrekturmuster-Erkennung & Promotion
-- `telemetry/` — System-KPIs, Snapshot-Computation
+- `telemetry/` — System-KPIs, Snapshot-Computation (echte SuggestionEvaluation-Daten)
+- `evaluation/` — SuggestionEvaluation Feld-Level-Accuracy
 - `cockpit/` — Review-Cockpit-Helpers (Queue-Navigation)
 - `export/` — Bexio + CSV + XLSX
+- `banana/` — Banana Mapping, Auto-Mapper, Export, Round Trip Import + Matching + Lernsignale
 - `audit/` — Audit-Service (`logAudit`, `computeChanges`)
 - `actions/` — Next-Action-Engine
 - `supplier-matching/` — Fuzzy-Matching für Lieferanten
+- `analytics/` — Cross-Client Analytics für Treuhänder
+- `setup/` — Setup-Status-Wizard
 
 ### Hooks (`src/lib/hooks`)
 - Datenladende Hooks für Dashboard, Documents, Suppliers, etc.

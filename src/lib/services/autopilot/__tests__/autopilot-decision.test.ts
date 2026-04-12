@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
     autopilotConfig: { findUnique: vi.fn() },
     autopilotEvent: { create: vi.fn() },
     account: { findFirst: vi.fn() },
+    supplierAutopilotOverride: { findUnique: vi.fn() },
   },
 }));
 
@@ -72,6 +73,8 @@ describe("evaluateAutopilot", () => {
     mockEventCreate.mockResolvedValue({});
     // Default: suggested account is approved for autopilot
     mockAccountFind.mockResolvedValue({ aiGovernance: "ai_autopilot", accountNumber: "6500" });
+    // Default: no supplier override
+    (prisma as any).supplierAutopilotOverride.findUnique.mockResolvedValue(null);
   });
 
   it("Config disabled → mode 'disabled', action 'none'", async () => {

@@ -10,6 +10,7 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   POST?: string;
   PATCH?: string;
   DELETE?: string;
+  PUT?: string;
 }> = {
   // Kontenplan
   "accounts": { POST: "accounts:write" },
@@ -116,6 +117,9 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   "banana/mapping/vat-codes": { POST: "integrations:write" },
   "banana/export": { POST: "exports:create" },
   "banana/round-trip": { POST: "integrations:write" },
+
+  // Supplier Autopilot Override
+  "suppliers/[id]/autopilot-override": { PUT: "autopilot:configure" },
 };
 
 /**
@@ -134,4 +138,7 @@ export const PERMISSION_EXEMPT_ROUTES = [
   "documents/upload",        // Upload ist fuer alle authentifizierten User
   "documents/reset-stuck",   // Internes Maintenance
   "documents/[id]/reprocess",// Reprocess ist bereits auth-gesichert
+  "setup/status",            // Setup-Status fuer jeden auth User
+  "autopilot/calibration",   // Read-only, auth-gesichert
+  "trustee/analytics",       // Eigener hasPermission-Check (session-basiert)
 ];

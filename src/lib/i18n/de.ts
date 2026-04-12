@@ -1180,6 +1180,29 @@ export const de = {
     },
   },
 
+  supplierOverride: {
+    title: "Lieferanten-Autopilot",
+    mode: "Autopilot-Modus",
+    override: "Lieferanten-Override",
+    setOverride: "Override setzen",
+    removeOverride: "Override entfernen",
+    disabled: "Deaktiviert",
+    reason: "Begr\u00fcndung",
+    noOverride: "Kein Override \u2014 globaler Modus wird verwendet",
+  },
+
+  calibration: {
+    title: "Konfidenz-Kalibrierung",
+    wellCalibrated: "Gut kalibriert",
+    needsCheck: "Kalibrierung pr\u00fcfen",
+    expected: "Erwartet",
+    actual: "Tats\u00e4chlich",
+    overallCalibration: "Gesamtkalibrierung",
+    highConfidence: "Hohe Konfidenz",
+    mediumConfidence: "Mittlere Konfidenz",
+    lowConfidence: "Niedrige Konfidenz",
+  },
+
   autopilot: {
     title: "Autopilot",
     config: "Konfiguration",

@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight, TrendingDown, ShieldCheck } from "lucide-react";
+import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight, TrendingDown, ShieldCheck, BarChart3 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { InfoPanel } from "@/components/ds";
 import { toast } from "sonner";
@@ -44,6 +44,8 @@ export default function AutopilotSettingsPage() {
   const [driftReport, setDriftReport] = useState<any>(null);
   const [driftLoading, setDriftLoading] = useState(false);
   const [downgrading, setDowngrading] = useState(false);
+  const [calibration, setCalibration] = useState<any>(null);
+  const [calibrationLoading, setCalibrationLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/autopilot/config")
@@ -112,6 +114,15 @@ export default function AutopilotSettingsPage() {
       if (res.ok) setDriftReport(await res.json());
     } catch { /* non-critical */ }
     finally { setDriftLoading(false); }
+  }
+
+  async function fetchCalibration() {
+    setCalibrationLoading(true);
+    try {
+      const res = await fetch("/api/autopilot/calibration");
+      if (res.ok) setCalibration(await res.json());
+    } catch { /* non-critical */ }
+    finally { setCalibrationLoading(false); }
   }
 
   async function handleAutoDowngrade() {
@@ -372,6 +383,49 @@ export default function AutopilotSettingsPage() {
                 </Button>
               )}
               <Button variant="ghost" size="sm" onClick={fetchDrift} disabled={driftLoading}>Aktualisieren</Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Confidence Calibration */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" />{de.calibration.title}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!calibration ? (
+            <Button variant="outline" size="sm" onClick={fetchCalibration} disabled={calibrationLoading}>
+              {calibrationLoading ? "Lade..." : de.calibration.title + " laden"}
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={calibration.overallCalibration >= 0.7 ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}>
+                  {calibration.overallCalibration >= 0.7 ? de.calibration.wellCalibrated : de.calibration.needsCheck}
+                </Badge>
+                <span className="text-xs text-muted-foreground">{de.calibration.overallCalibration}: {Math.round(calibration.overallCalibration * 100)}%</span>
+              </div>
+              {(["high", "medium", "low"] as const).map((level) => {
+                const data = calibration.levels[level];
+                if (!data || data.count === 0) return null;
+                return (
+                  <div key={level} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span>{de.calibration[level === "high" ? "highConfidence" : level === "medium" ? "mediumConfidence" : "lowConfidence"]} ({data.count})</span>
+                      <span>{de.calibration.actual}: {Math.round(data.actualAccuracy * 100)}% / {de.calibration.expected}: {Math.round(data.threshold * 100)}%</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted relative">
+                      <div className="h-2 rounded-full bg-blue-500 transition-all" style={{ width: Math.min(100, Math.round(data.actualAccuracy * 100)) + "%" }} />
+                      <div className="absolute top-0 h-2 w-0.5 bg-gray-400" style={{ left: Math.round(data.threshold * 100) + "%" }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {calibration.recommendation && (
+                <InfoPanel tone="warning" icon={BarChart3}>{calibration.recommendation}</InfoPanel>
+              )}
+              <Button variant="ghost" size="sm" onClick={fetchCalibration} disabled={calibrationLoading}>Aktualisieren</Button>
             </>
           )}
         </CardContent>
