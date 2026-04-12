@@ -1,183 +1,153 @@
 import { prisma } from "@/lib/db";
 
-export interface UploadGuidanceCategory {
+export interface UploadCategory {
   id: string;
   label: string;
   description: string;
   icon: string;
   priority: "high" | "medium" | "low";
   currentCount: number;
-  recommendedCount: number;
+  recommendedMin: number;
+  recommendedMax: number;
   examples: string[];
+  status: "empty" | "insufficient" | "sufficient" | "good";
 }
 
 export interface UploadGuidance {
-  categories: UploadGuidanceCategory[];
+  categories: UploadCategory[];
   overallProgress: number;
   readyForBootstrapping: boolean;
+  totalDocuments: number;
+  totalCategories: number;
 }
 
-const CATEGORIES: Omit<UploadGuidanceCategory, "currentCount">[] = [
+interface CategoryDef {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  priority: "high" | "medium" | "low";
+  recommendedMin: number;
+  recommendedMax: number;
+  examples: string[];
+  categoryPatterns: string[];
+  supplierPatterns: string[];
+  typePatterns: string[];
+}
+
+const CATEGORIES: CategoryDef[] = [
   {
-    id: "typical",
-    label: "Typische Lieferantenrechnungen",
+    id: "typical", label: "Typische Lieferantenrechnungen",
     description: "Rechnungen von h\u00e4ufigen Lieferanten",
-    icon: "FileText",
-    priority: "high",
-    recommendedCount: 15,
-    examples: ["B\u00fcromaterial", "Reinigung", "IT-Services"],
+    icon: "FileText", priority: "high", recommendedMin: 10, recommendedMax: 20,
+    examples: ["B\u00fcromaterial", "IT-Services", "Reinigung"],
+    categoryPatterns: [], supplierPatterns: [], typePatterns: ["invoice", "credit_note"],
   },
   {
-    id: "recurring",
-    label: "Wiederkehrende Rechnungen",
+    id: "recurring", label: "Wiederkehrende Rechnungen",
     description: "Monatlich oder quartalsweise anfallend",
-    icon: "Repeat",
-    priority: "high",
-    recommendedCount: 8,
+    icon: "Repeat", priority: "high", recommendedMin: 5, recommendedMax: 10,
     examples: ["Miete", "Strom", "Telefon", "Internet"],
+    categoryPatterns: ["miete", "strom", "telefon", "internet", "hosting", "abo"],
+    supplierPatterns: ["swisscom", "sunrise", "salt", "ewz", "sbb"],
+    typePatterns: [],
   },
   {
-    id: "rent",
-    label: "Mietvertrag / Pachtvertrag",
+    id: "rent", label: "Mietvertrag / Pachtvertrag",
     description: "Gesch\u00e4ftsmiete und Nebenkosten",
-    icon: "Home",
-    priority: "medium",
-    recommendedCount: 2,
+    icon: "Home", priority: "medium", recommendedMin: 1, recommendedMax: 2,
     examples: ["Gesch\u00e4ftsmiete", "Lagermiete"],
+    categoryPatterns: ["miete", "pacht", "gesch\u00e4ftsmiete", "nebenkosten"],
+    supplierPatterns: [], typePatterns: [],
   },
   {
-    id: "insurance",
-    label: "Versicherungspolicen",
+    id: "insurance", label: "Versicherungspolicen",
     description: "Betriebliche Versicherungen",
-    icon: "Shield",
-    priority: "medium",
-    recommendedCount: 2,
+    icon: "Shield", priority: "medium", recommendedMin: 1, recommendedMax: 3,
     examples: ["Betriebshaftpflicht", "Sachversicherung"],
+    categoryPatterns: ["versicherung", "police", "haftpflicht"],
+    supplierPatterns: ["zurich", "axa", "helvetia", "mobiliar", "basler", "allianz"],
+    typePatterns: [],
   },
   {
-    id: "leasing",
-    label: "Leasing / Finanzierung",
+    id: "leasing", label: "Leasing / Finanzierung",
     description: "Leasing-Raten und Kreditvertr\u00e4ge",
-    icon: "Car",
-    priority: "low",
-    recommendedCount: 1,
-    examples: ["Fahrzeug-Leasing", "Maschinen"],
+    icon: "Car", priority: "low", recommendedMin: 0, recommendedMax: 2,
+    examples: ["Fahrzeugleasing", "Maschinenleasing"],
+    categoryPatterns: ["leasing", "finanzierung", "kredit"],
+    supplierPatterns: [], typePatterns: [],
   },
   {
-    id: "special",
-    label: "Sonderf\u00e4lle",
+    id: "special", label: "Sonderf\u00e4lle",
     description: "Spezielle Belegarten",
-    icon: "AlertTriangle",
-    priority: "low",
-    recommendedCount: 2,
+    icon: "AlertTriangle", priority: "low", recommendedMin: 0, recommendedMax: 3,
     examples: ["Auslandsrechnungen", "Privatanteil", "Barbelege"],
+    categoryPatterns: ["privatanteil", "ausland", "spesen", "reise"],
+    supplierPatterns: [], typePatterns: ["receipt", "other"],
   },
 ];
 
-// Keywords per category for matching documents
-const CATEGORY_MATCHERS: Record<string, { categories: string[]; suppliers: string[]; types: string[] }> = {
-  typical: {
-    categories: [],
-    suppliers: [],
-    types: ["invoice", "credit_note"],
-  },
-  recurring: {
-    categories: ["miete", "strom", "telefon", "internet", "hosting", "abo"],
-    suppliers: ["swisscom", "sunrise", "salt", "ewz", "ewl", "sbb"],
-    types: [],
-  },
-  rent: {
-    categories: ["miete", "pacht", "geschäftsmiete", "nebenkosten"],
-    suppliers: [],
-    types: [],
-  },
-  insurance: {
-    categories: ["versicherung", "police", "haftpflicht", "sachversicherung"],
-    suppliers: ["zurich", "axa", "helvetia", "mobiliar", "basler", "allianz"],
-    types: [],
-  },
-  leasing: {
-    categories: ["leasing", "finanzierung", "kredit"],
-    suppliers: [],
-    types: [],
-  },
-  special: {
-    categories: ["privatanteil", "ausland", "spesen", "reise"],
-    suppliers: [],
-    types: ["receipt", "other"],
-  },
-};
-
-function matchesCategory(
+function matchDoc(
   doc: { expenseCategory: string | null; supplierNameNormalized: string | null; documentType: string },
-  matcher: { categories: string[]; suppliers: string[]; types: string[] }
+  cat: CategoryDef
 ): boolean {
-  const cat = (doc.expenseCategory || "").toLowerCase();
-  const sup = (doc.supplierNameNormalized || "").toLowerCase();
-  const typ = doc.documentType;
-
-  if (matcher.categories.length > 0 && matcher.categories.some((k) => cat.includes(k))) return true;
-  if (matcher.suppliers.length > 0 && matcher.suppliers.some((k) => sup.includes(k))) return true;
-  if (matcher.types.length > 0 && matcher.types.includes(typ)) return true;
+  const c = (doc.expenseCategory || "").toLowerCase();
+  const s = (doc.supplierNameNormalized || "").toLowerCase();
+  if (cat.categoryPatterns.length > 0 && cat.categoryPatterns.some((p) => c.includes(p))) return true;
+  if (cat.supplierPatterns.length > 0 && cat.supplierPatterns.some((p) => s.includes(p))) return true;
+  if (cat.typePatterns.length > 0 && cat.typePatterns.includes(doc.documentType)) return true;
   return false;
+}
+
+function getStatus(count: number, min: number, max: number): UploadCategory["status"] {
+  if (count === 0) return "empty";
+  if (count < Math.max(min, 1)) return "insufficient";
+  if (count >= max) return "good";
+  return "sufficient";
 }
 
 export async function getUploadGuidance(companyId: string): Promise<UploadGuidance> {
   const docs = await prisma.document.findMany({
     where: { companyId, status: { notIn: ["rejected", "failed"] } },
-    select: {
-      expenseCategory: true,
-      supplierNameNormalized: true,
-      documentType: true,
-    },
+    select: { expenseCategory: true, supplierNameNormalized: true, documentType: true },
   });
 
-  const categoryCounts: Record<string, number> = {};
-  const assignedDocs = new Set<number>();
+  // Count per category; specific categories take priority, "typical" is fallback
+  const assigned = new Set<number>();
+  const counts: Record<string, number> = {};
 
-  // Count docs per category (a doc can match multiple, first match wins for counting)
-  for (const catDef of CATEGORIES) {
-    const matcher = CATEGORY_MATCHERS[catDef.id];
-    if (!matcher) { categoryCounts[catDef.id] = 0; continue; }
-
+  for (const cat of CATEGORIES) {
+    if (cat.id === "typical") continue;
     let count = 0;
     for (let i = 0; i < docs.length; i++) {
-      if (assignedDocs.has(i)) continue;
-      if (matchesCategory(docs[i], matcher)) {
-        count++;
-        // Only assign "typical" as fallback — specific categories take priority
-        if (catDef.id !== "typical") assignedDocs.add(i);
-      }
+      if (assigned.has(i)) continue;
+      if (matchDoc(docs[i], cat)) { count++; assigned.add(i); }
     }
-    categoryCounts[catDef.id] = count;
+    counts[cat.id] = count;
   }
+  // Typical = unassigned invoices
+  counts["typical"] = docs.filter((d, i) => !assigned.has(i) && (d.documentType === "invoice" || d.documentType === "credit_note")).length;
 
-  // Typical = all invoices not assigned to a specific category
-  categoryCounts["typical"] = docs.filter(
-    (d, i) => !assignedDocs.has(i) && (d.documentType === "invoice" || d.documentType === "credit_note")
-  ).length;
-
-  const categories: UploadGuidanceCategory[] = CATEGORIES.map((c) => ({
-    ...c,
-    currentCount: categoryCounts[c.id] || 0,
+  const categories: UploadCategory[] = CATEGORIES.map((c) => ({
+    id: c.id, label: c.label, description: c.description, icon: c.icon,
+    priority: c.priority, examples: c.examples,
+    recommendedMin: c.recommendedMin, recommendedMax: c.recommendedMax,
+    currentCount: counts[c.id] || 0,
+    status: getStatus(counts[c.id] || 0, c.recommendedMin, c.recommendedMax),
   }));
 
-  // Progress: weighted by priority
+  // Progress weighted by priority
   const weights = { high: 3, medium: 2, low: 1 };
-  let totalWeight = 0;
-  let achievedWeight = 0;
+  let tw = 0, aw = 0;
   for (const cat of categories) {
     const w = weights[cat.priority];
-    totalWeight += w;
-    const ratio = Math.min(cat.currentCount / Math.max(cat.recommendedCount, 1), 1);
-    achievedWeight += w * ratio;
+    tw += w;
+    aw += w * Math.min((cat.currentCount) / Math.max(cat.recommendedMin, 1), 1);
   }
-  const overallProgress = totalWeight > 0 ? achievedWeight / totalWeight : 0;
+  const overallProgress = tw > 0 ? aw / tw : 0;
 
-  // Ready: >= 5 docs from at least 3 different categories
-  const categoriesWithDocs = categories.filter((c) => c.currentCount > 0).length;
-  const totalDocs = docs.length;
-  const readyForBootstrapping = totalDocs >= 5 && categoriesWithDocs >= 3;
+  const totalCategories = categories.filter((c) => c.currentCount > 0).length;
+  const readyForBootstrapping = docs.length >= 5 && totalCategories >= 2;
 
-  return { categories, overallProgress, readyForBootstrapping };
+  return { categories, overallProgress, readyForBootstrapping, totalDocuments: docs.length, totalCategories };
 }

@@ -10,7 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   FileText, Repeat, Home, Shield, Car, AlertTriangle, Upload, Zap,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, Lightbulb,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { EntityHeader, InfoPanel } from "@/components/ds";
@@ -18,39 +18,38 @@ import { UploadZone } from "@/components/documents/upload-zone";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface GuidanceCategory {
+interface UploadCategory {
   id: string; label: string; description: string; icon: string;
   priority: "high" | "medium" | "low"; currentCount: number;
-  recommendedCount: number; examples: string[];
+  recommendedMin: number; recommendedMax: number; examples: string[];
+  status: "empty" | "insufficient" | "sufficient" | "good";
 }
 
 interface UploadGuidanceData {
-  categories: GuidanceCategory[];
+  categories: UploadCategory[];
   overallProgress: number;
   readyForBootstrapping: boolean;
+  totalDocuments: number;
+  totalCategories: number;
 }
 
 interface ClassifiedDoc {
   documentId: string; supplierName: string | null; amount: number | null;
-  classification: string; classificationReason: string;
+  date: string | null; classification: string; classificationReason: string;
   confidence: "high" | "medium" | "low"; suggestedActions: string[];
 }
 
 interface BootstrapResult {
   documents: ClassifiedDoc[];
   summary: {
-    total: number;
-    byClass: Record<string, number>;
-    uniqueSuppliers: number;
-    recurringCandidates: number;
-    missingTypes: string[];
+    total: number; byClass: Record<string, number>;
+    uniqueSuppliers: number; recurringCandidates: number; missingTypes: string[];
   };
   recommendations: string[];
+  newKnownUnknowns: Array<{ area: string; description: string; criticality: string; suggestedAction: string }>;
 }
 
-const ICON_MAP: Record<string, any> = {
-  FileText, Repeat, Home, Shield, Car, AlertTriangle,
-};
+const ICON_MAP: Record<string, any> = { FileText, Repeat, Home, Shield, Car, AlertTriangle };
 
 const CLASS_BADGE: Record<string, { label: string; className: string }> = {
   learning_base: { label: de.onboarding.step3.classifications.learning_base, className: "bg-blue-100 text-blue-800" },
@@ -61,17 +60,17 @@ const CLASS_BADGE: Record<string, { label: string; className: string }> = {
   uncertain: { label: de.onboarding.step3.classifications.uncertain, className: "bg-slate-100 text-slate-700" },
 };
 
-const PRIORITY_BORDER: Record<string, string> = {
-  high: "border-blue-300 bg-blue-50/50",
-  medium: "",
-  low: "border-slate-200 bg-slate-50/30",
+const STATUS_BORDER: Record<string, string> = {
+  good: "border-green-200 bg-green-50/50",
+  sufficient: "border-blue-200 bg-blue-50/30",
+  insufficient: "",
+  empty: "border-slate-200 bg-slate-50/30",
 };
 
 export default function OnboardingBootstrapPage() {
   const [guidance, setGuidance] = useState<UploadGuidanceData | null>(null);
   const [bootstrap, setBootstrap] = useState<BootstrapResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [classifying, setClassifying] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -83,12 +82,10 @@ export default function OnboardingBootstrapPage() {
   }, []);
 
   const fetchClassification = useCallback(async () => {
-    setClassifying(true);
     try {
       const res = await fetch("/api/onboarding/classify");
       if (res.ok) setBootstrap(await res.json());
     } catch { /* */ }
-    finally { setClassifying(false); }
   }, []);
 
   useEffect(() => {
@@ -135,7 +132,9 @@ export default function OnboardingBootstrapPage() {
         badge={guidance ? (
           guidance.readyForBootstrapping
             ? <Badge className="bg-green-100 text-green-800">{de.onboarding.step3.readyForBootstrap}</Badge>
-            : <Badge className="bg-amber-100 text-amber-800">{pct(guidance.overallProgress)}</Badge>
+            : <Badge className="bg-amber-100 text-amber-800">
+                {guidance.totalDocuments} Belege &middot; {pct(guidance.overallProgress)}
+              </Badge>
         ) : undefined}
         primaryAction={{
           label: showUpload ? "Schliessen" : de.documents.upload,
@@ -155,22 +154,28 @@ export default function OnboardingBootstrapPage() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {guidance.categories.map((cat) => {
               const IconComp = ICON_MAP[cat.icon] || FileText;
-              const filled = Math.min(cat.currentCount / Math.max(cat.recommendedCount, 1), 1);
+              const filled = Math.min(cat.currentCount / Math.max(cat.recommendedMin, 1), 1);
               return (
-                <Card key={cat.id} className={cn("transition-shadow hover:shadow-sm", PRIORITY_BORDER[cat.priority])}>
+                <Card key={cat.id} className={cn(
+                  "transition-shadow hover:shadow-sm cursor-pointer",
+                  cat.priority === "high" && cat.status !== "good" && "border-blue-200",
+                  STATUS_BORDER[cat.status]
+                )} onClick={() => setShowUpload(true)}>
                   <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <IconComp className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium">{cat.label}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">{cat.examples.join(", ")}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-muted">
-                            <div className={cn("h-1.5 rounded-full transition-all", filled >= 1 ? "bg-green-500" : filled > 0 ? "bg-blue-500" : "bg-slate-300")} style={{ width: pct(filled) }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{cat.currentCount} / {cat.recommendedCount}</span>
-                        </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <IconComp className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{cat.label}</span>
                       </div>
+                      <Badge variant={cat.status === "good" ? "default" : "secondary"} className="text-xs">
+                        {cat.currentCount}/{cat.recommendedMin}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{cat.examples.join(", ")}</p>
+                    <div className="mt-2 h-1.5 bg-muted rounded-full">
+                      <div className={cn("h-1.5 rounded-full transition-all",
+                        cat.status === "good" ? "bg-green-500" : filled > 0 ? "bg-blue-500" : "bg-slate-300"
+                      )} style={{ width: pct(filled) }} />
                     </div>
                   </CardContent>
                 </Card>
@@ -180,29 +185,31 @@ export default function OnboardingBootstrapPage() {
         </>
       )}
 
-      {/* Recommendations */}
+      {/* Recommendations + missing types */}
       {bootstrap && bootstrap.recommendations.length > 0 && (
-        <InfoPanel tone="info" icon={AlertTriangle}>
-          {bootstrap.recommendations.map((r, i) => <p key={i} className="text-sm">{r}</p>)}
+        <InfoPanel tone="info" icon={Lightbulb}>
+          <strong>{de.onboarding.step3.missingTypesHint}</strong>
+          {bootstrap.recommendations.map((r, i) => <p key={i} className="text-sm mt-1">{r}</p>)}
         </InfoPanel>
       )}
 
-      {/* Classified documents */}
+      {/* Classified documents table */}
       {bootstrap && bootstrap.documents.length > 0 && (
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">{de.onboarding.step3.classifiedAs} ({bootstrap.summary.total})</h3>
-              <div className="flex gap-2 text-xs text-muted-foreground">
+              <div className="flex gap-3 text-xs text-muted-foreground">
                 <span>{bootstrap.summary.uniqueSuppliers} Lieferanten</span>
                 <span>{bootstrap.summary.recurringCandidates} wiederkehrend</span>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto">
+            <div className="max-h-96 overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Lieferant</TableHead>
+                    <TableHead>Datum</TableHead>
                     <TableHead className="text-right">Betrag</TableHead>
                     <TableHead>Klassifikation</TableHead>
                     <TableHead>Konfidenz</TableHead>
@@ -214,6 +221,7 @@ export default function OnboardingBootstrapPage() {
                     return (
                       <TableRow key={doc.documentId}>
                         <TableCell className="text-sm">{doc.supplierName || "\u2014"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{doc.date || "\u2014"}</TableCell>
                         <TableCell className="text-sm text-right font-mono">{doc.amount != null ? doc.amount.toFixed(2) : "\u2014"}</TableCell>
                         <TableCell><Badge variant="secondary" className={cn("text-xs", cls.className)}>{cls.label}</Badge></TableCell>
                         <TableCell>
@@ -228,30 +236,34 @@ export default function OnboardingBootstrapPage() {
                 </TableBody>
               </Table>
             </div>
+            {bootstrap.documents.length > 50 && (
+              <p className="text-xs text-muted-foreground mt-2">+ {bootstrap.documents.length - 50} weitere...</p>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Missing types */}
-      {bootstrap && bootstrap.summary.missingTypes.length > 0 && (
-        <InfoPanel tone="warning" icon={XCircle}>
-          {de.onboarding.step3.missingTypes.replace("{types}", bootstrap.summary.missingTypes.join(", "))}
-        </InfoPanel>
-      )}
-
-      {/* Bootstrap action */}
+      {/* Bootstrap readiness */}
       {guidance && guidance.readyForBootstrapping && (
-        <div className="flex justify-end">
-          <Button onClick={handleStartAnalysis} size="lg">
-            <Zap className="h-4 w-4 mr-2" />
-            {analyzing ? de.onboardingAnalysis.analyzing : de.onboarding.step3.startBootstrap}
-          </Button>
-        </div>
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-800">{de.onboarding.step3.readyForBootstrap}</span>
+            </div>
+            <Button onClick={handleStartAnalysis} size="lg">
+              <Zap className="h-4 w-4 mr-2" />
+              {analyzing ? de.onboarding.step3.bootstrapRunning : de.onboarding.step3.startBootstrap}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {guidance && !guidance.readyForBootstrapping && bootstrap && bootstrap.summary.total > 0 && (
-        <InfoPanel tone="info" icon={Upload}>
-          {de.onboarding.step3.notReady.replace("{count}", String(Math.max(5 - bootstrap.summary.total, 0))).replace("{categories}", "3")}
+      {guidance && !guidance.readyForBootstrapping && guidance.totalDocuments > 0 && (
+        <InfoPanel tone="warning" icon={Upload}>
+          {de.onboarding.step3.notReady
+            .replace("{count}", String(Math.max(5 - guidance.totalDocuments, 0)))
+            .replace("{categories}", "2")}
         </InfoPanel>
       )}
     </div>
