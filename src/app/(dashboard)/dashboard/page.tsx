@@ -223,7 +223,7 @@ export default function DashboardPage() {
           <CardContent className="pt-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              Einrichtung ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+              {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
             </h3>
             <div className="mt-2 space-y-1.5">
               {setupStatus.items.filter(i => i.status !== "complete").map(item => (
