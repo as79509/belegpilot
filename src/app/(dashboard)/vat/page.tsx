@@ -91,10 +91,11 @@ export default function VatPage() {
     const res = await fetch("/api/vat");
     if (res.ok) {
       const data = await res.json();
-      setVatReturns(data);
+      const returns = data.returns || data;
+      setVatReturns(returns);
       // If something is selected, refresh it
       if (selected) {
-        const updated = data.find((v: VatReturn) => v.id === selected.id);
+        const updated = returns.find((v: VatReturn) => v.id === selected.id);
         if (updated) setSelected(updated);
       }
     }
@@ -390,11 +391,11 @@ export default function VatPage() {
                         <Download className="h-4 w-4 mr-1.5" />{de.vatReturn.downloadPdf}
                       </Button>
                     </a>
-                    <a href={`/api/vat/${selected.id}/xml`} download>
-                      <Button variant="outline">
+                    <span title="eCH-0217 in Vorbereitung">
+                      <Button variant="outline" disabled>
                         <FileCode className="h-4 w-4 mr-1.5" />{de.vatReturn.exportXml}
                       </Button>
-                    </a>
+                    </span>
                   </>
                 )}
               </div>

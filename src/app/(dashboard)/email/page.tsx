@@ -51,7 +51,10 @@ export default function EmailImportPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch("/api/email/inboxes");
-    if (res.ok) setInboxes(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setInboxes(data.inboxes || []);
+    }
     setLoading(false);
   }, []);
 

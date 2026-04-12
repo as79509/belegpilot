@@ -145,9 +145,9 @@ export default function Phase8GatePage() {
           {allPassed && <span className="text-sm text-green-700 font-medium">Bereit!</span>}
         </div>
         {allPassed && (
-          <Button className="bg-green-600 hover:bg-green-700">
-            <Rocket className="h-4 w-4 mr-2" />Phase 8 starten
-          </Button>
+          <Badge className="bg-green-600 text-white">
+            <Rocket className="h-4 w-4 mr-1" />Phase 8+ aktiv
+          </Badge>
         )}
       </div>
     </div>
