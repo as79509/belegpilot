@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
   Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight,
+  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight, Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
@@ -27,6 +27,7 @@ const trusteeGroup: NavGroup = {
     { href: "/trustee/queue", label: de.trustee.queue, icon: ClipboardCheck },
     { href: "/trustee/clients", label: de.clients.title, icon: Building2 },
     { href: "/trustee/onboarding/analysis", label: de.onboardingAnalysis.title, icon: Brain },
+    { href: "/onboarding/wizard", label: de.onboardingWizard.title, icon: Wand2 },
   ],
 };
 

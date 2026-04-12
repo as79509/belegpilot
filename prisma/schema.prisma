@@ -157,6 +157,8 @@ model Company {
   vatCodeMappings       VatCodeMapping[]
   bananaRoundTrips      BananaRoundTripEntry[]
   supplierAutopilotOverrides SupplierAutopilotOverride[]
+  onboardingSession  OnboardingSession?
+  businessProfile    BusinessProfile?
 
   @@map("companies")
 }
@@ -185,6 +187,7 @@ model User {
   vatReturnsValidated        VatReturn[] @relation("VatReturnValidator")
   vatReturnsApproved         VatReturn[] @relation("VatReturnApprover")
   notifications              Notification[]
+  onboardingSessions         OnboardingSession[] @relation("OnboardingStartedBy")
 
   @@map("users")
 }
@@ -1253,4 +1256,77 @@ model SupplierAutopilotOverride {
 
   @@unique([companyId, supplierId])
   @@map("supplier_autopilot_overrides")
+}
+
+model OnboardingSession {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @unique @map("company_id") @db.Uuid
+  startedBy         String    @map("started_by") @db.Uuid
+
+  // Wizard-State
+  currentStep       Int       @default(1) @map("current_step")
+  completedSteps    Json      @default("[]") @map("completed_steps")
+  stepData          Json      @default("{}") @map("step_data")
+
+  // Status
+  status            String    @default("in_progress")
+  readinessScore    Float?    @map("readiness_score")
+  moduleReadiness   Json?     @map("module_readiness")
+
+  // Unsicherheiten
+  uncertainties     Json      @default("[]")
+  openQuestions     Json      @default("[]") @map("open_questions")
+
+  // Go-Live
+  goLiveAt          DateTime? @map("go_live_at")
+  goLivePhase       String?   @map("go_live_phase")
+  goLiveConfig      Json?     @map("go_live_config")
+
+  // Meta
+  lastActiveAt      DateTime  @default(now()) @map("last_active_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  company           Company   @relation(fields: [companyId], references: [id])
+  startedByUser     User      @relation("OnboardingStartedBy", fields: [startedBy], references: [id])
+  businessProfile   BusinessProfile?
+
+  @@map("onboarding_sessions")
+}
+
+model BusinessProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @unique @map("company_id") @db.Uuid
+  sessionId         String    @unique @map("session_id") @db.Uuid
+
+  // Geschaeftsverstaendnis
+  revenueModel      String?   @map("revenue_model") @db.Text
+  typicalCosts      Json?     @map("typical_costs")
+  criticalSuppliers Json?     @map("critical_suppliers")
+  specialCases      Json?     @map("special_cases")
+  platforms         Json?
+  criticalDeadlines Json?     @map("critical_deadlines")
+  riskFactors       Json?     @map("risk_factors")
+
+  // AI-extrahierte Insights
+  insights          Json      @default("[]")
+
+  // Empfehlungen
+  suggestedRules    Json      @default("[]") @map("suggested_rules")
+  suggestedKnowledge Json     @default("[]") @map("suggested_knowledge")
+  suggestedExpectedDocs Json  @default("[]") @map("suggested_expected_docs")
+  suggestedSupplierDefaults Json @default("[]") @map("suggested_supplier_defaults")
+
+  // Bestaetigungsstatus
+  confirmedItems    Json      @default("[]") @map("confirmed_items")
+  rejectedItems     Json      @default("[]") @map("rejected_items")
+  deferredItems     Json      @default("[]") @map("deferred_items")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  company           Company   @relation(fields: [companyId], references: [id])
+  session           OnboardingSession @relation(fields: [sessionId], references: [id])
+
+  @@map("business_profiles")
 }
