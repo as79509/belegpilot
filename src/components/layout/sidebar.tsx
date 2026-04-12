@@ -85,6 +85,7 @@ const clientGroup: NavGroup = {
   items: [
     { href: "/client", label: de.clientPortal.title, icon: Home },
     { href: "/documents", label: de.nav.documents, icon: FileText },
+    { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
   ],
 };
 

@@ -61,7 +61,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
   const router = useRouter();
   const { activeCompany } = useCompany();
   const role = activeCompany?.role || "";
-  const canMutate = role === "admin" || role === "reviewer";
+  const canMutate = role === "admin" || role === "trustee" || role === "reviewer";
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);

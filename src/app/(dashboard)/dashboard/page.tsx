@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
+  FileText, ListTodo, Upload,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -164,13 +165,8 @@ export default function DashboardPage() {
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
 
-  // Redirect viewer/readonly users to client portal
   const role = activeCompany?.role || "";
-  useEffect(() => {
-    if (role === "viewer" || role === "readonly") {
-      router.replace("/client");
-    }
-  }, [role, router]);
+  const isViewer = role === "viewer" || role === "readonly";
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
@@ -208,6 +204,74 @@ export default function DashboardPage() {
   );
 
   const today = new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  // Viewer: simplified dashboard
+  if (isViewer) {
+    const uploaded = data.todayStats?.uploaded ?? 0;
+    const reviewed = data.todayStats?.reviewed ?? 0;
+    const tasksDue = data.todayStats?.tasksDue ?? 0;
+    return (
+      <div className="space-y-5">
+        <EntityHeader title={getGreeting()} subtitle={today} />
+
+        {/* Setup-Widget */}
+        {setupStatus && setupStatus.criticalMissing.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="pt-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+              </h3>
+              <div className="mt-2 space-y-1.5">
+                {setupStatus.items.filter(i => i.status !== "complete").map(item => (
+                  <div key={item.id} className="flex items-center gap-2 text-sm">
+                    <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Beleg-Übersicht */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Upload className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold">{uploaded}</p>
+                <p className="text-sm text-muted-foreground">Hochgeladen</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+              <div>
+                <p className="text-2xl font-bold">{reviewed}</p>
+                <p className="text-sm text-muted-foreground">Gepr\u00fcft</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <ListTodo className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className="text-2xl font-bold">{tasksDue}</p>
+                <p className="text-sm text-muted-foreground">Offene Aufgaben</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Offene Aufgaben */}
+        {data.openTasks && data.openTasks.length > 0 && (
+          <OpenTasksPanel tasks={data.openTasks} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
