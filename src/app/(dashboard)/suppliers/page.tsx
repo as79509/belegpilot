@@ -43,7 +43,7 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "20", sortBy: "isVerified", sortOrder: "asc" });
     if (search) params.set("search", search);
     try {
       const res = await fetch(`/api/suppliers?${params}`);

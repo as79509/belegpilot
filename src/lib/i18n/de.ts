@@ -23,11 +23,11 @@ export const de = {
 
   // Document statuses
   status: {
-    uploaded: "Hochgeladen",
-    processing: "Wird verarbeitet",
-    extracted: "Extrahiert",
-    validated: "Validiert",
-    needs_review: "Prüfung nötig",
+    uploaded: "Empfangen",
+    processing: "In Verarbeitung",
+    extracted: "In Verarbeitung",
+    validated: "In Verarbeitung",
+    needs_review: "Zur Pr\u00fcfung",
     ready: "Bereit",
     exported: "Exportiert",
     export_failed: "Export fehlgeschlagen",

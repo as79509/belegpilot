@@ -114,7 +114,7 @@ export default function BananaPage() {
   const [vatCodes, setVatCodes] = useState<VatCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoMapping, setAutoMapping] = useState(false);
-  const [activeTab, setActiveTab] = useState<"accounts" | "vat" | "export" | "roundtrip">("accounts");
+  const [activeTab, setActiveTab] = useState<"accounts" | "vat" | "export" | "roundtrip">("export");
   const [accountFilter, setAccountFilter] = useState<"" | "unmapped" | "uncertain" | "mapped">("");
 
   // Inline edit state

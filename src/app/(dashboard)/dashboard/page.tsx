@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
-  FileText, ListTodo, Upload,
+  FileText, ListTodo, Upload, ChevronDown,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -163,6 +163,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
+  const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
 
   const role = activeCompany?.role || "";
@@ -320,12 +321,6 @@ export default function DashboardPage() {
         <QualityScorePanel score={data.qualityScore} />
       )}
 
-      {/* Bereich 3a': Review Speed Meter */}
-      {data.reviewSpeed && <ReviewSpeedMeter speed={data.reviewSpeed} />}
-
-      {/* Bereich 3a: Autopilot Health Indikator */}
-      {autopilotHealth && <AutopilotHealthIndicator health={autopilotHealth} />}
-
       {/* Bereich 3b: Empfohlene Aktionen */}
       <NextActionsPanel actions={data.nextActions || []} onNavigate={(url) => router.push(url)} />
 
@@ -340,16 +335,32 @@ export default function DashboardPage() {
         <OpenTasksPanel tasks={data.openTasks} />
       </div>
 
-      {/* Persönliches Cockpit */}
-      {data.personalToday && <PersonalTodayCard today={data.personalToday} />}
-
-      {/* Wartet auf Mandant */}
-      {data.waitingOnClient && data.waitingOnClient.length > 0 && (
-        <WaitingOnClientPanel tasks={data.waitingOnClient} />
-      )}
-
       {/* Bereich 5: Perioden-Status */}
       <PeriodsPanel periods={data.periods} />
+
+      {/* System-Details (eingeklappt) */}
+      {(data.reviewSpeed || autopilotHealth || data.personalToday || (data.waitingOnClient && data.waitingOnClient.length > 0)) && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowSystemDetails(!showSystemDetails)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${showSystemDetails ? "" : "-rotate-90"}`} />
+            System-Details
+          </button>
+          {showSystemDetails && (
+            <div className="mt-3 space-y-4">
+              {data.reviewSpeed && <ReviewSpeedMeter speed={data.reviewSpeed} />}
+              {autopilotHealth && <AutopilotHealthIndicator health={autopilotHealth} />}
+              {data.personalToday && <PersonalTodayCard today={data.personalToday} />}
+              {data.waitingOnClient && data.waitingOnClient.length > 0 && (
+                <WaitingOnClientPanel tasks={data.waitingOnClient} />
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
