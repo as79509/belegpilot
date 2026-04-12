@@ -82,4 +82,72 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("bootstrapRunning");
     expect(content).toContain("missingTypesHint");
   });
+
+  // Phase 11.4: Business Chat
+  it("Business-Chat Service existiert mit priorisierten Fragen", () => {
+    const content = fs.readFileSync("src/lib/services/onboarding/business-chat.ts", "utf-8");
+    expect(content).toContain("generatePrioritizedQuestions");
+    expect(content).toContain("extractInsightsFromAnswer");
+    expect(content).toContain("ChatQuestion");
+    expect(content).toContain("ChatInsight");
+    expect(content).toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("Chat API Routes existieren", () => {
+    expect(fs.existsSync("src/app/api/onboarding/chat/route.ts")).toBe(true);
+    const content = fs.readFileSync("src/app/api/onboarding/chat/route.ts", "utf-8");
+    expect(content).toContain("extractInsightsFromAnswer");
+    expect(content).toContain("generatePrioritizedQuestions");
+  });
+
+  it("Wizard Step 4 hat Chat-UI statt Placeholder", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(content).toContain("handleSubmitAnswer");
+    expect(content).toContain("chatQuestions");
+    expect(content).toContain("fetchChatQuestions");
+  });
+
+  it("i18n hat Step 4 Chat-Keys", () => {
+    const content = fs.readFileSync("src/lib/i18n/de.ts", "utf-8");
+    expect(content).toContain("step4");
+    expect(content).toContain("submitAnswer");
+    expect(content).toContain("noMoreQuestions");
+  });
+
+  // Phase 11.5: Bootstrapping Engine
+  it("Bootstrapping Engine existiert mit GovernanceStatus", () => {
+    const content = fs.readFileSync("src/lib/services/onboarding/bootstrapping-engine.ts", "utf-8");
+    expect(content).toContain("runBootstrapping");
+    expect(content).toContain("GovernanceStatus");
+    expect(content).toContain("BootstrappedItem");
+    expect(content).toContain("newKnownUnknowns");
+  });
+
+  it("Bootstrap Apply Service existiert", () => {
+    const content = fs.readFileSync("src/lib/services/onboarding/bootstrap-apply.ts", "utf-8");
+    expect(content).toContain("applyBootstrappedItems");
+    expect(content).toContain("rule.create");
+    expect(content).toContain("knowledgeItem.create");
+    expect(content).toContain("expectedDocument.create");
+  });
+
+  it("Bootstrap API Route existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/bootstrap/route.ts")).toBe(true);
+    const content = fs.readFileSync("src/app/api/onboarding/bootstrap/route.ts", "utf-8");
+    expect(content).toContain("runBootstrapping");
+  });
+
+  it("Bootstrap Apply API Route existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/bootstrap/apply/route.ts")).toBe(true);
+    const content = fs.readFileSync("src/app/api/onboarding/bootstrap/apply/route.ts", "utf-8");
+    expect(content).toContain("applyBootstrappedItems");
+  });
+
+  it("Wizard Step 5 hat Intelligence Review statt Placeholder", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(content).toContain("Step5Intelligence");
+    expect(content).toContain("handleRunBootstrap");
+    expect(content).toContain("handleApply");
+    expect(content).toContain("GOV_BADGE");
+  });
 });

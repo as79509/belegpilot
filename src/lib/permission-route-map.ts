@@ -105,6 +105,9 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   "onboarding/analyze": { POST: "onboarding:execute" },
   "onboarding/apply": { POST: "onboarding:execute" },
   "onboarding/wizard": { POST: "onboarding:execute" },
+  "onboarding/chat": { POST: "onboarding:execute" },
+  "onboarding/bootstrap": { POST: "onboarding:execute" },
+  "onboarding/bootstrap/apply": { POST: "onboarding:execute" },
 
   // Treuhaender
   "trustee/clients": { POST: "company:write" },
