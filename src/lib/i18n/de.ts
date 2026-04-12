@@ -2236,6 +2236,23 @@ export const de = {
     avgAutopilot: "Durchschn. Autopilot-Eignung",
     clientsNeedingAttention: "Mandanten mit Handlungsbedarf",
   },
+  setup: {
+    title: "Einrichtung",
+    complete: "Abgeschlossen",
+    incomplete: "Noch einzurichten",
+    completionRate: "Einrichtungsfortschritt",
+    criticalMissing: "F\u00fcr den Kernbetrieb n\u00f6tig",
+    items: {
+      email_webhook: "E-Mail-Empfang",
+      banana_mapping: "Banana Kontenplan-Mapping",
+      banana_vat_mapping: "Banana MwSt-Code-Mapping",
+      bank_accounts: "Bankkonten",
+      chart_of_accounts: "Kontenplan",
+      bexio_connection: "Bexio-Verbindung",
+      first_documents: "Erste Belege",
+    },
+    finishSetup: "Einrichtung abschliessen",
+  },
 } as const;
 
 export type TranslationKey = typeof de;

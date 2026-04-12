@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EntityHeader, StatusBadge, EmptyState, ConfidenceBadge } from "@/components/ds";
+import { EntityHeader, StatusBadge, EmptyState, ConfidenceBadge, InfoPanel } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { Upload, Plus, Landmark, Search, FileText, ArrowRight } from "lucide-react";
@@ -522,7 +522,14 @@ export default function BankReconciliationPage() {
                 ) : accounts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="p-0">
-                      <EmptyState icon={Landmark} title={de.bank.noAccounts} description="" />
+                      <div className="py-6 px-4">
+                        <InfoPanel tone="info" icon={Landmark}>
+                          <strong>{de.bank.title}</strong>
+                          <p className="text-sm mt-1">
+                            Erstelle ein Bankkonto und importiere dann camt.053-Ausz\u00fcge deiner Bank.
+                          </p>
+                        </InfoPanel>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

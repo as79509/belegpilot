@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EntityHeader, EmptyState } from "@/components/ds";
+import { EntityHeader, EmptyState, InfoPanel } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { Mail, Plus, Copy, Check } from "lucide-react";
@@ -192,7 +192,15 @@ export default function EmailImportPage() {
             ) : inboxes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="p-0">
-                  <EmptyState icon={Mail} title={de.emailImport.noInboxes} description="" />
+                  <div className="py-6 px-4">
+                    <InfoPanel tone="info" icon={Mail}>
+                      <strong>{de.emailImport.title}</strong>
+                      <p className="text-sm mt-1">
+                        Erstelle eine Inbox und konfiguriere deinen E-Mail-Dienst (z.B. Mailgun, SendGrid)
+                        mit der angezeigten Webhook-URL. Belege werden dann automatisch importiert.
+                      </p>
+                    </InfoPanel>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

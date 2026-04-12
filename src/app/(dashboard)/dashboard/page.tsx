@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles,
+  AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -162,6 +162,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
+  const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
 
   // Redirect viewer/readonly users to client portal
   const role = activeCompany?.role || "";
@@ -191,6 +192,11 @@ export default function DashboardPage() {
         });
       })
       .catch((e) => console.error("[Dashboard][Telemetry]", e));
+
+    fetch("/api/setup/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => { if (s) setSetupStatus(s); })
+      .catch(() => {});
   }, []);
 
   if (loading || !data) return (
@@ -210,6 +216,27 @@ export default function DashboardPage() {
 
       {/* Bereich 1: Kritische Alerts-Leiste */}
       <AlertsBar alerts={data.alerts} />
+
+      {/* Setup-Widget (nur wenn kritische Items fehlen) */}
+      {setupStatus && setupStatus.criticalMissing.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-4">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Einrichtung ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+            </h3>
+            <div className="mt-2 space-y-1.5">
+              {setupStatus.items.filter(i => i.status !== "complete").map(item => (
+                <div key={item.id} className="flex items-center gap-2 text-sm">
+                  <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-muted-foreground">{"\u2014"} {item.helpText.split(".")[0]}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bereich 2: Mandanten-Risiko-Board (nur Multi-Company) */}
       {data.clientRiskBoard && data.clientRiskBoard.length > 1 && (
