@@ -193,7 +193,7 @@ export default function VatPage() {
   const payable = totalTax - totalInputVat;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <EntityHeader
         title={de.vatReturn.title}
         badge={selected ? <StatusBadge type="vatReturn" value={selected.status} /> : undefined}
@@ -207,7 +207,7 @@ export default function VatPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: List */}
         <div className="lg:col-span-1">
-          <div className="border rounded-md bg-white">
+          <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -281,8 +281,8 @@ export default function VatPage() {
               )}
 
               {/* Section 1: Umsatz */}
-              <div className="border rounded-md bg-white">
-                <div className="px-4 py-2 border-b bg-slate-50 font-semibold text-sm">{de.vatReturn.section.revenue}</div>
+              <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 font-medium text-sm text-slate-700">{de.vatReturn.section.revenue}</div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -309,8 +309,8 @@ export default function VatPage() {
               </div>
 
               {/* Section 2: Steuerberechnung */}
-              <div className="border rounded-md bg-white">
-                <div className="px-4 py-2 border-b bg-slate-50 font-semibold text-sm">{de.vatReturn.section.tax}</div>
+              <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 font-medium text-sm text-slate-700">{de.vatReturn.section.tax}</div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -336,8 +336,8 @@ export default function VatPage() {
               </div>
 
               {/* Section 3: Vorsteuer */}
-              <div className="border rounded-md bg-white">
-                <div className="px-4 py-2 border-b bg-slate-50 font-semibold text-sm">{de.vatReturn.section.inputVat}</div>
+              <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 font-medium text-sm text-slate-700">{de.vatReturn.section.inputVat}</div>
                 <Table>
                   <TableHeader>
                     <TableRow>

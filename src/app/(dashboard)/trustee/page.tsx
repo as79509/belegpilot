@@ -167,16 +167,16 @@ export default function TrusteePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{de.trustee.overview}</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{de.trustee.overview}</h1>
         <Badge variant="secondary">{companies.length} {de.trustee.allCompanies}</Badge>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        <button type="button" className={cn("px-4 py-2 text-sm font-medium border-b-2 transition-colors", activeTab === "overview" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")} onClick={() => handleTabChange("overview")}>
+      <div className="flex gap-1 border-b border-slate-200">
+        <button type="button" className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", activeTab === "overview" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-700")} onClick={() => handleTabChange("overview")}>
           {de.trustee.overview}
         </button>
-        <button type="button" className={cn("px-4 py-2 text-sm font-medium border-b-2 transition-colors", activeTab === "analytics" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")} onClick={() => handleTabChange("analytics")}>
+        <button type="button" className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", activeTab === "analytics" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-700")} onClick={() => handleTabChange("analytics")}>
           <BarChart3 className="h-3.5 w-3.5 inline mr-1.5" />
           {de.analytics.title}
         </button>
@@ -186,7 +186,7 @@ export default function TrusteePage() {
       {activeTab === "overview" && (
         <>
           {/* Summary bar */}
-          <div className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] text-sm">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200/80 text-sm">
             {criticalCount > 0 && (
               <Badge variant="destructive" className="text-xs">{criticalCount} {de.cockpit.criticalClients}</Badge>
             )}

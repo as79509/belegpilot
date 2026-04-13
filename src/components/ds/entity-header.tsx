@@ -27,14 +27,14 @@ export function EntityHeader({
   secondaryActions,
 }: EntityHeaderProps) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{title}</h1>
           {badge}
         </div>
         {subtitle && (
-          <div className="text-sm text-[var(--text-secondary)] mt-1">{subtitle}</div>
+          <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
         )}
       </div>
       {(primaryAction || secondaryActions?.length) && (
@@ -47,6 +47,7 @@ export function EntityHeader({
                 variant={action.variant || "outline"}
                 size="sm"
                 onClick={action.onClick}
+                className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
               >
                 {Icon && <Icon className="h-4 w-4 mr-1.5" />}
                 {action.label}
@@ -58,6 +59,7 @@ export function EntityHeader({
               variant={primaryAction.variant || "default"}
               size="sm"
               onClick={primaryAction.onClick}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
             >
               {primaryAction.icon && <primaryAction.icon className="h-4 w-4 mr-1.5" />}
               {primaryAction.label}

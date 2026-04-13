@@ -283,7 +283,7 @@ export default function BankReconciliationPage() {
   // ── Render ──
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <EntityHeader
         title={de.bank.title}
         badge={
@@ -323,7 +323,7 @@ export default function BankReconciliationPage() {
 
         {/* ── Tab: Ungeklärt ── */}
         <TabsContent value="unmatched">
-          <div className="border rounded-md bg-white">
+          <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -384,7 +384,7 @@ export default function BankReconciliationPage() {
 
         {/* ── Tab: Zugeordnet ── */}
         <TabsContent value="matched">
-          <div className="border rounded-md bg-white">
+          <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -442,7 +442,7 @@ export default function BankReconciliationPage() {
 
         {/* ── Tab: Kontoauszüge ── */}
         <TabsContent value="statements">
-          <div className="border rounded-md bg-white">
+          <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -498,7 +498,7 @@ export default function BankReconciliationPage() {
 
         {/* ── Tab: Bankkonten ── */}
         <TabsContent value="accounts">
-          <div className="border rounded-md bg-white">
+          <div className="border border-slate-200/80 rounded-xl bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>

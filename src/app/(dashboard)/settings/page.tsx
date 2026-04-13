@@ -71,7 +71,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{de.settings.title}</h1>
+      <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{de.settings.title}</h1>
 
       <Tabs defaultValue="company">
         <TabsList>
@@ -107,7 +107,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <Label className="text-xs">{de.settings.defaultCurrency}</Label>
-                    <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={form.currency} onChange={(e) => setForm(f => ({ ...f, currency: e.target.value }))}>
+                    <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:border-slate-300 focus:ring-1 focus:ring-slate-200 focus:outline-none" value={form.currency} onChange={(e) => setForm(f => ({ ...f, currency: e.target.value }))}>
                       <option value="CHF">CHF</option>
                       <option value="EUR">EUR</option>
                       <option value="USD">USD</option>

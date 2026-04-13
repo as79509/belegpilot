@@ -27,15 +27,24 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center py-12 px-4 ${className || ""}`}
+      className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className || ""}`}
     >
-      {Icon && <Icon className="h-10 w-10 text-[var(--text-muted)] opacity-50 mb-3" />}
-      <p className="text-sm font-medium">{title}</p>
+      {Icon && (
+        <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
+          <Icon className="h-7 w-7 text-slate-400" />
+        </div>
+      )}
+      <h3 className="text-base font-medium text-slate-900 mb-1">{title}</h3>
       {description && (
-        <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm">{description}</p>
+        <p className="text-sm text-slate-500 mt-1 max-w-sm">{description}</p>
       )}
       {action && (
-        <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mt-5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300" 
+          onClick={action.onClick}
+        >
           {action.icon && <action.icon className="h-4 w-4 mr-1.5" />}
           {action.label}
         </Button>
