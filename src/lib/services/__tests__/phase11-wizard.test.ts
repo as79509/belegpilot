@@ -332,4 +332,24 @@ describe("Phase 11 Wizard Architecture", () => {
     const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
     expect(c).toContain("DashboardSkeleton");
   });
+
+  // Phase 11X.5: Review-Effizienz
+  it("Review-Shortcuts Hook existiert", () => {
+    const c = fs.readFileSync("src/lib/hooks/use-review-shortcuts.ts", "utf-8");
+    expect(c).toContain("useReviewShortcuts");
+    expect(c).toContain("onApprove");
+    expect(c).toContain("onNext");
+    expect(c).toContain("ArrowRight");
+  });
+
+  it("Document-Detail hat Review-Queue Navigation", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/documents/[id]/page.tsx", "utf-8");
+    expect(c).toContain("reviewQueue");
+    expect(c).toContain("useReviewShortcuts");
+  });
+
+  it("Dashboard hat Heute-erledigen Widget", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
+    expect(c).toContain("Heute erledigen");
+  });
 });

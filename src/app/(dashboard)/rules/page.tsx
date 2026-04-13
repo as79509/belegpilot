@@ -16,7 +16,7 @@ import { Lightbulb, Workflow, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Za
 import { de } from "@/lib/i18n/de";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { toast } from "sonner";
-import { InfoPanel } from "@/components/ds/info-panel";
+import { InfoPanel, EmptyState } from "@/components/ds";
 
 interface Rule {
   id: string; name: string; ruleType: string;
@@ -391,12 +391,7 @@ export default function RulesPage() {
         </div>
 
         {rules.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Workflow className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">{de.rules.noRules}</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={Workflow} title={de.emptyStates.rules.title} description={de.emptyStates.rules.description} action={{ label: de.emptyStates.rules.action!, onClick: () => setShowCreate(true) }} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {rules.filter((r) => globalFilter === "all" ? true : globalFilter === "global" ? (r as any).isGlobal : !(r as any).isGlobal).map((rule) => (

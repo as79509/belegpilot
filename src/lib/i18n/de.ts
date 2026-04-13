@@ -170,7 +170,7 @@ export const de = {
         uncertain: "Unsicher",
       },
       missingTypes: "Es fehlen noch: {types}",
-      missingTypesHint: "Diese Dokumenttypen verbessern die Analyse erheblich.",
+      missingTypesHint: "Diese Belegtypen verbessern die Analyse erheblich.",
     },
   },
 
@@ -339,10 +339,10 @@ export const de = {
 
   // Expected documents
   expectedDocs: {
-    title: "Erwartete Unterlagen",
+    title: "Erwartete Belege",
     checkTitle: "Monatliche Vollständigkeit",
     check: "Prüfen",
-    newExpected: "Neue erwartete Unterlage",
+    newExpected: "Neuer erwarteter Beleg",
     importFromContracts: "Aus Verträgen importieren",
     imported: "importiert",
     name: "Bezeichnung",
@@ -355,7 +355,7 @@ export const de = {
     summary: "Zusammenfassung",
     receivedCount: "erhalten",
     missingCount: "fehlend",
-    noExpected: "Keine erwarteten Unterlagen definiert",
+    noExpected: "Keine erwarteten Belege definiert",
     askClient: "Mandant anfragen",
     linkedContract: "Verknüpfter Vertrag",
   },
@@ -472,8 +472,8 @@ export const de = {
     uploadZoneFormats: "PDF, JPG, PNG — max. 20 MB",
     uploading: "Wird hochgeladen...",
     uploadSuccess: "Beleg erfolgreich hochgeladen",
-    uploadError: "Fehler beim Hochladen",
-    duplicateWarning: "Dieses Dokument wurde bereits hochgeladen",
+    uploadError: "Beleg konnte nicht hochgeladen werden. Bitte prüfen Sie das Dateiformat und versuchen Sie es erneut.",
+    duplicateWarning: "Dieser Beleg wurde bereits hochgeladen",
     duplicateLink: "Zum bestehenden Beleg",
     noDocuments: "Noch keine Belege vorhanden.",
     supplier: "Lieferant",
@@ -859,7 +859,7 @@ export const de = {
   inlineEdit: {
     saving: "Speichern…",
     saved: "Gespeichert",
-    error: "Fehler beim Speichern",
+    error: "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
     cancel: "Abbrechen",
     placeholder: "—",
     edit: "Bearbeiten",
@@ -1017,24 +1017,24 @@ export const de = {
     password: "Passwort",
     signInTitle: "BelegPilot",
     signInDescription: "Melden Sie sich an",
-    invalidCredentials: "Ungültige E-Mail oder Passwort",
+    invalidCredentials: "E-Mail oder Passwort ist falsch. Bitte prüfen Sie Ihre Eingaben.",
     signedInAs: "Angemeldet als",
   },
 
   // Errors
   errors: {
-    networkError: "Verbindungsfehler. Bitte versuchen Sie es erneut.",
-    sessionExpired: "Sitzung abgelaufen. Bitte erneut anmelden.",
-    serverError: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
-    unauthorized: "Nicht autorisiert",
-    forbidden: "Keine Berechtigung für diese Aktion",
-    notFound: "Nicht gefunden",
+    networkError: "Keine Verbindung zum Server. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+    sessionExpired: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    serverError: "Die Anfrage konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut oder laden Sie die Seite neu.",
+    unauthorized: "Zugriff nicht möglich. Bitte melden Sie sich erneut an.",
+    forbidden: "Sie haben keine Berechtigung für diese Aktion. Wenden Sie sich an Ihren Administrator.",
+    notFound: "Die angeforderte Seite oder Ressource wurde nicht gefunden.",
   },
 
   // Common
   common: {
     loading: "Wird geladen...",
-    error: "Fehler",
+    error: "Ein Fehler ist aufgetreten",
     save: "Speichern",
     cancel: "Abbrechen",
     delete: "Löschen",
@@ -1411,7 +1411,7 @@ export const de = {
         uncertain: "Unsicher",
       },
       missingTypes: "Es fehlen noch: {types}",
-      missingTypesHint: "Diese Dokumenttypen verbessern die Analyse erheblich.",
+      missingTypesHint: "Diese Belegtypen verbessern die Analyse erheblich.",
     },
     step7: {
       title: "Go-Live",
@@ -2011,7 +2011,7 @@ export const de = {
       deleteSuccess: "Bankkonto gelöscht",
     },
     noAccounts: "Keine Bankkonten vorhanden",
-    importError: "Fehler beim Import",
+    importError: "Import fehlgeschlagen. Bitte prüfen Sie das Dateiformat und versuchen Sie es erneut.",
     openTransactions: "offene Transaktionen",
   },
   payment: {
@@ -2327,8 +2327,8 @@ export const de = {
     welcome: "Willkommen",
     openTasks: "Offene Aufgaben",
     noTasks: "Keine offenen Aufgaben",
-    missingDocs: "Fehlende Dokumente",
-    noMissingDocs: "Alle erwarteten Dokumente eingegangen",
+    missingDocs: "Fehlende Belege",
+    noMissingDocs: "Alle erwarteten Belege eingegangen",
     documentsThisMonth: "Belege diesen Monat",
     nextDeadline: "Nächste Frist",
     noDeadlines: "Keine anstehenden Fristen",
@@ -2528,6 +2528,68 @@ export const de = {
     avgCorrectionRate: "Durchschn. Korrekturrate",
     avgAutopilot: "Durchschn. Autopilot-Eignung",
     clientsNeedingAttention: "Mandanten mit Handlungsbedarf",
+  },
+  emptyStates: {
+    documents: {
+      title: "Noch keine Belege",
+      description: "Laden Sie Ihre ersten Belege hoch — das System erkennt automatisch Lieferanten, Beträge und MwSt.",
+      action: "Belege hochladen",
+    },
+    suppliers: {
+      title: "Noch keine Lieferanten",
+      description: "Lieferanten werden automatisch erkannt wenn Sie Belege hochladen.",
+      action: "Belege hochladen",
+    },
+    rules: {
+      title: "Noch keine Regeln",
+      description: "Regeln automatisieren die Kontierung. Erstellen Sie eine erste Regel oder lassen Sie das System Vorschläge machen.",
+      action: "Regel erstellen",
+    },
+    journal: {
+      title: "Noch keine Buchungen",
+      description: "Buchungen entstehen wenn Belege genehmigt werden. Laden Sie Belege hoch um zu starten.",
+      action: "Belege hochladen",
+    },
+    tasks: {
+      title: "Keine offenen Aufgaben",
+      description: "Gut gemacht! Es gibt aktuell nichts zu tun.",
+      action: null as string | null,
+    },
+    contracts: {
+      title: "Noch keine Verträge",
+      description: "Verträge mit Fristen und wiederkehrenden Kosten helfen bei der Vollständigkeitsprüfung.",
+      action: "Vertrag erfassen",
+    },
+    expectedDocs: {
+      title: "Noch keine erwarteten Belege",
+      description: "Erwartete Belege definieren was regelmässig kommen sollte. Fehlende werden automatisch erkannt.",
+      action: "Erwarteten Beleg anlegen",
+    },
+    bank: {
+      title: "Noch keine Bankkonten",
+      description: "Verbinden Sie ein Bankkonto für automatischen Abgleich mit Ihren Belegen.",
+      action: "Bankkonto hinzufügen",
+    },
+    vat: {
+      title: "Noch keine MwSt-Abrechnungen",
+      description: "MwSt-Abrechnungen werden aus den gebuchten Belegen erstellt.",
+      action: "MwSt-Abrechnung erstellen",
+    },
+    assets: {
+      title: "Noch keine Anlagen",
+      description: "Anlagen werden für Abschreibungen und Inventar erfasst.",
+      action: "Anlage erfassen",
+    },
+    periods: {
+      title: "Noch keine Perioden",
+      description: "Perioden werden automatisch erstellt wenn der erste Beleg eines Monats verarbeitet wird.",
+      action: null as string | null,
+    },
+    exports: {
+      title: "Noch keine Exporte",
+      description: "Exportieren Sie Buchungen für Banana oder andere Systeme.",
+      action: "Export erstellen",
+    },
   },
   setup: {
     title: "Einrichtung",

@@ -76,7 +76,7 @@ export default function SuppliersPage() {
             {loading ? (
               <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
             ) : suppliers.length === 0 ? (
-              <EmptyState icon={Building2} title={de.suppliers.noSuppliers} />
+              <EmptyState icon={Building2} title={de.emptyStates.suppliers.title} description={de.emptyStates.suppliers.description} action={{ label: de.emptyStates.suppliers.action!, onClick: () => router.push("/documents") }} />
             ) : (
               <Table>
                 <TableHeader>

@@ -34,6 +34,7 @@ import { SectionCard } from "@/components/ds/section-card";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
+import { useReviewShortcuts } from "@/lib/hooks/use-review-shortcuts";
 
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -49,6 +50,8 @@ export default function DocumentDetailPage() {
   const [similarDocs, setSimilarDocs] = useState<any[]>([]);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [reviewQueue, setReviewQueue] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
 
   // Suggestion
   const [suggestion, setSuggestion] = useState<any>(null);
@@ -201,6 +204,20 @@ export default function DocumentDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc?.id]);
+
+  // Load review queue for navigation
+  useEffect(() => {
+    fetch("/api/documents?status=needs_review&pageSize=50")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.documents) {
+          const ids = data.documents.map((d: any) => d.id);
+          setReviewQueue(ids);
+          setCurrentIndex(ids.indexOf(params.id));
+        }
+      })
+      .catch(() => {});
+  }, [params.id]);
 
   // --- Review toolbar actions ---
   const handleToolbarApprove = useCallback(async () => {
@@ -419,32 +436,21 @@ export default function DocumentDetailPage() {
     setKnowledgeDialogOpen(true);
   }
 
-  // --- Keyboard shortcuts (Task 5) ---
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-      if (e.key === "ArrowLeft" && prevDocId) {
-        e.preventDefault();
-        router.push(`/documents/${prevDocId}`);
-      } else if (e.key === "ArrowRight" && nextDocId) {
-        e.preventDefault();
-        router.push(`/documents/${nextDocId}`);
-      } else if (e.key === "a" || e.key === "A") {
-        e.preventDefault();
-        handleToolbarApprove();
-      } else if (e.key === "r" || e.key === "R") {
-        e.preventDefault();
-        setRejectDialogOpen(true);
-      } else if (e.key === "s" || e.key === "S") {
-        e.preventDefault();
-        handleSkip();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [prevDocId, nextDocId, handleToolbarApprove, handleSkip, router]);
+  // --- Keyboard shortcuts via reusable hook ---
+  useReviewShortcuts({
+    onApprove: handleToolbarApprove,
+    onReject: () => setRejectDialogOpen(true),
+    onNext: () => {
+      if (currentIndex < reviewQueue.length - 1) router.push(`/documents/${reviewQueue[currentIndex + 1]}`);
+      else if (nextDocId) router.push(`/documents/${nextDocId}`);
+    },
+    onPrevious: () => {
+      if (currentIndex > 0) router.push(`/documents/${reviewQueue[currentIndex - 1]}`);
+      else if (prevDocId) router.push(`/documents/${prevDocId}`);
+    },
+    onSkip: handleSkip,
+    enabled: reviewQueue.length > 0 || !!nextDocId || !!prevDocId,
+  });
 
   if (loading) return <DetailPageSkeleton />;
 
@@ -466,48 +472,61 @@ export default function DocumentDetailPage() {
 
       {/* Review toolbar */}
       {isReviewable && (
-        <div className="flex items-center gap-2 p-3 bg-muted/50 border rounded-lg">
-          <Button variant="outline" size="sm" disabled={!prevDocId} onClick={() => prevDocId && router.push(`/documents/${prevDocId}`)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />{de.reviewCockpit.previous}
-          </Button>
-
-          {queuePosition && (
-            <span className="text-sm text-muted-foreground px-2">
-              {de.reviewCockpit.position} {queuePosition.current} {de.reviewCockpit.of} {queuePosition.total} {de.reviewCockpit.inQueue}
-            </span>
+        <div className="space-y-2">
+          {/* Queue navigation bar */}
+          {reviewQueue.length > 1 && (
+            <div className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" disabled={currentIndex <= 0}
+                  onClick={() => currentIndex > 0 && router.push(`/documents/${reviewQueue[currentIndex - 1]}`)}>
+                  <ChevronLeft className="h-3.5 w-3.5" /> Vorheriger
+                </Button>
+                <span className="text-muted-foreground">
+                  {currentIndex + 1} von {reviewQueue.length} zur Prüfung
+                </span>
+                <Button variant="ghost" size="sm" disabled={currentIndex >= reviewQueue.length - 1}
+                  onClick={() => currentIndex < reviewQueue.length - 1 && router.push(`/documents/${reviewQueue[currentIndex + 1]}`)}>
+                  Nächster <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px]">A</kbd> Genehmigen
+                <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] ml-2">R</kbd> Ablehnen
+                <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] ml-2">J</kbd>/<kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px]">K</kbd> Navigation
+              </div>
+            </div>
           )}
 
-          <Button variant="outline" size="sm" disabled={!nextDocId} onClick={() => nextDocId && router.push(`/documents/${nextDocId}`)}>
-            {de.reviewCockpit.next}<ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+          {/* Action toolbar */}
+          <div className="flex items-center gap-2 p-3 bg-muted/50 border rounded-lg">
+            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" disabled={approving} onClick={handleToolbarApprove}>
+              {approving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1.5" />}
+              {de.reviewCockpit.approve}
+              <kbd className="ml-2 px-1 py-0.5 bg-green-700 rounded text-[10px]">A</kbd>
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setRejectDialogOpen(true)}>
+              <XCircle className="h-4 w-4 mr-1.5" />{de.reviewCockpit.reject}
+              <kbd className="ml-2 px-1 py-0.5 bg-red-700 rounded text-[10px]">R</kbd>
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleSkip}>
+              <SkipForward className="h-4 w-4 mr-1" />{de.reviewCockpit.skip}
+            </Button>
 
-          <div className="w-px h-6 bg-border mx-1" />
+            <div className="w-px h-6 bg-border mx-1" />
 
-          <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={approving} onClick={handleToolbarApprove}>
-            {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-            {de.reviewCockpit.approve}
-          </Button>
-          <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => setRejectDialogOpen(true)}>
-            <XCircle className="h-4 w-4 mr-1" />{de.reviewCockpit.reject}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={handleSkip}>
-            <SkipForward className="h-4 w-4 mr-1" />{de.reviewCockpit.skip}
-          </Button>
-
-          <div className="w-px h-6 bg-border mx-1" />
-
-          <Button size="sm" variant="ghost" onClick={openTaskDialog}>
-            <ClipboardList className="h-4 w-4 mr-1" />{de.reviewCockpit.createTask}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={openMessageDialog}>
-            <MessageSquare className="h-4 w-4 mr-1" />{de.reviewCockpit.askClient}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={openRuleDialog}>
-            <Lightbulb className="h-4 w-4 mr-1" />{de.reviewCockpit.createRule}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={openKnowledgeDialog}>
-            <BookOpen className="h-4 w-4 mr-1" />{de.reviewCockpit.createKnowledge}
-          </Button>
+            <Button size="sm" variant="ghost" onClick={openTaskDialog}>
+              <ClipboardList className="h-4 w-4 mr-1" />{de.reviewCockpit.createTask}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={openMessageDialog}>
+              <MessageSquare className="h-4 w-4 mr-1" />{de.reviewCockpit.askClient}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={openRuleDialog}>
+              <Lightbulb className="h-4 w-4 mr-1" />{de.reviewCockpit.createRule}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={openKnowledgeDialog}>
+              <BookOpen className="h-4 w-4 mr-1" />{de.reviewCockpit.createKnowledge}
+            </Button>
+          </div>
         </div>
       )}
 

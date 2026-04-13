@@ -341,6 +341,30 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Heute erledigen (Treuhänder/Admin) */}
+      {isTrustee && (
+        <Card>
+          <CardContent className="pt-4">
+            <h3 className="text-sm font-semibold mb-3">Heute erledigen</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { label: "Zur Prüfung", value: data.statusCounts?.needs_review ?? 0, href: "/documents?status=needs_review", color: (data.statusCounts?.needs_review ?? 0) > 0 ? "text-amber-600" : "text-muted-foreground" },
+                { label: "Offene Aufgaben", value: data.todayStats?.tasksDue ?? 0, href: "/tasks", color: (data.todayStats?.tasksDue ?? 0) > 0 ? "text-blue-600" : "text-muted-foreground" },
+                { label: "Hochgeladen", value: data.todayStats?.uploaded ?? 0, href: "/documents", color: "text-muted-foreground" },
+                { label: "Zu exportieren", value: data.statusCounts?.ready ?? 0, href: "/exports", color: "text-muted-foreground" },
+              ].map(item => (
+                <Link key={item.href} href={item.href}>
+                  <div className="p-3 rounded-md border hover:shadow-sm transition-shadow cursor-pointer text-center">
+                    <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Kritische Alerts */}
       <AlertsBar alerts={data.alerts} />
 
