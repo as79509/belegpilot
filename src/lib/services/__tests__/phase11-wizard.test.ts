@@ -302,4 +302,34 @@ describe("Phase 11 Wizard Architecture", () => {
     const c = fs.readFileSync("src/app/(dashboard)/documents/page.tsx", "utf-8");
     expect(c).toContain("isViewer");
   });
+
+  // Phase 11X.4: Page Flow & Mikrointeraktionen
+  it("Page-Skeleton Komponenten existieren", () => {
+    const c = fs.readFileSync("src/components/ds/page-skeleton.tsx", "utf-8");
+    expect(c).toContain("DashboardSkeleton");
+    expect(c).toContain("TablePageSkeleton");
+    expect(c).toContain("DetailPageSkeleton");
+    expect(c).toContain("WizardSkeleton");
+  });
+
+  it("SaveIndicator mit useSaveState existiert", () => {
+    const c = fs.readFileSync("src/components/ds/save-indicator.tsx", "utf-8");
+    expect(c).toContain("SaveIndicator");
+    expect(c).toContain("useSaveState");
+    expect(c).toContain("saving");
+    expect(c).toContain("saved");
+  });
+
+  it("Interaction-Classes existieren", () => {
+    const c = fs.readFileSync("src/lib/interaction-classes.ts", "utf-8");
+    expect(c).toContain("interact");
+    expect(c).toContain("card");
+    expect(c).toContain("tableRow");
+    expect(c).toContain("focusRing");
+  });
+
+  it("Dashboard nutzt DashboardSkeleton", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
+    expect(c).toContain("DashboardSkeleton");
+  });
 });
