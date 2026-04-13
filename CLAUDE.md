@@ -20,10 +20,11 @@ Buchhaltungsautomatisierung für Schweizer KMU. Verarbeitet Eingangsrechnungen v
 - Berechtigungen via `hasPermission(role, "resource:action")` aus `@/lib/permissions`
 
 ## Aktueller Stand
-Phase 10 + 10X KOMPLETT. 39 Prisma-Models, 141 API-Routes, 37 Seiten, 19+ Test-Dateien (309+ Tests), 388 Source-Dateien, 2258 i18n-Zeilen.
+Phase 11 KOMPLETT. 42 Prisma-Models, 155+ API-Routes, 39 Seiten, 21+ Test-Dateien (350+ Tests), 410+ Source-Dateien, 2400+ i18n-Zeilen.
 
 Phase 10: SuggestionEvaluation, Banana Export/Round Trip, Drift Detection, Auto-Downgrade, Supplier Trust Score, Supplier Autopilot Override, Confidence Calibration.
 Phase 10X: Dead-End Elimination, Flow Integration Audit, Operational Smoke Matrix (29/30 ✅, 1 ⚠️).
+Phase 11: 7-Schritt Onboarding Wizard, Business Chat mit Claude-Extraktion, Bootstrapping Engine, Module Readiness (10 Module, 7 Reifestufen), Go-Live mit 5-Phasen-Hochlauf, Failure Modes + Fallbacks, Onboarding-Telemetrie, Rollenlogik (Viewer/Trustee), Known Unknowns.
 
 ## Architektur (Kurzfassung)
 
@@ -46,6 +47,7 @@ Phase 10X: Dead-End Elimination, Flow Integration Audit, Operational Smoke Matri
 - `supplier-matching/` — Fuzzy-Matching für Lieferanten
 - `analytics/` — Cross-Client Analytics für Treuhänder
 - `setup/` — Setup-Status-Wizard
+- `onboarding/` — Wizard-Service, Business-Chat, Bootstrapping-Engine, GoLive-Check, GoLive-Service, Failure-Handler, Onboarding-Telemetrie, Document-Classifier, Upload-Guidance, Step-Validators, Bootstrap-Apply
 
 ### Hooks (`src/lib/hooks`)
 - Datenladende Hooks für Dashboard, Documents, Suppliers, etc.

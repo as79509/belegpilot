@@ -6,6 +6,7 @@ Phase 7x Premium Upgrade — KOMPLETT
 Phase 8 (Autopilot + Intelligence + Governance) — KOMPLETT
 Phase 9/9X (Bank, MwSt, E-Mail, Assets, Contracts, Consolidation) — KOMPLETT
 Phase 10/10X (Banana, Evaluation, Drift, Trust, Calibration, Audit) — KOMPLETT
+Phase 11 (Onboarding Wizard, Business Chat, Bootstrapping, Go-Live) — KOMPLETT
 
 ## Stack
 
@@ -23,8 +24,8 @@ Phase 10/10X (Banana, Evaluation, Drift, Trust, Calibration, Audit) — KOMPLETT
 src/
 ├── app/
 │   ├── (auth)/           Login, Reset
-│   ├── (dashboard)/      Hauptseiten (37 Seiten)
-│   └── api/              141 Routes nach Feature gruppiert
+│   ├── (dashboard)/      Hauptseiten (39 Seiten)
+│   └── api/              155+ Routes nach Feature gruppiert
 ├── components/
 │   ├── ui/               shadcn/ui Primitives
 │   ├── ds/               Design System (StatusBadge, EntityHeader,
@@ -64,6 +65,8 @@ src/
 │   │   ├── actions/      Next-Action-Engine
 │   │   ├── analytics/    Cross-Client Treuhänder-BI
 │   │   ├── supplier-matching/ Fuzzy Matching
+│   │   ├── onboarding/   Wizard, Business Chat, Bootstrapping,
+│   │   │                 Go-Live, Failure Handler, Telemetrie
 │   │   └── storage/      Supabase Storage
 │   └── types/            Shared Types
 └── generated/prisma/     Prisma Client
@@ -124,6 +127,17 @@ src/
 - **Dead-End Elimination**: Alle Buttons verdrahtet, keine Stubs
 - **Flow Integration Audit**: 37/37 Schritte in 6 Kernflows verdrahtet
 - **Operational Smoke Matrix**: 29/30 Funktionen ✅, 1 ⚠️ (VAT XML Placeholder)
+
+### Phase 11 (Onboarding Wizard)
+- **7-Schritt-Wizard**: Grunddaten → Steuer → Belege → Geschäftsmodell → Intelligenz → Readiness → Go-Live
+- **Business Chat**: Priorisierte Rückfragen, Claude-Extraktion, rollenspezifische Fragen
+- **Bootstrapping Engine**: Automatische Regeln, Wissen, erwartete Belege, Supplier-Defaults mit Governance
+- **Module Readiness**: 10 Module mit 7 Reifegraden, gewichteter Score
+- **Go-Live mit 5 Phasen**: go_live_started → first_week → first_30_days → stabilized → normal
+- **Failure Modes**: Konservative Fallbacks bei unzureichenden Daten
+- **Onboarding-Telemetrie**: Wizard-Durchlauf-KPIs, Post-Onboarding Korrekturrate
+- **Rollenlogik**: Viewer/Trustee sehen unterschiedliche Wizard-Tiefe
+- **Known Unknowns**: Offene Fragen mit Go-Live-Blocker-Tracking
 
 ## Setup
 
@@ -228,7 +242,7 @@ npm run test:watch  # Watch-Modus
 npx tsc --noEmit    # TypeScript-Prüfung
 ```
 
-309+ Tests in 32 Suiten: Multi-Tenant Security, Rollen-Matrix, Permission Enforcement, Period Guard, Pipeline Regression, Validation Engine, Rules + Konflikterkennung, Telemetrie, Evaluation, Flow Integration, Dead-End Audit, Smoke Matrix, Drift/Trust Code Audit, API Contract Audit, i18n-Vollständigkeit, Audit-Coverage.
+350+ Tests in 34 Suiten: Multi-Tenant Security, Rollen-Matrix, Permission Enforcement, Period Guard, Pipeline Regression, Validation Engine, Rules + Konflikterkennung, Telemetrie, Evaluation, Flow Integration, Dead-End Audit, Smoke Matrix, Drift/Trust Code Audit, API Contract Audit, i18n-Vollständigkeit, Audit-Coverage, Onboarding Wizard Architecture.
 
 ## Lizenz
 

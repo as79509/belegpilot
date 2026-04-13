@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { computeModuleReadiness, computeReadinessScore, type ReadinessLevel } from "./wizard-service";
+import { assessFailureModes } from "./failure-handler";
 
 export interface GoLiveCheck {
   canGoLive: boolean;
@@ -61,6 +62,12 @@ export async function checkGoLiveReadiness(companyId: string, sessionId: string)
     if (u.criticality === "high" && !u.blocksGoLive) {
       warnings.push(`Wichtige offene Frage: ${u.description}`);
     }
+  }
+
+  // Failure assessment — add restrictions to warnings
+  const failureAssessment = await assessFailureModes(companyId, sessionId);
+  for (const restriction of failureAssessment.goLiveRestrictions) {
+    warnings.push(restriction);
   }
 
   // Go-Live decision

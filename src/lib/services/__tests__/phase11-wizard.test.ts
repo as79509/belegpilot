@@ -209,4 +209,48 @@ describe("Phase 11 Wizard Architecture", () => {
     const content = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
     expect(content).toContain("Hochlaufphase");
   });
+
+  // Phase 11.9: Rollenlogik
+  it("Business-Chat akzeptiert role Parameter", () => {
+    const c = fs.readFileSync("src/lib/services/onboarding/business-chat.ts", "utf-8");
+    expect(c).toContain("role");
+  });
+
+  it("Wizard hat Rollenlogik mit isTrustee/isViewer", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(c).toContain("isTrustee");
+    expect(c).toContain("isViewer");
+    expect(c).toContain("visibleSteps");
+  });
+
+  // Phase 11.10: Failure Modes
+  it("Failure Handler existiert", () => {
+    const c = fs.readFileSync("src/lib/services/onboarding/failure-handler.ts", "utf-8");
+    expect(c).toContain("assessFailureModes");
+    expect(c).toContain("insufficient_data");
+    expect(c).toContain("fallback");
+  });
+
+  it("Failures API existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/failures/route.ts")).toBe(true);
+  });
+
+  // Phase 11.11: Onboarding-Telemetrie
+  it("Onboarding-Telemetrie existiert", () => {
+    const c = fs.readFileSync("src/lib/services/onboarding/onboarding-telemetry.ts", "utf-8");
+    expect(c).toContain("computeOnboardingTelemetry");
+    expect(c).toContain("correctionRateFirst30Days");
+    expect(c).toContain("suggestionAcceptanceRate");
+  });
+
+  it("Onboarding-Telemetrie API existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/telemetry/route.ts")).toBe(true);
+  });
+
+  // Phase 11.12: Konsolidierung
+  it("README erwähnt Phase 11", () => {
+    const c = fs.readFileSync("README.md", "utf-8");
+    expect(c).toContain("Phase 11");
+    expect(c).toContain("Wizard");
+  });
 });

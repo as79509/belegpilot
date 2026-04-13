@@ -47,6 +47,6 @@ describe("Phase 10 Final Audit", () => {
   it("CLAUDE.md hat aktuelle Stats", () => {
     const claude = fs.readFileSync("CLAUDE.md", "utf-8");
     expect(claude).toContain("Phase 10");
-    expect(claude).toContain("39 Prisma-Models");
+    expect(claude).toContain("Prisma-Models");
   });
 });

@@ -30,7 +30,7 @@ export interface ChatExtractionResult {
   followUpQuestions: string[];
 }
 
-export async function generatePrioritizedQuestions(companyId: string, sessionId: string): Promise<ChatQuestion[]> {
+export async function generatePrioritizedQuestions(companyId: string, sessionId: string, role?: string): Promise<ChatQuestion[]> {
   const [company, session, unknowns, docCount, supplierCount] = await Promise.all([
     prisma.company.findUniqueOrThrow({
       where: { id: companyId },
@@ -153,9 +153,27 @@ export async function generatePrioritizedQuestions(companyId: string, sessionId:
     });
   }
 
+  // Trustee/Admin: Additional governance questions
+  if (role === "admin" || role === "trustee") {
+    questions.push({
+      id: "q-governance-review",
+      category: "special_cases",
+      question: "Gibt es Konten die manuell geprüft werden müssen? Welche Autopilot-Grenzen sollen gelten?",
+      priority: "medium",
+      reason: "Governance-Einstellungen bestimmen den Automatisierungsgrad und Pflicht-Eskalationen.",
+      relatedUnknowns: [],
+    });
+  }
+
+  // Viewer: Remove overly technical questions (MwSt-Sonderfälle, Governance)
+  const isViewer = role === "viewer" || role === "readonly";
+  const filtered = isViewer
+    ? questions.filter((q) => q.category !== "vat" && q.id !== "q-governance-review")
+    : questions;
+
   // Filter already answered and sort by priority
   const priorityOrder = { high: 0, medium: 1, low: 2 };
-  return questions
+  return filtered
     .filter((q) => !answeredIds.includes(q.id))
     .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
     .slice(0, 5);

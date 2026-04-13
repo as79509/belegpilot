@@ -15,7 +15,7 @@ export async function GET() {
     const session = await prisma.onboardingSession.findUnique({ where: { companyId: ctx.companyId } });
     if (!session) return NextResponse.json({ error: "Keine Onboarding-Session" }, { status: 404 });
 
-    const questions = await generatePrioritizedQuestions(ctx.companyId, session.id);
+    const questions = await generatePrioritizedQuestions(ctx.companyId, session.id, ctx.session.user.role);
     const stepData = (session.stepData as Record<string, any>) || {};
     const answeredCount = (stepData["4"]?.answeredQuestions || []).length;
 

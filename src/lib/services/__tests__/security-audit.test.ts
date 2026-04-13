@@ -213,6 +213,9 @@ describe("Phase-8 API Security Audit", () => {
       "telemetry/feedback/route.ts",
       "onboarding/unknowns/route.ts",
       "onboarding/golive/route.ts",
+      "onboarding/chat/route.ts",
+      "onboarding/bootstrap/route.ts",
+      "onboarding/bootstrap/apply/route.ts",
     ];
     const violations: string[] = [];
     for (const route of PERMISSION_ROUTES) {

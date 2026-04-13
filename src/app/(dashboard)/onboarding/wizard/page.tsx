@@ -22,6 +22,17 @@ import { InfoPanel } from "@/components/ds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useCompany } from "@/lib/contexts/company-context";
+
+const WIZARD_STEPS = [
+  { step: 1, key: "basics",     label: "Grunddaten" },
+  { step: 2, key: "accounting", label: "Steuer & Buchhaltung" },
+  { step: 3, key: "documents",  label: "Historische Belege" },
+  { step: 4, key: "business",   label: "Geschäftsmodell" },
+  { step: 5, key: "review",     label: "Intelligenz prüfen" },
+  { step: 6, key: "readiness",  label: "Readiness & Unknowns" },
+  { step: 7, key: "golive",     label: "Go-Live" },
+];
 
 interface WizardState {
   sessionId: string;
@@ -50,6 +61,16 @@ const INDUSTRIES = [
 ];
 
 export default function OnboardingWizardPage() {
+  const { activeCompany } = useCompany();
+  const role = activeCompany?.role || "viewer";
+  const isTrustee = role === "admin" || role === "trustee";
+  const isViewer = role === "viewer" || role === "readonly";
+
+  // Viewer sees only Basics, Accounting, Docs, Go-Live
+  const visibleSteps = isTrustee
+    ? WIZARD_STEPS
+    : WIZARD_STEPS.filter(s => [1, 2, 3, 7].includes(s.step));
+
   const [state, setState] = useState<WizardState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -245,7 +266,7 @@ export default function OnboardingWizardPage() {
 
       {/* Step Navigation */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
-        {state.stepStatuses.map((s) => (
+        {state.stepStatuses.filter(s => visibleSteps.some(v => v.step === s.step)).map((s) => (
           <button
             key={s.step}
             type="button"
@@ -290,21 +311,27 @@ export default function OnboardingWizardPage() {
                   {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
                 </select>
               </div>
-              <div><Label className="text-xs">{de.onboardingWizard.step1.subIndustry}</Label><Input value={s1.subIndustry} onChange={(e) => setS1({ ...s1, subIndustry: e.target.value })} /></div>
               <div><Label className="text-xs">{de.detail.vatNumber}</Label><Input value={s1.vatNumber} onChange={(e) => setS1({ ...s1, vatNumber: e.target.value })} placeholder="CHE-xxx.xxx.xxx" /></div>
               <div><Label className="text-xs">UID</Label><Input value={s1.uid} onChange={(e) => setS1({ ...s1, uid: e.target.value })} /></div>
-              <div><Label className="text-xs">{de.onboardingWizard.step1.employees}</Label><Input type="number" value={s1.employeeCount} onChange={(e) => setS1({ ...s1, employeeCount: e.target.value })} /></div>
-              <div><Label className="text-xs">Website</Label><Input value={s1.website} onChange={(e) => setS1({ ...s1, website: e.target.value })} /></div>
-              <div><Label className="text-xs">Telefon</Label><Input value={s1.phone} onChange={(e) => setS1({ ...s1, phone: e.target.value })} /></div>
-              <div><Label className="text-xs">E-Mail</Label><Input value={s1.email} onChange={(e) => setS1({ ...s1, email: e.target.value })} /></div>
+              {isTrustee && (
+                <>
+                  <div><Label className="text-xs">{de.onboardingWizard.step1.subIndustry}</Label><Input value={s1.subIndustry} onChange={(e) => setS1({ ...s1, subIndustry: e.target.value })} /></div>
+                  <div><Label className="text-xs">{de.onboardingWizard.step1.employees}</Label><Input type="number" value={s1.employeeCount} onChange={(e) => setS1({ ...s1, employeeCount: e.target.value })} /></div>
+                  <div><Label className="text-xs">Website</Label><Input value={s1.website} onChange={(e) => setS1({ ...s1, website: e.target.value })} /></div>
+                  <div><Label className="text-xs">Telefon</Label><Input value={s1.phone} onChange={(e) => setS1({ ...s1, phone: e.target.value })} /></div>
+                  <div><Label className="text-xs">E-Mail</Label><Input value={s1.email} onChange={(e) => setS1({ ...s1, email: e.target.value })} /></div>
+                </>
+              )}
             </div>
             {!s1.vatNumber && !s1.uid && (
               <InfoPanel tone="warning" icon={AlertCircle}>{de.onboardingWizard.step1.identifierRequired}</InfoPanel>
             )}
-            <div>
-              <Label className="text-xs">{de.onboardingWizard.step1.businessDescription}</Label>
-              <Textarea value={s1.businessModel} onChange={(e) => setS1({ ...s1, businessModel: e.target.value })} rows={3} placeholder="Wie verdient das Unternehmen Geld?" />
-            </div>
+            {isTrustee && (
+              <div>
+                <Label className="text-xs">{de.onboardingWizard.step1.businessDescription}</Label>
+                <Textarea value={s1.businessModel} onChange={(e) => setS1({ ...s1, businessModel: e.target.value })} rows={3} placeholder="Wie verdient das Unternehmen Geld?" />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -366,34 +393,38 @@ export default function OnboardingWizardPage() {
               <Link href="/accounts" target="_blank"><Button variant="outline" size="sm">{de.onboardingWizard.step2.importChart}</Button></Link>
             </div>
 
-            {/* Bank */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Bankverbindungen</h3>
-              <Badge variant="secondary">{de.onboardingWizard.step2.bankStatus.replace("{count}", String(bankCount))}</Badge>
-              <Link href="/bank" target="_blank"><Button variant="outline" size="sm">{de.onboardingWizard.step2.manageBank}</Button></Link>
-            </div>
-
-            {/* Options */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Optionen</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">{de.onboardingWizard.step2.fiscalYear}</Label>
-                  <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={s2.fiscalYearStart} onChange={(e) => setS2({ ...s2, fiscalYearStart: e.target.value })}>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={String(i + 1)}>
-                        {new Date(2026, i, 1).toLocaleString("de-CH", { month: "long" })}
-                      </option>
-                    ))}
-                  </select>
+            {isTrustee && (
+              <>
+                {/* Bank */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Bankverbindungen</h3>
+                  <Badge variant="secondary">{de.onboardingWizard.step2.bankStatus.replace("{count}", String(bankCount))}</Badge>
+                  <Link href="/bank" target="_blank"><Button variant="outline" size="sm">{de.onboardingWizard.step2.manageBank}</Button></Link>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.costCentersEnabled} onCheckedChange={(c) => setS2({ ...s2, costCentersEnabled: !!c })} />{de.onboardingWizard.step2.costCenters}</label>
-                <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.projectsEnabled} onCheckedChange={(c) => setS2({ ...s2, projectsEnabled: !!c })} />{de.onboardingWizard.step2.projects}</label>
-                <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.useBanana} onCheckedChange={(c) => setS2({ ...s2, useBanana: !!c })} />{de.onboardingWizard.step2.useBanana}</label>
-              </div>
-            </div>
+
+                {/* Options */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Optionen</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{de.onboardingWizard.step2.fiscalYear}</Label>
+                      <select className="w-full border rounded-md px-3 py-1.5 text-sm" value={s2.fiscalYearStart} onChange={(e) => setS2({ ...s2, fiscalYearStart: e.target.value })}>
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i + 1} value={String(i + 1)}>
+                            {new Date(2026, i, 1).toLocaleString("de-CH", { month: "long" })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.costCentersEnabled} onCheckedChange={(c) => setS2({ ...s2, costCentersEnabled: !!c })} />{de.onboardingWizard.step2.costCenters}</label>
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.projectsEnabled} onCheckedChange={(c) => setS2({ ...s2, projectsEnabled: !!c })} />{de.onboardingWizard.step2.projects}</label>
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={s2.useBanana} onCheckedChange={(c) => setS2({ ...s2, useBanana: !!c })} />{de.onboardingWizard.step2.useBanana}</label>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
