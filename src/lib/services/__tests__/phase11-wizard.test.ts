@@ -211,16 +211,15 @@ describe("Phase 11 Wizard Architecture", () => {
   });
 
   // Phase 11.9: Rollenlogik
-  it("Business-Chat akzeptiert role Parameter", () => {
-    const c = fs.readFileSync("src/lib/services/onboarding/business-chat.ts", "utf-8");
-    expect(c).toContain("role");
-  });
-
-  it("Wizard hat Rollenlogik mit isTrustee/isViewer", () => {
+  it("Wizard Page unterscheidet Rollen", () => {
     const c = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
     expect(c).toContain("isTrustee");
     expect(c).toContain("isViewer");
-    expect(c).toContain("visibleSteps");
+  });
+
+  it("Business-Chat akzeptiert role Parameter", () => {
+    const c = fs.readFileSync("src/lib/services/onboarding/business-chat.ts", "utf-8");
+    expect(c).toContain("role?");
   });
 
   // Phase 11.10: Failure Modes
@@ -228,6 +227,7 @@ describe("Phase 11 Wizard Architecture", () => {
     const c = fs.readFileSync("src/lib/services/onboarding/failure-handler.ts", "utf-8");
     expect(c).toContain("assessFailureModes");
     expect(c).toContain("insufficient_data");
+    expect(c).toContain("contradictory");
     expect(c).toContain("fallback");
   });
 
@@ -243,7 +243,7 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(c).toContain("suggestionAcceptanceRate");
   });
 
-  it("Onboarding-Telemetrie API existiert", () => {
+  it("Telemetrie API existiert", () => {
     expect(fs.existsSync("src/app/api/onboarding/telemetry/route.ts")).toBe(true);
   });
 

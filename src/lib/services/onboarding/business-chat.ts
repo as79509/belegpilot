@@ -173,10 +173,11 @@ export async function generatePrioritizedQuestions(companyId: string, sessionId:
 
   // Filter already answered and sort by priority
   const priorityOrder = { high: 0, medium: 1, low: 2 };
+  const maxQuestions = isViewer ? 3 : 5;
   return filtered
     .filter((q) => !answeredIds.includes(q.id))
     .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
-    .slice(0, 5);
+    .slice(0, maxQuestions);
 }
 
 export async function extractInsightsFromAnswer(

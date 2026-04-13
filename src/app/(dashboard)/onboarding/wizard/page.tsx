@@ -449,7 +449,7 @@ export default function OnboardingWizardPage() {
 
       {/* Step 6: Readiness & Unknowns */}
       {cs === 6 && state && (
-        <Step6Readiness companyId={state.companyId} sessionId={state.sessionId} onComplete={(data) => handleCompleteStep(6, data)} />
+        <Step6Readiness companyId={state.companyId} sessionId={state.sessionId} isViewer={isViewer} onComplete={(data) => handleCompleteStep(6, data)} />
       )}
 
       {/* Step 5: Intelligence Review */}
@@ -656,7 +656,7 @@ const LEVEL_PERCENT: Record<string, number> = {
   prefill_ready: 70, shadow_ready: 85, auto_ready: 100,
 };
 
-function Step6Readiness({ companyId, sessionId, onComplete }: { companyId: string; sessionId: string; onComplete: (data: any) => void }) {
+function Step6Readiness({ companyId, sessionId, isViewer, onComplete }: { companyId: string; sessionId: string; isViewer?: boolean; onComplete: (data: any) => void }) {
   const [readiness, setReadiness] = useState<ReadinessData | null>(null);
   const [unknowns, setUnknowns] = useState<UnknownItem[]>([]);
   const [unknownsSummary, setUnknownsSummary] = useState({ total: 0, open: 0, resolved: 0, blockers: 0 });
@@ -755,66 +755,79 @@ function Step6Readiness({ companyId, sessionId, onComplete }: { companyId: strin
         </CardContent>
       </Card>
 
-      {/* Module Readiness Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {moduleEntries.map(([mod, level]) => (
-          <Card key={mod} className={cn("p-3 border", LEVEL_COLORS[level] || "")}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">{moduleLabels[mod] || mod}</span>
-              <Badge variant="secondary" className="text-xs">{levelLabels[level] || level}</Badge>
-            </div>
-            <div className="mt-1.5 h-1 bg-muted rounded-full">
-              <div className="h-1 rounded-full bg-current" style={{ width: `${LEVEL_PERCENT[level] || 0}%` }} />
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Known Unknowns */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              {de.onboardingWizard.step6.unknowns.title} ({unknownsSummary.open})
-            </CardTitle>
-            {unknownsSummary.blockers > 0 && (
-              <Badge className="bg-red-100 text-red-800">
-                {de.onboardingWizard.step6.unknowns.blockerCount.replace("{count}", String(unknownsSummary.blockers))}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {openUnknowns.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">{de.onboardingWizard.step6.unknowns.noUnknowns}</p>
-          ) : (
-            <div className="space-y-3">
-              {Object.entries(groupedByArea).map(([area, items]) => (
-                <div key={area}>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">{area}</h4>
-                  <div className="space-y-1">
-                    {items.map((u) => (
-                      <div key={u.id} className={cn("flex items-center justify-between p-2 rounded text-sm",
-                        u.blocksGoLive ? "bg-red-50 border-l-2 border-red-400" : "bg-muted/50"
-                      )}>
-                        <div className="flex-1 min-w-0">
-                          <span>{u.description}</span>
-                          {u.suggestedAction && <p className="text-xs text-muted-foreground">{u.suggestedAction}</p>}
-                        </div>
-                        <div className="flex gap-1 shrink-0 ml-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "resolve")}>{de.onboardingWizard.step6.unknowns.resolve}</Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "accept")}>{de.onboardingWizard.step6.unknowns.accept}</Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "defer")}>{de.onboardingWizard.step6.unknowns.defer}</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+      {/* Viewer: Simplified readiness view */}
+      {isViewer ? (
+        <Card className="p-8 text-center">
+          <p className="text-4xl font-bold">{pctScore}%</p>
+          <p className="text-sm text-muted-foreground mt-1">{de.onboardingWizard.step6.overallReadiness}</p>
+          <Badge className={cn("mt-3", goLiveCheck?.canGoLive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}>
+            {goLiveCheck?.canGoLive ? de.onboardingWizard.step6.canGoLive : de.onboardingWizard.step6.cannotGoLive}
+          </Badge>
+        </Card>
+      ) : (
+        <>
+          {/* Module Readiness Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {moduleEntries.map(([mod, level]) => (
+              <Card key={mod} className={cn("p-3 border", LEVEL_COLORS[level] || "")}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{moduleLabels[mod] || mod}</span>
+                  <Badge variant="secondary" className="text-xs">{levelLabels[level] || level}</Badge>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="mt-1.5 h-1 bg-muted rounded-full">
+                  <div className="h-1 rounded-full bg-current" style={{ width: `${LEVEL_PERCENT[level] || 0}%` }} />
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Known Unknowns */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">
+                  {de.onboardingWizard.step6.unknowns.title} ({unknownsSummary.open})
+                </CardTitle>
+                {unknownsSummary.blockers > 0 && (
+                  <Badge className="bg-red-100 text-red-800">
+                    {de.onboardingWizard.step6.unknowns.blockerCount.replace("{count}", String(unknownsSummary.blockers))}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {openUnknowns.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">{de.onboardingWizard.step6.unknowns.noUnknowns}</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(groupedByArea).map(([area, items]) => (
+                    <div key={area}>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">{area}</h4>
+                      <div className="space-y-1">
+                        {items.map((u) => (
+                          <div key={u.id} className={cn("flex items-center justify-between p-2 rounded text-sm",
+                            u.blocksGoLive ? "bg-red-50 border-l-2 border-red-400" : "bg-muted/50"
+                          )}>
+                            <div className="flex-1 min-w-0">
+                              <span>{u.description}</span>
+                              {u.suggestedAction && <p className="text-xs text-muted-foreground">{u.suggestedAction}</p>}
+                            </div>
+                            <div className="flex gap-1 shrink-0 ml-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "resolve")}>{de.onboardingWizard.step6.unknowns.resolve}</Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "accept")}>{de.onboardingWizard.step6.unknowns.accept}</Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "defer")}>{de.onboardingWizard.step6.unknowns.defer}</Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Blocker warnings */}
       {goLiveCheck && !goLiveCheck.canGoLive && (

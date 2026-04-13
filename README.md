@@ -128,16 +128,16 @@ src/
 - **Flow Integration Audit**: 37/37 Schritte in 6 Kernflows verdrahtet
 - **Operational Smoke Matrix**: 29/30 Funktionen ✅, 1 ⚠️ (VAT XML Placeholder)
 
-### Phase 11 (Onboarding Wizard)
-- **7-Schritt-Wizard**: Grunddaten → Steuer → Belege → Geschäftsmodell → Intelligenz → Readiness → Go-Live
-- **Business Chat**: Priorisierte Rückfragen, Claude-Extraktion, rollenspezifische Fragen
-- **Bootstrapping Engine**: Automatische Regeln, Wissen, erwartete Belege, Supplier-Defaults mit Governance
-- **Module Readiness**: 10 Module mit 7 Reifegraden, gewichteter Score
-- **Go-Live mit 5 Phasen**: go_live_started → first_week → first_30_days → stabilized → normal
-- **Failure Modes**: Konservative Fallbacks bei unzureichenden Daten
-- **Onboarding-Telemetrie**: Wizard-Durchlauf-KPIs, Post-Onboarding Korrekturrate
-- **Rollenlogik**: Viewer/Trustee sehen unterschiedliche Wizard-Tiefe
-- **Known Unknowns**: Offene Fragen mit Go-Live-Blocker-Tracking
+### Phase 11: Intelligentes Mandanten-Onboarding
+- 11.1+11.2 Wizard-Architektur mit Session-Model, BusinessProfile, First-Useful-State
+- 11.3 Geführter Bootstrapping-Upload mit Dokumentklassifikation
+- 11.4 Konversationeller Business-Chat mit Claude-Extraktion
+- 11.5 Intelligence Bootstrapping Engine (Multi-Source, Governance-Status)
+- 11.6 Modul-Readiness mit 10 Modulen × 7 Stufen, Known-Unknowns
+- 11.7+11.8 Go-Live mit 5-Phasen-Hochlauf (First-30-Days)
+- 11.9 Rollenspezifischer Wizard (Unternehmer vs Treuhänder)
+- 11.10 Failure Modes mit konservativen Fallbacks
+- 11.11 Onboarding-Telemetrie (15+ KPIs)
 
 ## Setup
 

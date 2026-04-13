@@ -20,7 +20,7 @@ Buchhaltungsautomatisierung für Schweizer KMU. Verarbeitet Eingangsrechnungen v
 - Berechtigungen via `hasPermission(role, "resource:action")` aus `@/lib/permissions`
 
 ## Aktueller Stand
-Phase 11 KOMPLETT. 42 Prisma-Models, 155+ API-Routes, 39 Seiten, 21+ Test-Dateien (350+ Tests), 410+ Source-Dateien, 2400+ i18n-Zeilen.
+Phase 11 KOMPLETT. 42 Prisma-Models, 154 API-Routes, 39 Seiten, 34 Test-Dateien (350+ Tests), 423 Source-Dateien, 2400+ i18n-Zeilen.
 
 Phase 10: SuggestionEvaluation, Banana Export/Round Trip, Drift Detection, Auto-Downgrade, Supplier Trust Score, Supplier Autopilot Override, Confidence Calibration.
 Phase 10X: Dead-End Elimination, Flow Integration Audit, Operational Smoke Matrix (29/30 ✅, 1 ⚠️).
