@@ -426,7 +426,7 @@ export default function ClientOnboardingWizard() {
         formDataUpload.append("source", "onboarding");
         if (draftId) formDataUpload.append("draftId", draftId);
 
-        const res = await fetch("/api/documents/upload", {
+        const res = await fetch("/api/client-onboarding/upload", {
           method: "POST",
           body: formDataUpload,
         });
@@ -583,6 +583,17 @@ export default function ClientOnboardingWizard() {
           return acc;
         }, {} as Record<string, string>);
 
+      // Include uploaded files for migration to the new company
+      const uploadedFilePaths = uploadedFiles
+        .filter(f => f.status === "uploaded" && f.url)
+        .map(f => ({
+          id: f.id,
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          url: f.url,
+        }));
+
       const payload = {
         name: formData.name,
         legalName: formData.name,
@@ -595,6 +606,8 @@ export default function ClientOnboardingWizard() {
         fiscalYearStart: formData.fiscalYearStart,
         aiConfidenceThreshold: 0.65,
         currency: "CHF",
+        onboardingDraftId: draftId,
+        onboardingFiles: uploadedFilePaths,
         ...acceptedSuggestions,
       };
 
