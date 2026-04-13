@@ -27,9 +27,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import useSWR, { mutate } from "swr";
 
 // Step definitions matching the config
 const STEPS = [
@@ -101,6 +103,8 @@ interface UploadedFile {
   name: string;
   type: string;
   size: number;
+  url?: string;
+  status: "uploading" | "uploaded" | "error";
 }
 
 interface ChatMessage {
@@ -115,6 +119,8 @@ interface AISuggestion {
   suggestion: string;
   confidence: number;
   status: "pending" | "accepted" | "rejected";
+  field?: string;
+  value?: string;
 }
 
 interface FormData {
@@ -128,11 +134,25 @@ interface FormData {
   fiscalYearStart: number;
 }
 
+interface DraftData {
+  id?: string;
+  currentStep: number;
+  formData: FormData;
+  uploadedFiles: UploadedFile[];
+  chatMessages: ChatMessage[];
+  aiSuggestions: AISuggestion[];
+}
+
+// SWR fetcher
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function ClientOnboardingWizard() {
   const router = useRouter();
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState<FormData>({
@@ -152,60 +172,197 @@ export default function ClientOnboardingWizard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Chat state for business questions
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Willkommen! Ich habe ein paar Fragen, um Ihr Unternehmen besser zu verstehen. Was ist die Haupttätigkeit Ihres Unternehmens?",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // AI suggestions state
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([
-    {
-      id: "1",
-      category: "Kontenrahmen",
-      suggestion: "KMU-Kontenrahmen empfohlen basierend auf Ihrer Branche",
-      confidence: 0.92,
-      status: "pending",
-    },
-    {
-      id: "2",
-      category: "Kostenstellen",
-      suggestion: "Einfache Kostenstellenstruktur ohne Untergliederung",
-      confidence: 0.85,
-      status: "pending",
-    },
-    {
-      id: "3",
-      category: "Belegkategorien",
-      suggestion: "Standard-Belegkategorien mit branchenspezifischen Ergänzungen",
-      confidence: 0.88,
-      status: "pending",
-    },
-  ]);
-  const [isAnalyzing, setIsAnalyzing] = useState(true);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
 
   const progress = ((currentStep) / (STEPS.length - 1)) * 100;
   const step = STEPS[currentStep];
 
-  // Simulate AI analysis on intelligence review step
+  // Load existing draft on mount
+  const { data: existingDraft } = useSWR<{ draft: DraftData | null }>(
+    "/api/client-onboarding?status=in_progress",
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  // Initialize from existing draft
   useEffect(() => {
-    if (step.id === "intelligence-review" && isAnalyzing) {
-      const timer = setTimeout(() => {
-        setIsAnalyzing(false);
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (existingDraft?.draft) {
+      const draft = existingDraft.draft;
+      setDraftId(draft.id || null);
+      setCurrentStep(draft.currentStep || 0);
+      setFormData(draft.formData || formData);
+      setUploadedFiles(draft.uploadedFiles || []);
+      setChatMessages(draft.chatMessages || []);
+      setAiSuggestions(draft.aiSuggestions || []);
     }
-  }, [step.id, isAnalyzing]);
+  }, [existingDraft]);
+
+  // Initialize chat on business-questions step
+  useEffect(() => {
+    if (step.id === "business-questions" && chatMessages.length === 0) {
+      loadInitialQuestion();
+    }
+  }, [step.id, chatMessages.length]);
+
+  // Load AI suggestions when entering intelligence-review step
+  useEffect(() => {
+    if (step.id === "intelligence-review" && aiSuggestions.length === 0) {
+      loadAISuggestions();
+    }
+  }, [step.id, aiSuggestions.length]);
 
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  // Auto-save draft when data changes (debounced)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      saveDraft();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [formData, currentStep, uploadedFiles, chatMessages, aiSuggestions]);
+
+  const saveDraft = async () => {
+    if (!formData.name && currentStep === 0) return; // Don't save empty drafts
+    
+    setIsSaving(true);
+    try {
+      const payload: DraftData = {
+        currentStep,
+        formData,
+        uploadedFiles: uploadedFiles.filter(f => f.status === "uploaded"),
+        chatMessages,
+        aiSuggestions,
+      };
+
+      const res = await fetch("/api/client-onboarding", {
+        method: draftId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draftId ? { id: draftId, ...payload } : payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.id && !draftId) {
+          setDraftId(data.id);
+        }
+      }
+    } catch (err) {
+      console.error("[v0] Failed to save draft:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadInitialQuestion = async () => {
+    setIsTyping(true);
+    setChatError(null);
+    
+    try {
+      const res = await fetch("/api/client-onboarding/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          action: "start",
+          context: {
+            companyName: formData.name,
+            legalForm: formData.legalForm,
+            industry: formData.industry,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to load question");
+
+      const data = await res.json();
+      setChatMessages([{
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: data.question || "Willkommen! Was ist die Haupttätigkeit Ihres Unternehmens?",
+      }]);
+    } catch (err) {
+      console.error("[v0] Failed to load initial question:", err);
+      setChatError("Fehler beim Laden der Fragen. Bitte versuchen Sie es erneut.");
+      // Fallback question
+      setChatMessages([{
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Willkommen! Was ist die Haupttätigkeit Ihres Unternehmens?",
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const loadAISuggestions = async () => {
+    setIsLoadingSuggestions(true);
+    setSuggestionsError(null);
+    
+    try {
+      const res = await fetch("/api/client-onboarding/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          formData,
+          chatMessages: chatMessages.filter(m => m.role === "user").map(m => m.content),
+          uploadedFiles: uploadedFiles.filter(f => f.status === "uploaded").map(f => f.id),
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to load suggestions");
+
+      const data = await res.json();
+      setAiSuggestions(data.suggestions || []);
+    } catch (err) {
+      console.error("[v0] Failed to load AI suggestions:", err);
+      setSuggestionsError("Fehler beim Laden der KI-Vorschläge");
+      // Provide default suggestions as fallback
+      setAiSuggestions([
+        {
+          id: "1",
+          category: "Kontenrahmen",
+          suggestion: "KMU-Kontenrahmen empfohlen basierend auf Ihrer Branche",
+          confidence: 0.85,
+          status: "pending",
+          field: "chartOfAccounts",
+          value: "kmu",
+        },
+        {
+          id: "2",
+          category: "Kostenstellen",
+          suggestion: "Einfache Kostenstellenstruktur ohne Untergliederung",
+          confidence: 0.80,
+          status: "pending",
+          field: "costCenters",
+          value: "simple",
+        },
+        {
+          id: "3",
+          category: "Belegkategorien",
+          suggestion: "Standard-Belegkategorien mit branchenspezifischen Ergänzungen",
+          confidence: 0.82,
+          status: "pending",
+          field: "documentCategories",
+          value: "standard_plus",
+        },
+      ]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
 
   const updateField = useCallback((field: keyof FormData, value: string | boolean | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -222,13 +379,13 @@ export default function ClientOnboardingWizard() {
       case "business-questions":
         return chatMessages.length >= 3;
       case "intelligence-review":
-        return !isAnalyzing && aiSuggestions.every((s) => s.status !== "pending");
+        return !isLoadingSuggestions && aiSuggestions.every((s) => s.status !== "pending");
       case "final-review":
         return true;
       default:
         return true;
     }
-  }, [step.id, formData, chatMessages.length, isAnalyzing, aiSuggestions]);
+  }, [step.id, formData, chatMessages.length, isLoadingSuggestions, aiSuggestions]);
 
   const handleNext = useCallback(() => {
     if (currentStep < STEPS.length - 1 && canProceed()) {
@@ -244,16 +401,57 @@ export default function ClientOnboardingWizard() {
     }
   }, [currentStep]);
 
-  // File upload handlers
-  const handleFileSelect = (files: FileList | null) => {
+  // File upload handlers with real upload
+  const handleFileSelect = async (files: FileList | null) => {
     if (!files) return;
+
     const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       name: file.name,
       type: file.type,
       size: file.size,
+      status: "uploading" as const,
     }));
+
     setUploadedFiles((prev) => [...prev, ...newFiles]);
+
+    // Upload each file
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileEntry = newFiles[i];
+
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        formDataUpload.append("source", "onboarding");
+        if (draftId) formDataUpload.append("draftId", draftId);
+
+        const res = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formDataUpload,
+        });
+
+        if (!res.ok) throw new Error("Upload failed");
+
+        const data = await res.json();
+
+        setUploadedFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileEntry.id
+              ? { ...f, status: "uploaded" as const, url: data.url, id: data.id || f.id }
+              : f
+          )
+        );
+      } catch (err) {
+        console.error("[v0] File upload failed:", err);
+        setUploadedFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileEntry.id ? { ...f, status: "error" as const } : f
+          )
+        );
+        toast.error(`Fehler beim Hochladen von ${file.name}`);
+      }
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -275,61 +473,116 @@ export default function ClientOnboardingWizard() {
     setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
+  const retryUpload = (file: UploadedFile) => {
+    // Remove and re-add to trigger upload
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== file.id));
+    // Note: Would need original File object to retry, simplified for now
+    toast.info("Bitte wählen Sie die Datei erneut aus");
+  };
+
   const getFileIcon = (type: string) => {
     if (type.startsWith("image/")) return ImageIcon;
     if (type === "application/pdf") return FileText;
     return File;
   };
 
-  // Chat handlers
-  const sendMessage = () => {
-    if (!chatInput.trim()) return;
-    
+  // Chat handlers with real API
+  const sendMessage = async () => {
+    if (!chatInput.trim() || isTyping) return;
+
     const userMessage: ChatMessage = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       role: "user",
       content: chatInput,
     };
-    
+
     setChatMessages((prev) => [...prev, userMessage]);
     setChatInput("");
     setIsTyping(true);
+    setChatError(null);
 
-    setTimeout(() => {
-      const responses = [
-        "Verstanden! Wie viele Mitarbeiter hat Ihr Unternehmen ungefähr?",
-        "Interessant! Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
-        "Danke für die Info! Das hilft mir sehr bei der Konfiguration. Haben Sie regelmässige wiederkehrende Einnahmen wie Abonnements?",
-        "Perfekt! Ich habe genug Informationen gesammelt. Sie können jetzt zum nächsten Schritt gehen.",
-      ];
-      
-      const nextResponse = responses[Math.min(chatMessages.length - 1, responses.length - 1)];
-      
+    try {
+      const res = await fetch("/api/client-onboarding/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          action: "respond",
+          userMessage: chatInput,
+          context: {
+            companyName: formData.name,
+            legalForm: formData.legalForm,
+            industry: formData.industry,
+            previousMessages: chatMessages,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to get response");
+
+      const data = await res.json();
+
       const assistantMessage: ChatMessage = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         role: "assistant",
-        content: nextResponse,
+        content: data.question || data.response || "Danke für die Information!",
       };
-      
+
       setChatMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("[v0] Chat error:", err);
+      setChatError("Fehler bei der Kommunikation. Bitte versuchen Sie es erneut.");
+      // Fallback response
+      const fallbackMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Danke für die Information! Haben Sie noch weitere Details zu Ihrem Geschäftsmodell?",
+      };
+      setChatMessages((prev) => [...prev, fallbackMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   // AI suggestion handlers
-  const updateSuggestion = (id: string, status: "accepted" | "rejected") => {
+  const updateSuggestion = async (id: string, status: "accepted" | "rejected") => {
     setAiSuggestions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status } : s))
     );
+
+    // Persist decision to backend
+    try {
+      await fetch("/api/client-onboarding/suggestions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          suggestionId: id,
+          status,
+        }),
+      });
+    } catch (err) {
+      console.error("[v0] Failed to save suggestion decision:", err);
+    }
   };
 
   const resetSuggestions = () => {
-    setAiSuggestions((prev) => prev.map((s) => ({ ...s, status: "pending" })));
+    setAiSuggestions((prev) => prev.map((s) => ({ ...s, status: "pending" as const })));
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      // Prepare accepted suggestions as config
+      const acceptedSuggestions = aiSuggestions
+        .filter((s) => s.status === "accepted")
+        .reduce((acc, s) => {
+          if (s.field && s.value) {
+            acc[s.field] = s.value;
+          }
+          return acc;
+        }, {} as Record<string, string>);
+
       const payload = {
         name: formData.name,
         legalName: formData.name,
@@ -342,6 +595,7 @@ export default function ClientOnboardingWizard() {
         fiscalYearStart: formData.fiscalYearStart,
         aiConfidenceThreshold: 0.65,
         currency: "CHF",
+        ...acceptedSuggestions,
       };
 
       const res = await fetch("/api/trustee/clients", {
@@ -355,8 +609,25 @@ export default function ClientOnboardingWizard() {
         throw new Error(error.error || "Fehler beim Erstellen");
       }
 
+      const newClient = await res.json();
+
+      // Mark draft as completed
+      if (draftId) {
+        await fetch("/api/client-onboarding", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: draftId,
+            status: "completed",
+            companyId: newClient.id,
+          }),
+        });
+      }
+
       toast.success("Mandant erfolgreich erstellt!");
-      router.push("/trustee/clients");
+      
+      // Redirect to the new client's dashboard or back to clients list
+      router.push(`/trustee/clients`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Ein Fehler ist aufgetreten";
       toast.error(message);
@@ -365,9 +636,12 @@ export default function ClientOnboardingWizard() {
     }
   };
 
-  const handleExit = () => {
+  const handleExit = async () => {
+    // Save draft before exiting
+    await saveDraft();
+    
     if (formData.name) {
-      toast.info("Entwurf wurde nicht gespeichert");
+      toast.success("Entwurf gespeichert. Sie können später fortfahren.");
     }
     router.push("/trustee/clients");
   };
@@ -411,13 +685,21 @@ export default function ClientOnboardingWizard() {
               </div>
             </div>
 
-            <button
-              onClick={handleExit}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <span className="hidden sm:inline">Speichern & Beenden</span>
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              {isSaving && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Speichern...
+                </span>
+              )}
+              <button
+                onClick={handleExit}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <span className="hidden sm:inline">Speichern & Beenden</span>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Progress bar */}
@@ -745,7 +1027,7 @@ export default function ClientOnboardingWizard() {
                       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
                           <p className="text-sm font-medium text-slate-700">
-                            {uploadedFiles.length} Datei{uploadedFiles.length > 1 ? "en" : ""} hochgeladen
+                            {uploadedFiles.length} Datei{uploadedFiles.length > 1 ? "en" : ""}
                           </p>
                         </div>
                         <div className="divide-y divide-slate-100">
@@ -756,10 +1038,38 @@ export default function ClientOnboardingWizard() {
                                 key={file.id}
                                 className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
                               >
-                                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                                  <FileIcon className="h-4 w-4 text-slate-500" />
+                                <div className={cn(
+                                  "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+                                  file.status === "error" ? "bg-red-100" : "bg-slate-100"
+                                )}>
+                                  {file.status === "uploading" ? (
+                                    <Loader2 className="h-4 w-4 text-slate-500 animate-spin" />
+                                  ) : file.status === "error" ? (
+                                    <AlertCircle className="h-4 w-4 text-red-500" />
+                                  ) : (
+                                    <FileIcon className="h-4 w-4 text-slate-500" />
+                                  )}
                                 </div>
-                                <span className="flex-1 truncate text-sm text-slate-700">{file.name}</span>
+                                <span className={cn(
+                                  "flex-1 truncate text-sm",
+                                  file.status === "error" ? "text-red-600" : "text-slate-700"
+                                )}>
+                                  {file.name}
+                                </span>
+                                {file.status === "uploaded" && (
+                                  <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                                )}
+                                {file.status === "error" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      retryUpload(file);
+                                    }}
+                                    className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                                  >
+                                    Erneut
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -818,6 +1128,13 @@ export default function ClientOnboardingWizard() {
                             </div>
                           </div>
                         )}
+                        {chatError && (
+                          <div className="flex justify-center">
+                            <div className="bg-red-50 text-red-600 text-xs px-3 py-1.5 rounded-full">
+                              {chatError}
+                            </div>
+                          </div>
+                        )}
                         <div ref={chatEndRef} />
                       </div>
 
@@ -848,7 +1165,7 @@ export default function ClientOnboardingWizard() {
                 {/* Step 5: Intelligence Review */}
                 {step.id === "intelligence-review" && (
                   <div className="space-y-4">
-                    {isAnalyzing ? (
+                    {isLoadingSuggestions ? (
                       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 text-center">
                         <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                           <Loader2 className="h-7 w-7 text-slate-500 animate-spin" />
@@ -857,6 +1174,18 @@ export default function ClientOnboardingWizard() {
                         <p className="text-slate-500 mt-1">
                           Die KI erstellt Vorschläge basierend auf Ihren Angaben
                         </p>
+                      </div>
+                    ) : suggestionsError ? (
+                      <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 text-center">
+                        <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                        <p className="text-slate-900 font-medium">{suggestionsError}</p>
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={loadAISuggestions}
+                        >
+                          Erneut versuchen
+                        </Button>
                       </div>
                     ) : (
                       <>
@@ -985,7 +1314,7 @@ export default function ClientOnboardingWizard() {
                         />
                         <SummaryRow
                           label="Dokumente"
-                          value={`${uploadedFiles.length} hochgeladen`}
+                          value={`${uploadedFiles.filter(f => f.status === "uploaded").length} hochgeladen`}
                           onEdit={() => {
                             setDirection(-1);
                             setCurrentStep(2);
