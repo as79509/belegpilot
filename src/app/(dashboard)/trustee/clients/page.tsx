@@ -29,7 +29,7 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{de.clients.title}</h1>
-        <Button onClick={() => router.push("/trustee/onboarding")}>
+        <Button onClick={() => router.push("/client-onboarding")}>
           <Plus className="h-4 w-4 mr-2" />{de.clients.newClient}
         </Button>
       </div>
@@ -41,7 +41,10 @@ export default function ClientsPage() {
           ) : clients.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">{de.clients.noClients}</p>
+              <p className="text-sm text-muted-foreground mb-4">{de.clients.noClients}</p>
+              <Button onClick={() => router.push("/client-onboarding")}>
+                <Plus className="h-4 w-4 mr-2" />Ersten Mandanten anlegen
+              </Button>
             </div>
           ) : (
             <Table>
