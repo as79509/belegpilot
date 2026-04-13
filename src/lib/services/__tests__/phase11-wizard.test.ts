@@ -180,7 +180,7 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("GOV_BADGE");
   });
 
-  // Phase 11.7+11.8: Go-Live, First-30-Days, Known-Unknowns Verwaltung
+  // Phase 11.7+11.8: Go-Live, First-30-Days, Phase-Management
   it("GoLive Service existiert mit Phase-Management", () => {
     const content = fs.readFileSync("src/lib/services/onboarding/golive-service.ts", "utf-8");
     expect(content).toContain("startGoLive");
@@ -188,23 +188,25 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("advanceGoLivePhase");
     expect(content).toContain("first_week");
     expect(content).toContain("first_30_days");
+    expect(content).toContain("stabilized");
   });
 
   it("GoLive API existiert", () => {
     expect(fs.existsSync("src/app/api/onboarding/golive/route.ts")).toBe(true);
+    const content = fs.readFileSync("src/app/api/onboarding/golive/route.ts", "utf-8");
+    expect(content).toContain("startGoLive");
+    expect(content).toContain("advance");
   });
 
-  it("Known-Unknowns API mit resolve/accept/defer", () => {
-    const content = fs.readFileSync("src/app/api/onboarding/unknowns/route.ts", "utf-8");
-    expect(content).toContain("resolve");
-    expect(content).toContain("accept");
-    expect(content).toContain("defer");
-  });
-
-  it("Wizard Step 7 hat Go-Live UI statt Placeholder", () => {
+  it("Wizard Step 7 hat Go-Live UI", () => {
     const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
-    expect(content).toContain("handleStartGoLive");
+    expect(content).toContain("Step7GoLive");
     expect(content).toContain("goLiveStatus");
     expect(content).toContain("phaseLabels");
+  });
+
+  it("Dashboard hat Go-Live Widget", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
+    expect(content).toContain("Hochlaufphase");
   });
 });

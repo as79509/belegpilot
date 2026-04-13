@@ -326,7 +326,7 @@ export default function DashboardPage() {
             </div>
             <p className="text-xs text-blue-700 mt-1">
               Autopilot: {goLiveStatus.config.autopilotMode} • Review: {goLiveStatus.config.reviewLevel}
-              {goLiveStatus.config.restrictedModules.length > 0 && ` • ${goLiveStatus.config.restrictedModules.length} Module eingeschränkt`}
+              {goLiveStatus.config.restrictedModules?.length > 0 && ` • ${goLiveStatus.config.restrictedModules.length} Module eingeschränkt`}
             </p>
           </CardContent>
         </Card>

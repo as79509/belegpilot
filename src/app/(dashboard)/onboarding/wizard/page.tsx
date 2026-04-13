@@ -1034,15 +1034,6 @@ interface GoLiveStatusData {
   recommendations: string[];
 }
 
-function StatusCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card className="p-3 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium">{value}</p>
-    </Card>
-  );
-}
-
 function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string; companyId: string; onCompleted: () => void }) {
   const [goLiveStatus, setGoLiveStatus] = useState<GoLiveStatusData | null>(null);
   const [goLiveCheck, setGoLiveCheck] = useState<GoLiveCheckData | null>(null);
@@ -1063,11 +1054,10 @@ function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string;
             return;
           }
         }
-        // Load readiness check
-        const readinessRes = await fetch("/api/onboarding/wizard/readiness");
-        if (readinessRes.ok) {
-          const readiness = await readinessRes.json();
-          setGoLiveCheck(readiness.goLiveCheck || null);
+        // Load readiness / go-live check
+        const checkRes = await fetch("/api/onboarding/wizard/golive-check");
+        if (checkRes.ok) {
+          setGoLiveCheck(await checkRes.json());
         }
       } catch { /* non-critical */ }
       finally { setLoading(false); }
@@ -1086,7 +1076,7 @@ function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string;
       if (res.ok) {
         const status = await res.json();
         setGoLiveStatus(status);
-        toast.success("Go-Live gestartet!");
+        toast.success(de.onboardingWizard.step7.startGoLive + "!");
         onCompleted();
       } else {
         const err = await res.json();
@@ -1102,48 +1092,54 @@ function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string;
   if (goLiveStatus) {
     return (
       <div className="space-y-4">
-        {/* Phase-Badge */}
+        {/* Phase-Badge zentriert */}
         <div className="text-center">
           <Badge className="text-base px-4 py-1.5 bg-green-100 text-green-800">
             {phaseLabels[goLiveStatus.phase] || goLiveStatus.phase}
           </Badge>
           <p className="text-sm text-muted-foreground mt-2">
-            Tag {goLiveStatus.daysActive} — {goLiveStatus.nextPhaseLabel ? `Nächste Phase: ${goLiveStatus.nextPhaseLabel}` : "Normaler Betrieb"}
+            Tag {goLiveStatus.daysActive}
+            {goLiveStatus.nextPhaseLabel && ` — ${de.onboardingWizard.step7.nextPhase}: ${goLiveStatus.nextPhaseLabel}`}
           </p>
         </div>
 
-        {/* Status-Grid 2x3 */}
+        {/* Status-Grid 2×3 */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <StatusCard label="Autopilot" value={goLiveStatus.config.autopilotMode} />
-          <StatusCard label="Review" value={goLiveStatus.config.reviewLevel} />
-          <StatusCard label="Monitoring" value={goLiveStatus.config.monitoringLevel} />
-          <StatusCard label="Aktive Module" value={goLiveStatus.config.activatedModules.length} />
-          <StatusCard label="Offene Aufgaben" value={goLiveStatus.openTasksCount} />
-          <StatusCard label="Offene Fragen" value={goLiveStatus.openUnknownsCount} />
+          {[
+            { label: de.onboardingWizard.step7.autopilot, value: goLiveStatus.config.autopilotMode },
+            { label: de.onboardingWizard.step7.review, value: goLiveStatus.config.reviewLevel },
+            { label: "Monitoring", value: goLiveStatus.config.monitoringLevel },
+            { label: de.onboardingWizard.step7.activeModules, value: goLiveStatus.config.activatedModules.length },
+            { label: de.onboardingWizard.step7.openTasks, value: goLiveStatus.openTasksCount },
+            { label: de.onboardingWizard.step7.openQuestions, value: goLiveStatus.openUnknownsCount },
+          ].map(s => (
+            <Card key={s.label} className="p-3 text-center">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="font-medium">{s.value}</p>
+            </Card>
+          ))}
         </div>
 
-        {/* Restrictions */}
+        {/* Eingeschränkte Module */}
         {goLiveStatus.config.restrictedModules.length > 0 && (
           <InfoPanel tone="info" icon={AlertCircle}>
-            <strong>Eingeschränkte Module:</strong> {goLiveStatus.config.restrictedModules.join(", ")}
+            <strong>{de.onboardingWizard.step7.restrictedModules}:</strong> {goLiveStatus.config.restrictedModules.join(", ")}
           </InfoPanel>
         )}
 
-        {/* Recommendations */}
+        {/* Empfehlungen */}
         {goLiveStatus.recommendations.length > 0 && (
           <Card><CardContent className="pt-4">
-            <h3 className="text-sm font-semibold mb-2">Empfehlungen für diese Phase</h3>
-            {goLiveStatus.recommendations.map((r, i) => (
-              <p key={i} className="text-sm text-muted-foreground">• {r}</p>
-            ))}
+            <h3 className="text-sm font-semibold mb-2">{de.onboardingWizard.step7.recommendations}</h3>
+            {goLiveStatus.recommendations.map((r, i) => <p key={i} className="text-sm text-muted-foreground">• {r}</p>)}
           </CardContent></Card>
         )}
 
-        {/* Completed notice */}
+        {/* Abschluss-Banner */}
         <InfoPanel tone="success" icon={CheckCircle2}>
-          <strong>Onboarding abgeschlossen!</strong>
-          <p className="text-sm">Der Mandant ist live. Sie können jetzt über das Dashboard arbeiten.</p>
-          <Link href="/dashboard"><Button variant="outline" size="sm" className="mt-2">Zum Dashboard</Button></Link>
+          <strong>{de.onboardingWizard.step7.completed}</strong>
+          <p className="text-sm">{de.onboardingWizard.step7.completedDescription}</p>
+          <Link href="/dashboard"><Button variant="outline" size="sm" className="mt-2">{de.onboardingWizard.step7.toDashboard}</Button></Link>
         </InfoPanel>
       </div>
     );
@@ -1152,52 +1148,36 @@ function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string;
   // BEFORE Go-Live
   return (
     <Card>
-      <CardContent className="pt-6 space-y-4">
+      <CardContent className="pt-6 space-y-5">
         <div className="text-center">
           <Rocket className="h-12 w-12 mx-auto mb-3 text-primary" />
-          <h2 className="text-xl font-semibold">Mandant live schalten</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Der Mandant startet in einer kontrollierten Hochlaufphase
-          </p>
+          <h2 className="text-xl font-semibold">{de.onboardingWizard.step7.title}</h2>
+          <p className="text-sm text-muted-foreground">{de.onboardingWizard.step7.description}</p>
         </div>
 
         {goLiveCheck && (
           <>
-            {/* Recommended config */}
+            {/* Empfohlene Konfiguration: 3 kompakte Karten */}
             <div className="grid grid-cols-3 gap-3 text-center">
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Autopilot</p>
-                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.autopilotMode}</p>
-              </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Review</p>
-                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.reviewLevel}</p>
-              </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Stabilisierung</p>
-                <p className="font-medium">~{goLiveCheck.estimatedStabilizationDays} Tage</p>
-              </Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Autopilot</p>
+                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.autopilotMode === "shadow" ? "Beobachtung" : "Vorausfüllung"}</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">Review</p>
+                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.reviewLevel === "strict" ? "Verstärkt" : "Normal"}</p></Card>
+              <Card className="p-3"><p className="text-xs text-muted-foreground">{de.onboardingWizard.step7.stabilization}</p>
+                <p className="font-medium">~{goLiveCheck.estimatedStabilizationDays} {de.onboardingWizard.step7.days}</p></Card>
             </div>
 
-            {/* Warnings */}
+            {/* Warnungen wenn vorhanden */}
             {goLiveCheck.warnings.length > 0 && (
               <InfoPanel tone="warning" icon={AlertTriangle}>
-                {goLiveCheck.warnings.map((w, i) => <p key={i} className="text-sm">{w}</p>)}
-              </InfoPanel>
-            )}
-
-            {/* Blockers */}
-            {goLiveCheck.blockers.length > 0 && (
-              <InfoPanel tone="error" icon={AlertTriangle}>
-                <strong>Go-Live blockiert:</strong>
-                {goLiveCheck.blockers.map((b, i) => <p key={i} className="text-sm">{b}</p>)}
+                {goLiveCheck.warnings.map((w, i) => <p key={i} className="text-sm">• {w}</p>)}
               </InfoPanel>
             )}
 
             {/* Start Button */}
             <Button size="lg" className="w-full" onClick={handleStartGoLive}
-                    disabled={!goLiveCheck.canGoLive || starting}>
-              {starting ? "Starte..." : goLiveCheck.canGoLive ? "Go-Live starten" : "Go-Live blockiert"}
+              disabled={!goLiveCheck.canGoLive || starting}>
+              {starting ? de.onboardingWizard.step7.starting : goLiveCheck.canGoLive ? de.onboardingWizard.step7.startGoLive : de.onboardingWizard.step7.goLiveBlocked}
             </Button>
           </>
         )}

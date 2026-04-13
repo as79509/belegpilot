@@ -43,9 +43,9 @@ const PHASE_LABELS: Record<GoLivePhase, string> = {
 const PHASE_THRESHOLDS: Record<GoLivePhase, number> = {
   go_live_started: 0,
   first_week: 1,
-  first_30_days: 8,    // 1 + 7
-  stabilized: 38,      // 1 + 7 + 30
-  normal: 68,          // 1 + 7 + 30 + 30
+  first_30_days: 7,    // 7 Tage
+  stabilized: 30,      // 30 Tage
+  normal: 60,          // 60 Tage
 };
 
 function daysBetween(a: Date, b: Date): number {
@@ -71,7 +71,7 @@ function getNextPhaseDate(goLiveAt: Date, currentPhase: GoLivePhase): Date | nul
 }
 
 function buildConfigForPhase(phase: GoLivePhase, baseConfig: GoLiveConfig): GoLiveConfig {
-  const config = { ...baseConfig };
+  const config = { ...baseConfig, activatedModules: [...baseConfig.activatedModules], restrictedModules: [...baseConfig.restrictedModules], disabledModules: [...baseConfig.disabledModules] };
   switch (phase) {
     case "go_live_started":
     case "first_week":
@@ -79,15 +79,17 @@ function buildConfigForPhase(phase: GoLivePhase, baseConfig: GoLiveConfig): GoLi
       config.monitoringLevel = "high";
       break;
     case "first_30_days":
+      // first_week → first_30_days: reviewLevel strict → normal
       config.reviewLevel = "normal";
       config.monitoringLevel = "high";
       break;
     case "stabilized":
-      config.autopilotMode = config.autopilotMode === "shadow" ? "prefill" : config.autopilotMode;
+      // first_30_days → stabilized: monitoringLevel high → normal
       config.reviewLevel = "normal";
       config.monitoringLevel = "normal";
       break;
     case "normal":
+      // stabilized → normal: alles auf normal/minimal
       config.reviewLevel = "minimal";
       config.monitoringLevel = "low";
       break;
@@ -98,29 +100,26 @@ function buildConfigForPhase(phase: GoLivePhase, baseConfig: GoLiveConfig): GoLi
 function getRecommendations(phase: GoLivePhase): string[] {
   switch (phase) {
     case "go_live_started":
-      return [
-        "Erste Belege kontrollieren",
-        "Prüfen Sie alle Autopilot-Vorschläge manuell",
-      ];
     case "first_week":
       return [
-        "Prüfen Sie alle Autopilot-Vorschläge manuell",
+        "Alle Autopilot-Vorschläge manuell prüfen",
         "Erste Belege kontrollieren",
-        "Lieferanten-Zuordnungen prüfen",
       ];
     case "first_30_days":
       return [
         "Drift-Detection beobachten",
         "Korrektur-Rate überwachen",
-        "Regelkonflikte prüfen",
+        "Offene Fragen klären",
       ];
     case "stabilized":
       return [
-        "Autopilot-Modus kann erhöht werden wenn Korrektur-Rate < 10%",
-        "Monitoring-Level reduzierbar wenn stabil",
+        "Autopilot-Modus erhöhen wenn Korrektur-Rate < 10%",
+        "Banana Round Trip testen",
       ];
     case "normal":
-      return [];
+      return [
+        "Normaler Betrieb — alle Systeme aktiv",
+      ];
   }
 }
 
@@ -157,13 +156,11 @@ export async function startGoLive(companyId: string, sessionId: string): Promise
   };
 
   // Set AutopilotConfig to recommended mode
-  const autopilot = await prisma.autopilotConfig.findUnique({ where: { companyId } });
-  if (autopilot && config.autopilotMode === "shadow") {
-    await prisma.autopilotConfig.update({
-      where: { companyId },
-      data: { mode: "shadow", enabled: true },
-    });
-  }
+  await prisma.autopilotConfig.upsert({
+    where: { companyId },
+    update: { mode: config.autopilotMode, enabled: true },
+    create: { companyId, mode: config.autopilotMode, enabled: true },
+  });
 
   // Update OnboardingSession
   await prisma.onboardingSession.update({
@@ -199,7 +196,7 @@ export async function startGoLive(companyId: string, sessionId: string): Promise
     changes: { goLivePhase: { before: null, after: "go_live_started" } },
   });
 
-  return buildGoLiveStatus(sessionId);
+  return (await getGoLiveStatus(companyId))!;
 }
 
 export async function getGoLiveStatus(companyId: string): Promise<GoLiveStatus | null> {
@@ -220,7 +217,7 @@ export async function getGoLiveStatus(companyId: string): Promise<GoLiveStatus |
   return buildGoLiveStatus(session.id);
 }
 
-export async function advanceGoLivePhase(companyId: string): Promise<GoLiveStatus> {
+export async function advanceGoLivePhase(companyId: string): Promise<GoLiveStatus | null> {
   const session = await prisma.onboardingSession.findUniqueOrThrow({ where: { companyId } });
   const currentPhase = (session.goLivePhase || "go_live_started") as GoLivePhase;
   const currentIdx = PHASE_ORDER.indexOf(currentPhase);
