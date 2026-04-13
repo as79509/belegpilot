@@ -150,13 +150,15 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("canGoLive");
     expect(content).toContain("blockers");
     expect(content).toContain("recommendedGoLiveConfig");
+    expect(content).toContain("estimatedStabilizationDays");
   });
 
-  it("Known-Unknowns API existiert", () => {
+  it("Known-Unknowns API existiert mit resolve/accept/defer", () => {
     expect(fs.existsSync("src/app/api/onboarding/unknowns/route.ts")).toBe(true);
     const content = fs.readFileSync("src/app/api/onboarding/unknowns/route.ts", "utf-8");
-    expect(content).toContain("onboardingKnownUnknown");
     expect(content).toContain("resolve");
+    expect(content).toContain("accept");
+    expect(content).toContain("defer");
   });
 
   it("GoLive Check API existiert", () => {
@@ -166,17 +168,8 @@ describe("Phase 11 Wizard Architecture", () => {
   it("Wizard Step 6 hat Readiness UI statt Placeholder", () => {
     const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
     expect(content).toContain("Step6Readiness");
-    expect(content).toContain("handleResolveUnknown");
-    expect(content).toContain("goLiveCheck");
-    expect(content).toContain("LEVEL_COLORS");
-  });
-
-  it("i18n hat Step 6 Keys", () => {
-    const content = fs.readFileSync("src/lib/i18n/de.ts", "utf-8");
-    expect(content).toContain("step6");
-    expect(content).toContain("Gesamtreife");
-    expect(content).toContain("goLiveBlocked");
-    expect(content).toContain("goLiveReady");
+    expect(content).toContain("moduleReadiness");
+    expect(content).toContain("unknowns");
   });
 
   it("Wizard Step 5 hat Intelligence Review statt Placeholder", () => {

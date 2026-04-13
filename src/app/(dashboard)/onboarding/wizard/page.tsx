@@ -714,7 +714,7 @@ function Step6Readiness({ companyId, sessionId, onComplete }: { companyId: strin
                 {goLiveCheck?.canGoLive ? de.onboardingWizard.step6.canGoLive : de.onboardingWizard.step6.cannotGoLive}
               </Badge>
               <p className="text-sm text-muted-foreground">
-                {de.onboardingWizard.step6.modulesReady
+                {de.onboardingWizard.step6.modulesStatus
                   .replace("{ready}", String(readyCount))
                   .replace("{partial}", String(partialCount))
                   .replace("{notStarted}", String(notStartedCount))}

@@ -1283,7 +1283,7 @@ export const de = {
       title: "Readiness & offene Fragen",
       description: "Prüfen Sie den Reifegrad pro Modul und klären Sie offene Fragen",
       overallReadiness: "Gesamtreife",
-      modulesReady: "{ready} Module bereit, {partial} teilweise, {notStarted} nicht begonnen",
+      modulesStatus: "{ready} bereit, {partial} teilweise, {notStarted} nicht begonnen",
       canGoLive: "Go-Live möglich",
       cannotGoLive: "Noch nicht bereit",
       blockers: "Blocker",

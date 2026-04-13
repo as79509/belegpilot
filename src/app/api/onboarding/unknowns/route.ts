@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 export async function GET() {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  if (!hasPermission(ctx.session.user.role, "onboarding:read")) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
 
   const session = await prisma.onboardingSession.findUnique({ where: { companyId: ctx.companyId } });
   if (!session) return NextResponse.json({ unknowns: [], summary: { total: 0, open: 0, resolved: 0, blockers: 0 } });
