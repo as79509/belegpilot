@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { generateText } from "ai";
 
 /**
@@ -13,6 +14,15 @@ import { generateText } from "ai";
  * - "respond": Submit answer and get follow-up question
  */
 
+export interface OnboardingInsight {
+  id: string;
+  type: "revenue" | "cost" | "supplier" | "customer" | "special" | "location" | "employee" | "process";
+  content: string;
+  confidence: number;
+  source: "chat" | "document" | "form";
+  extractedAt: string;
+}
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -21,21 +31,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, context, userMessage, previousMessages } = body;
+    const { action, draftId, context, userMessage, previousMessages } = body;
 
     switch (action) {
       case "start": {
-        // Generate initial question based on company context
         const question = await generateInitialQuestion(context);
         return NextResponse.json({ question });
       }
 
       case "respond": {
-        // Process user's answer and generate follow-up
         const response = await processUserResponse(
           userMessage,
           context,
-          previousMessages || []
+          previousMessages || [],
+          draftId,
+          session.user.id
         );
         return NextResponse.json(response);
       }
@@ -72,8 +82,7 @@ Antworte NUR mit der Frage, ohne JSON oder Formatierung.`;
     });
 
     return result.text.trim() || getFallbackWelcome(context);
-  } catch (err) {
-    console.error("[Questions] AI initial question failed:", err);
+  } catch {
     return getFallbackWelcome(context);
   }
 }
@@ -89,72 +98,70 @@ async function processUserResponse(
     legalForm?: string;
     industry?: string;
   },
-  previousMessages: Array<{ role: string; content: string }>
+  previousMessages: Array<{ role: string; content: string }>,
+  draftId: string | undefined,
+  userId: string
 ): Promise<{
   question?: string;
   response?: string;
   complete?: boolean;
-  insights?: Array<{ type: string; content: string }>;
+  insights?: OnboardingInsight[];
 }> {
-  // Count user messages to know how far we are
   const userMessageCount = previousMessages.filter(m => m.role === "user").length + 1;
-  
-  // Topics to cover for fallback logic
-  const topics = [
-    "Haupttätigkeit und Geschäftsmodell",
-    "Kundentyp (B2B/B2C)",
-    "Wichtige Lieferanten",
-    "Regelmässige Kosten",
-    "Besondere Anforderungen"
-  ];
 
   try {
-    // Build conversation history
     const conversationSummary = previousMessages
       .map(m => `${m.role === "user" ? "Kunde" : "Assistent"}: ${m.content}`)
       .join("\n");
 
-    const systemPrompt = `Du bist ein freundlicher Schweizer Buchhaltungs-Assistent im Onboarding-Gespräch.
+    const systemPrompt = `Du bist ein Schweizer Buchhaltungs-Assistent im Onboarding-Gespräch.
 
-Bekannte Informationen:
-- Firmenname: ${context.companyName || "noch nicht bekannt"}
-- Branche: ${context.industry || "noch nicht bekannt"}
-- Rechtsform: ${context.legalForm || "noch nicht bekannt"}
+Kontext:
+- Firma: ${context.companyName || "unbekannt"}
+- Branche: ${context.industry || "unbekannt"}
+- Rechtsform: ${context.legalForm || "unbekannt"}
 
 Bisheriges Gespräch:
 ${conversationSummary}
 
-Anzahl bisheriger Antworten: ${userMessageCount}
+Antworten bisher: ${userMessageCount}
 
-Deine Aufgaben:
-1. Die neue Antwort verarbeiten
-2. Eine passende Folgefrage stellen (WENN noch nicht alle wichtigen Themen abgedeckt sind)
-3. Nach ca. 4-5 Antworten das Gespräch abschliessen
+WICHTIG - Extrahiere strukturierte Business Insights:
 
-Wichtige Themen für die Buchhaltung:
-- Geschäftsmodell/Haupttätigkeit
-- Kundentyp (B2B/B2C)
-- Wichtige Lieferanten
-- Regelmässige Kosten/Ausgaben
-- Besonderheiten der Branche
+Insight-Typen:
+- "revenue": Umsatzquellen, Hauptprodukte, Preismodelle
+- "cost": Regelmässige Kosten, grosse Ausgaben
+- "supplier": Lieferanten, Einkaufspartner
+- "customer": Kundentyp (B2B/B2C), Zielgruppe
+- "special": Branchenbesonderheiten, Sonderfälle
+- "location": Standorte, Filialen
+- "employee": Mitarbeiterzahl, Lohnstruktur
+- "process": Geschäftsprozesse, Abläufe
 
-Antworte im JSON-Format:
+Antworte IMMER im JSON-Format:
 {
-  "question": "Nächste Frage falls noch Themen offen" | null,
-  "complete": true | false,
-  "insights": [{"type": "revenue|cost|supplier|customer|special", "content": "..."}]
+  "question": "Nächste Frage" | null,
+  "complete": false | true,
+  "insights": [
+    {
+      "type": "revenue|cost|supplier|customer|special|location|employee|process",
+      "content": "Extrahierte Information",
+      "confidence": 0.0-1.0
+    }
+  ]
 }
 
 Regeln:
-- Fragen kurz halten (1-2 Sätze)
-- Natürlich und freundlich klingen
-- Nach 5 Antworten "complete: true" setzen
-- Keine Frage die bereits beantwortet wurde`;
+- Extrahiere ALLE relevanten Informationen aus der Antwort
+- Confidence: 0.9+ für explizit genannte Fakten, 0.6-0.8 für Interpretationen
+- Nach 5 Antworten: complete=true
+- Fragen kurz (1-2 Sätze)
+- Nicht nach bereits beantworteten Themen fragen`;
 
     const result = await generateText({
       model: "anthropic/claude-sonnet-4-20250514",
       system: systemPrompt,
-      prompt: `Neue Antwort vom Kunden: ${userMessage}`,
+      prompt: `Neue Antwort: ${userMessage}`,
     });
 
     const text = result.text;
@@ -162,11 +169,27 @@ Regeln:
     
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      
+      // Convert raw insights to structured format with IDs
+      const structuredInsights: OnboardingInsight[] = (parsed.insights || []).map((i: { type: string; content: string; confidence: number }) => ({
+        id: crypto.randomUUID(),
+        type: i.type,
+        content: i.content,
+        confidence: i.confidence || 0.7,
+        source: "chat" as const,
+        extractedAt: new Date().toISOString(),
+      }));
+
+      // Persist insights to draft if draftId provided
+      if (draftId && structuredInsights.length > 0) {
+        await persistInsights(draftId, userId, structuredInsights);
+      }
+
       return {
         question: parsed.question || undefined,
-        response: parsed.complete ? "Vielen Dank! Wir haben jetzt genug Informationen, um Ihre Buchhaltung optimal einzurichten." : undefined,
+        response: parsed.complete ? "Vielen Dank! Wir haben genug Informationen für die optimale Einrichtung." : undefined,
         complete: parsed.complete || false,
-        insights: parsed.insights || [],
+        insights: structuredInsights,
       };
     }
   } catch (err) {
@@ -182,13 +205,53 @@ Regeln:
   }
 
   const fallbackQuestions: Record<number, string> = {
-    1: "Danke! Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
-    2: "Verstanden. Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
-    3: "Gut zu wissen. Welche regelmässigen Ausgaben haben Sie? (z.B. Miete, Strom, Versicherungen)",
-    4: "Fast fertig! Gibt es Besonderheiten in Ihrem Unternehmen, die wir beachten sollten?",
+    1: "Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
+    2: "Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
+    3: "Welche regelmässigen Ausgaben haben Sie? (Miete, Versicherungen, etc.)",
+    4: "Gibt es Besonderheiten, die wir bei der Buchhaltung beachten sollten?",
   };
 
   return {
-    question: fallbackQuestions[userMessageCount] || "Haben Sie noch weitere Informationen, die für die Buchhaltung wichtig sind?",
+    question: fallbackQuestions[userMessageCount] || "Haben Sie weitere wichtige Informationen?",
   };
+}
+
+async function persistInsights(
+  draftId: string,
+  userId: string,
+  newInsights: OnboardingInsight[]
+): Promise<void> {
+  try {
+    const draft = await prisma.onboardingDraft.findFirst({
+      where: { id: draftId, userId },
+    });
+
+    if (!draft) return;
+
+    const draftData = draft.data as Record<string, unknown>;
+    const existingInsights = (draftData.businessInsights as OnboardingInsight[]) || [];
+    
+    // Merge new insights with existing ones (avoid duplicates by content)
+    const mergedInsights = [...existingInsights];
+    for (const newInsight of newInsights) {
+      const exists = mergedInsights.some(
+        e => e.content.toLowerCase() === newInsight.content.toLowerCase()
+      );
+      if (!exists) {
+        mergedInsights.push(newInsight);
+      }
+    }
+
+    await prisma.onboardingDraft.update({
+      where: { id: draftId },
+      data: {
+        data: {
+          ...draftData,
+          businessInsights: mergedInsights,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[Questions] Failed to persist insights:", err);
+  }
 }

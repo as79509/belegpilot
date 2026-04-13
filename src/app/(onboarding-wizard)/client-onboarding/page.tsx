@@ -1217,61 +1217,96 @@ export default function ClientOnboardingWizard() {
                           </Button>
                         </div>
 
-                        <div className="space-y-3">
-                          {aiSuggestions.map((suggestion) => (
-                            <div
-                              key={suggestion.id}
-                              className={cn(
-                                "bg-white p-5 rounded-2xl shadow-sm border transition-all",
-                                suggestion.status === "accepted" && "border-emerald-300 bg-emerald-50/50",
-                                suggestion.status === "rejected" && "border-red-300 bg-red-50/50",
-                                suggestion.status === "pending" && "border-slate-200/80"
-                              )}
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
-                                      {suggestion.category}
-                                    </span>
-                                    <span className="text-xs text-slate-400">
-                                      {Math.round(suggestion.confidence * 100)}% Konfidenz
-                                    </span>
-                                  </div>
-                                  <p className="font-medium text-slate-900">{suggestion.suggestion}</p>
-                                </div>
+                        {/* Group suggestions by confidence level */}
+                        {["high", "needs_review", "manual"].map((level) => {
+                          const levelSuggestions = aiSuggestions.filter(
+                            (s) => s.confidenceLevel === level || 
+                            (!s.confidenceLevel && level === "needs_review")
+                          );
+                          if (levelSuggestions.length === 0) return null;
+                          
+                          const levelConfig = {
+                            high: { label: "Empfohlen", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+                            needs_review: { label: "Prüfung empfohlen", color: "bg-amber-100 text-amber-700 border-amber-200" },
+                            manual: { label: "Manuelle Entscheidung", color: "bg-slate-100 text-slate-600 border-slate-200" },
+                          }[level as "high" | "needs_review" | "manual"];
+                          
+                          return (
+                            <div key={level} className="space-y-3">
+                              <div className={cn("inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium border", levelConfig.color)}>
+                                {levelConfig.label} ({levelSuggestions.length})
+                              </div>
+                              
+                              {levelSuggestions.map((suggestion) => (
+                                <div
+                                  key={suggestion.id}
+                                  className={cn(
+                                    "bg-white p-5 rounded-2xl shadow-sm border transition-all",
+                                    suggestion.status === "accepted" && "border-emerald-300 bg-emerald-50/50",
+                                    suggestion.status === "rejected" && "border-red-300 bg-red-50/50",
+                                    suggestion.status === "pending" && "border-slate-200/80"
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+                                          {suggestion.category}
+                                        </span>
+                                        <span className={cn(
+                                          "text-xs px-2 py-0.5 rounded-full",
+                                          suggestion.source === "chat" && "bg-blue-50 text-blue-600",
+                                          suggestion.source === "document" && "bg-purple-50 text-purple-600",
+                                          suggestion.source === "form" && "bg-slate-50 text-slate-500",
+                                          suggestion.source === "rule" && "bg-slate-50 text-slate-500"
+                                        )}>
+                                          {suggestion.source === "chat" ? "Aus Gespräch" :
+                                           suggestion.source === "document" ? "Aus Dokument" :
+                                           suggestion.source === "form" ? "Aus Formular" : "Regel"}
+                                        </span>
+                                        <span className="text-xs text-slate-400">
+                                          {Math.round(suggestion.confidence * 100)}%
+                                        </span>
+                                      </div>
+                                      <p className="font-medium text-slate-900">{suggestion.suggestion}</p>
+                                      {suggestion.reason && (
+                                        <p className="text-sm text-slate-500 mt-1">{suggestion.reason}</p>
+                                      )}
+                                    </div>
 
-                                {suggestion.status === "pending" ? (
-                                  <div className="flex gap-2 shrink-0">
-                                    <button
-                                      onClick={() => updateSuggestion(suggestion.id, "rejected")}
-                                      className="h-10 w-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                                    >
-                                      <ThumbsDown className="h-4 w-4 text-slate-500" />
-                                    </button>
-                                    <button
-                                      onClick={() => updateSuggestion(suggestion.id, "accepted")}
-                                      className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800 transition-colors"
-                                    >
-                                      <ThumbsUp className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className={cn(
-                                    "flex items-center justify-center h-10 w-10 rounded-xl shrink-0",
-                                    suggestion.status === "accepted" ? "bg-emerald-500" : "bg-red-500"
-                                  )}>
-                                    {suggestion.status === "accepted" ? (
-                                      <ThumbsUp className="h-4 w-4 text-white" />
+                                    {suggestion.status === "pending" ? (
+                                      <div className="flex gap-2 shrink-0">
+                                        <button
+                                          onClick={() => updateSuggestion(suggestion.id, "rejected")}
+                                          className="h-10 w-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                                        >
+                                          <ThumbsDown className="h-4 w-4 text-slate-500" />
+                                        </button>
+                                        <button
+                                          onClick={() => updateSuggestion(suggestion.id, "accepted")}
+                                          className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800 transition-colors"
+                                        >
+                                          <ThumbsUp className="h-4 w-4" />
+                                        </button>
+                                      </div>
                                     ) : (
-                                      <ThumbsDown className="h-4 w-4 text-white" />
+                                      <div className={cn(
+                                        "flex items-center justify-center h-10 w-10 rounded-xl shrink-0",
+                                        suggestion.status === "accepted" ? "bg-emerald-500" : "bg-red-500"
+                                      )}>
+                                        {suggestion.status === "accepted" ? (
+                                          <ThumbsUp className="h-4 w-4 text-white" />
+                                        ) : (
+                                          <ThumbsDown className="h-4 w-4 text-white" />
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </>
                     )}
                   </div>
