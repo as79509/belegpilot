@@ -12,12 +12,13 @@ import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } fr
 import { cn } from "@/lib/utils";
 import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
 import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
+import { typo, statusColors } from "@/lib/design-tokens";
 
 const QUICK_FILTERS = [
   { key: "", label: "Alle" },
-  { key: "needs_review", label: de.status.needs_review, color: "bg-orange-100 text-orange-800" },
-  { key: "ready", label: de.status.ready, color: "bg-green-100 text-green-800" },
-  { key: "failed", label: de.status.failed, color: "bg-red-100 text-red-800" },
+  { key: "needs_review", label: de.status.needs_review, color: `${statusColors.warning.bg} ${statusColors.warning.text}` },
+  { key: "ready", label: de.status.ready, color: `${statusColors.success.bg} ${statusColors.success.text}` },
+  { key: "failed", label: de.status.failed, color: `${statusColors.error.bg} ${statusColors.error.text}` },
 ];
 
 export default function DocumentsPage() {

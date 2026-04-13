@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
-  FileText, ListTodo, Upload, ChevronDown, Rocket,
+  FileText, ListTodo, Upload, ChevronDown, Rocket, ScrollText, Brain, FileBarChart,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
 import { useCompany } from "@/lib/contexts/company-context";
 import { EntityHeader, StatusBadge, InfoPanel } from "@/components/ds";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
+import { typo, spacing } from "@/lib/design-tokens";
 
 interface Alert {
   type: "error" | "warning";
@@ -247,7 +248,7 @@ export default function DashboardPage() {
             <CardContent className="pt-4 flex items-center gap-3">
               <Upload className="h-8 w-8 text-blue-500" />
               <div>
-                <p className="text-2xl font-bold">{uploaded}</p>
+                <p className={typo("stat")}>{uploaded}</p>
                 <p className="text-sm text-muted-foreground">Hochgeladen</p>
               </div>
             </CardContent>
@@ -256,7 +257,7 @@ export default function DashboardPage() {
             <CardContent className="pt-4 flex items-center gap-3">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
               <div>
-                <p className="text-2xl font-bold">{reviewed}</p>
+                <p className={typo("stat")}>{reviewed}</p>
                 <p className="text-sm text-muted-foreground">Gepr\u00fcft</p>
               </div>
             </CardContent>
@@ -265,7 +266,7 @@ export default function DashboardPage() {
             <CardContent className="pt-4 flex items-center gap-3">
               <ListTodo className="h-8 w-8 text-amber-500" />
               <div>
-                <p className="text-2xl font-bold">{tasksDue}</p>
+                <p className={typo("stat")}>{tasksDue}</p>
                 <p className="text-sm text-muted-foreground">Offene Aufgaben</p>
               </div>
             </CardContent>
@@ -330,6 +331,27 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Schnellzugriff (nur für Treuhänder/Admin) */}
+      {!isViewer && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {[
+            { label: "Korrekturen", href: "/corrections", icon: AlertTriangle },
+            { label: "Audit-Log", href: "/audit-log", icon: ScrollText },
+            { label: "AI-Konfiguration", href: "/settings/ai", icon: Brain },
+            { label: "Monatsbericht", href: "/reports/monthly-summary", icon: FileBarChart },
+          ].map(link => (
+            <Link key={link.href} href={link.href}>
+              <Card className="p-3 hover:shadow-sm transition-shadow cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <link.icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{link.label}</span>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
       )}
 
       {/* Bereich 2: Mandanten-Risiko-Board (nur Multi-Company) */}
@@ -867,8 +889,8 @@ function UnpaidDocsPanel({ unpaid }: { unpaid: { count: number; total: number; o
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium">{de.payment.unpaidDocs}</p>
-            <p className="text-2xl font-bold mt-1">
-              {unpaid.count} <span className="text-sm font-normal text-muted-foreground">({formatCurrency(unpaid.total, "CHF")})</span>
+            <p className={`${typo("stat")} mt-1`}>
+              {unpaid.count} <span className={typo("statLabel")}>({formatCurrency(unpaid.total, "CHF")})</span>
             </p>
           </div>
           {unpaid.overdueCount > 0 && (
@@ -901,7 +923,7 @@ function QualityScorePanel({ score }: { score: number }) {
                   style={{ width: `${score}%` }}
                 />
               </div>
-              <span className="text-lg font-bold font-mono">{score}/100</span>
+              <span className={`${typo("sectionTitle")} font-mono`}>{score}/100</span>
             </div>
           </div>
           {isCritical ? (

@@ -9,29 +9,29 @@ describe("Role Reality Audit", () => {
   describe("Sidebar", () => {
     const sidebar = read("src/components/layout/sidebar.tsx");
 
-    it("hat Viewer-spezifische clientGroup", () => {
-      expect(sidebar).toContain("isViewer");
-      expect(sidebar).toContain("clientGroup");
+    it("hat rollenbasierte Navigation mit viewer/trustee/admin", () => {
+      expect(sidebar).toContain("viewer");
+      expect(sidebar).toContain("trustee");
+      expect(sidebar).toContain("admin");
+      expect(sidebar).toContain("getNavRole");
     });
 
-    it("clientGroup enthält Dokumente und Aufgaben", () => {
-      // Extract clientGroup block and check for /documents and /tasks
-      const clientGroupIdx = sidebar.indexOf("const clientGroup");
-      const clientGroupBlock = sidebar.slice(clientGroupIdx, clientGroupIdx + 400);
-      expect(clientGroupBlock).toContain("/documents");
-      expect(clientGroupBlock).toContain("/tasks");
+    it("Viewer sieht flache Liste mit Dokumenten und Aufgaben", () => {
+      const viewerIdx = sidebar.indexOf("viewerItems");
+      const viewerBlock = sidebar.slice(viewerIdx, viewerIdx + 500);
+      expect(viewerBlock).toContain("/documents");
+      expect(viewerBlock).toContain("/tasks");
     });
 
-    it("versteckt System-Gruppe für Reviewer", () => {
-      expect(sidebar).toContain("isReviewer");
-      // systemGroup is only added when !isReviewer
-      expect(sidebar).toContain("!isReviewer");
-      expect(sidebar).toContain("systemGroup");
+    it("Trustee hat gruppierte Navigation", () => {
+      expect(sidebar).toContain("buildTrusteeGroups");
+      expect(sidebar).toContain("Tagesarbeit");
+      expect(sidebar).toContain("Finanzen");
     });
 
-    it("zeigt Treuhänder-Gruppe nur für Admin/Trustee mit Multi-Company", () => {
-      expect(sidebar).toContain("isAdminOrTrustee");
-      expect(sidebar).toContain("trusteeGroup");
+    it("Admin hat zusätzliche Administration-Gruppe", () => {
+      expect(sidebar).toContain("adminGroup");
+      expect(sidebar).toContain("Administration");
     });
   });
 

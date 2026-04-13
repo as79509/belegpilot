@@ -253,4 +253,34 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(c).toContain("Phase 11");
     expect(c).toContain("Wizard");
   });
+
+  // Phase 11X.1: Design-Tokens
+  it("Design Tokens existieren", () => {
+    const c = fs.readFileSync("src/lib/design-tokens.ts", "utf-8");
+    expect(c).toContain("colors");
+    expect(c).toContain("typography");
+    expect(c).toContain("spacing");
+    expect(c).toContain("statusColors");
+    expect(c).toContain("typo");
+  });
+
+  it("DS-Komponenten importieren Design Tokens", () => {
+    const ds = ["entity-header", "info-panel", "status-badge", "section-card", "empty-state"];
+    for (const name of ds) {
+      const c = fs.readFileSync(`src/components/ds/${name}.tsx`, "utf-8");
+      expect(c).toContain("design-tokens");
+    }
+  });
+
+  // Phase 11X.2: Navigation
+  it("Sidebar hat rollenbasierte Navigation", () => {
+    const c = fs.readFileSync("src/components/layout/sidebar.tsx", "utf-8");
+    expect(c).toContain("viewer");
+    expect(c).toContain("trustee");
+    expect(c).toContain("admin");
+  });
+
+  it("Breadcrumb-Komponente existiert", () => {
+    expect(fs.existsSync("src/components/layout/breadcrumb.tsx")).toBe(true);
+  });
 });

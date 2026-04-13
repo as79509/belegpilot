@@ -4,89 +4,104 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
+  LayoutDashboard, FileText, Building2, Download, Workflow, Mail,
   Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
   Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
-  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight, Wand2,
+  Zap, Activity, ClipboardList, Wallet, Receipt, Plug, ArrowLeftRight, Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
 import { useCompany } from "@/lib/contexts/company-context";
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+}
+
 interface NavGroup {
   label: string;
-  items: { href: string; label: string; icon: any }[];
+  items: NavItem[];
   defaultOpen?: boolean;
 }
 
-const trusteeGroup: NavGroup = {
-  label: "Treuhänder",
-  defaultOpen: true,
-  items: [
-    { href: "/trustee", label: de.trustee.overview, icon: Users },
-    { href: "/trustee/queue", label: de.trustee.queue, icon: ClipboardCheck },
-    { href: "/trustee/clients", label: de.clients.title, icon: Building2 },
-    { href: "/trustee/onboarding/analysis", label: de.onboardingAnalysis.title, icon: Brain },
+type NavRole = "viewer" | "trustee" | "admin";
+
+function getNavRole(role: string): NavRole {
+  if (role === "admin") return "admin";
+  if (role === "trustee") return "trustee";
+  return "viewer";
+}
+
+// ── Viewer (Unternehmer) — 6 flat entries ──
+const viewerItems: NavItem[] = [
+  { href: "/dashboard", label: de.nav.dashboard, icon: LayoutDashboard },
+  { href: "/documents", label: de.nav.documents, icon: FileText },
+  { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+  { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
+  { href: "/contracts", label: de.contracts.title, icon: FileSignature },
+  { href: "/settings", label: de.nav.settings, icon: Settings },
+];
+
+// ── Trustee — 4 groups ──
+function buildTrusteeGroups(isMultiCompany: boolean): NavGroup[] {
+  const groups: NavGroup[] = [];
+
+  const uebersicht: NavItem[] = [
     { href: "/onboarding/wizard", label: de.onboardingWizard.title, icon: Wand2 },
-  ],
-};
+  ];
+  if (isMultiCompany) {
+    uebersicht.unshift({ href: "/trustee", label: de.trustee.overview, icon: Users });
+  }
+  groups.push({ label: "Übersicht", defaultOpen: true, items: uebersicht });
 
-const belegeGroup: NavGroup = {
-  label: "Belege",
-  defaultOpen: true,
-  items: [
-    { href: "/documents", label: de.nav.documents, icon: FileText },
-    { href: "/email", label: de.emailImport.title, icon: Mail },
-    { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
-    { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
-  ],
-};
+  groups.push({
+    label: "Tagesarbeit",
+    defaultOpen: true,
+    items: [
+      { href: "/documents", label: de.nav.documents, icon: FileText },
+      { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
+      { href: "/journal", label: de.journal.title, icon: BookOpen },
+      { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+    ],
+  });
 
-const buchhaltungGroup: NavGroup = {
-  label: "Buchhaltung",
-  defaultOpen: true,
-  items: [
-    { href: "/journal", label: de.journal.title, icon: BookOpen },
-    { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
-    { href: "/bank", label: de.bank.title, icon: Wallet },
-    { href: "/vat", label: de.vatReturn.title, icon: Receipt },
-    { href: "/assets", label: de.assets.title, icon: Landmark },
-    { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
-    { href: "/exports", label: de.nav.exports, icon: Download },
-  ],
-};
+  groups.push({
+    label: "Finanzen",
+    items: [
+      { href: "/accounts", label: de.accounts.title, icon: ClipboardList },
+      { href: "/bank", label: de.bank.title, icon: Wallet },
+      { href: "/vat", label: de.vatReturn.title, icon: Receipt },
+      { href: "/banana", label: de.banana.title, icon: ArrowLeftRight },
+    ],
+  });
 
-const kontrolleGroup: NavGroup = {
-  label: "Kontrolle",
-  items: [
-    { href: "/periods", label: de.periods.title, icon: CalendarCheck },
-    { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
-    { href: "/reports", label: de.reports.title, icon: BarChart3 },
-    { href: "/reports/monthly-summary", label: de.monthlySummary.title, icon: FileBarChart },
-    { href: "/contracts", label: de.contracts.title, icon: FileSignature },
-  ],
-};
+  groups.push({
+    label: "Planung",
+    items: [
+      { href: "/periods", label: de.periods.title, icon: CalendarCheck },
+      { href: "/reports", label: de.reports.title, icon: BarChart3 },
+      { href: "/exports", label: de.nav.exports, icon: Download },
+    ],
+  });
 
-const systemGroup: NavGroup = {
-  label: "System",
+  return groups;
+}
+
+// ── Admin — Trustee + Administration group ──
+const adminGroup: NavGroup = {
+  label: "Administration",
   items: [
     { href: "/rules", label: de.nav.rules, icon: Workflow },
+    { href: "/expected-documents", label: de.expectedDocs.title, icon: ClipboardCheck },
+    { href: "/contracts", label: de.contracts.title, icon: FileSignature },
+    { href: "/journal/recurring", label: de.recurring.title, icon: Repeat },
+    { href: "/assets", label: de.assets.title, icon: Landmark },
     { href: "/settings/autopilot", label: de.autopilot.title, icon: Zap },
     { href: "/settings/control-center", label: de.controlCenter.title, icon: Activity },
+    { href: "/settings/system-health", label: "System Health", icon: Activity },
+    { href: "/email", label: de.emailImport.title, icon: Mail },
     { href: "/integrations", label: de.integrations.title, icon: Plug },
-    { href: "/banana", label: de.banana.title, icon: ArrowLeftRight },
-    { href: "/settings", label: de.nav.settings, icon: Settings },
-    { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
-  ],
-};
-
-const clientGroup: NavGroup = {
-  label: de.clientPortal.title,
-  defaultOpen: true,
-  items: [
-    { href: "/client", label: de.clientPortal.title, icon: Home },
-    { href: "/documents", label: de.nav.documents, icon: FileText },
-    { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
   ],
 };
 
@@ -94,19 +109,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const { companies, activeCompany, switchCompany, isMultiCompany } = useCompany();
   const role = activeCompany?.role || "";
-  const isViewer = role === "viewer" || role === "readonly";
-  const isReviewer = role === "reviewer";
-  const isAdminOrTrustee = role === "admin" || role === "trustee";
+  const navRole = getNavRole(role);
 
-  const navGroups: NavGroup[] = isViewer
-    ? [clientGroup]
-    : (() => {
-        const groups: NavGroup[] = [];
-        if (isMultiCompany && isAdminOrTrustee) groups.push(trusteeGroup);
-        groups.push(belegeGroup, buchhaltungGroup, kontrolleGroup);
-        if (!isReviewer) groups.push(systemGroup);
-        return groups;
-      })();
+  // Build navigation based on role
+  const isViewerNav = navRole === "viewer";
+
+  const navGroups: NavGroup[] = (() => {
+    if (isViewerNav) return []; // viewer uses flat list
+    const groups = buildTrusteeGroups(isMultiCompany);
+    if (navRole === "admin") {
+      groups.push(adminGroup);
+    }
+    return groups;
+  })();
+
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );
@@ -150,57 +166,83 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Dashboard (standalone) */}
-        <div className="px-2 pt-3 pb-0.5">
-          <Link
-            href="/dashboard"
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              pathname === "/dashboard" ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
-            )}
-          >
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            {de.nav.dashboard}
-          </Link>
-        </div>
-
-        {/* Grouped navigation */}
-        <nav className="flex-1 px-2 py-1">
-          {navGroups.map((group) => {
-            const isOpen = openGroups.has(group.label);
-            return (
-              <div key={group.label}>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.label)}
-                  className="flex items-center justify-between w-full px-3 pt-4 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest hover:text-white/60 transition-colors"
+        {/* Viewer: Flat list */}
+        {isViewerNav && (
+          <nav className="flex-1 px-2 py-3 space-y-0.5">
+            {viewerItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    active ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  )}
                 >
-                  {group.label}
-                  <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", isOpen ? "" : "-rotate-90")} />
-                </button>
-                <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-96" : "max-h-0")}>
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ml-1",
-                          active ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </nav>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* Trustee/Admin: Dashboard + grouped navigation */}
+        {!isViewerNav && (
+          <>
+            <div className="px-2 pt-3 pb-0.5">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  pathname === "/dashboard" ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                {de.nav.dashboard}
+              </Link>
+            </div>
+
+            <nav className="flex-1 px-2 py-1">
+              {navGroups.map((group) => {
+                const isOpen = openGroups.has(group.label);
+                return (
+                  <div key={group.label}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.label)}
+                      className="flex items-center justify-between w-full px-3 pt-4 pb-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest hover:text-white/60 transition-colors"
+                    >
+                      {group.label}
+                      <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", isOpen ? "" : "-rotate-90")} />
+                    </button>
+                    <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-96" : "max-h-0")}>
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const active = isActive(item.href);
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ml-1",
+                              active ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                            )}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+          </>
+        )}
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-white/10">

@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useState } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -97,6 +98,7 @@ export default function OnboardingAnalysisPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <Breadcrumb items={[{ label: "Treuhänder", href: "/trustee" }, { label: "Onboarding-Analyse" }]} />
       <EntityHeader
         title={t.title}
         subtitle={t.description}

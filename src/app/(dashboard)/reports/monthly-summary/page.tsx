@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ export default function MonthlySummaryPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Berichte", href: "/reports" }, { label: "Monatsbericht" }]} />
       {/* Header with month selector */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t.title} {MONTH_NAMES[month - 1]} {year}</h1>

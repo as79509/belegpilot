@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,6 +67,7 @@ export default function AuditLogPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Administration" }, { label: de.auditLog.title }]} />
       <h1 className="text-2xl font-semibold tracking-tight">{de.auditLog.title}</h1>
 
       {/* Filters */}

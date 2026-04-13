@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,6 +61,7 @@ export default function TrusteeQueuePage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Treuhänder", href: "/trustee" }, { label: de.trustee.queue }]} />
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{de.trustee.queue}</h1>
         <Badge variant="secondary">{data?.total || 0} {de.trustee.documentsAcrossClients}</Badge>

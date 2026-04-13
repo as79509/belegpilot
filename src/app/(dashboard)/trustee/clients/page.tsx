@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +28,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Treuhänder", href: "/trustee" }, { label: de.clients.title }]} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{de.clients.title}</h1>
         <Button onClick={() => router.push("/trustee/onboarding")}>

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { LucideIcon } from "lucide-react";
+import { typo, spacing } from "@/lib/design-tokens";
 
 export interface EntityHeaderAction {
   label: string;
@@ -27,14 +28,14 @@ export function EntityHeader({
   secondaryActions,
 }: EntityHeaderProps) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className={`flex flex-wrap items-start justify-between ${spacing.inline}`}>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className={`flex flex-wrap items-center ${spacing.inline}`}>
+          <h1 className={typo("pageTitle")}>{title}</h1>
           {badge}
         </div>
         {subtitle && (
-          <div className="text-sm text-[var(--text-secondary)] mt-1">{subtitle}</div>
+          <div className={`${typo("body")} text-muted-foreground mt-1`}>{subtitle}</div>
         )}
       </div>
       {(primaryAction || secondaryActions?.length) && (

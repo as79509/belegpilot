@@ -15,6 +15,7 @@ import { de } from "@/lib/i18n/de";
 import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/ds";
 import { SupplierRowActions } from "@/components/suppliers/supplier-row-actions";
 import { useCompany } from "@/lib/contexts/company-context";
+import { typo, statusColors } from "@/lib/design-tokens";
 
 export default function SuppliersPage() {
   const router = useRouter();
@@ -98,13 +99,13 @@ export default function SuppliersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{de.suppliers.name}</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>{de.detail.vatNumber}</TableHead>
-                  <TableHead>IBAN</TableHead>
-                  <TableHead>{de.suppliers.documentCount}</TableHead>
-                  <TableHead>{de.suppliers.defaultCategory}</TableHead>
-                  <TableHead>{de.supplierTrust.trustScore}</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.suppliers.name}</TableHead>
+                  <TableHead className={typo("tableHeader")}>Status</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.detail.vatNumber}</TableHead>
+                  <TableHead className={typo("tableHeader")}>IBAN</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.suppliers.documentCount}</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.suppliers.defaultCategory}</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.supplierTrust.trustScore}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -123,7 +124,7 @@ export default function SuppliersPage() {
                       <TableCell className="text-xs">{s.defaultCategory || de.common.noData}</TableCell>
                       <TableCell>
                         {trust ? (
-                          <Badge className={trust.riskLevel === "low" ? "bg-green-100 text-green-800" : trust.riskLevel === "medium" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}>
+                          <Badge className={trust.riskLevel === "low" ? `${statusColors.success.bg} ${statusColors.success.text}` : trust.riskLevel === "medium" ? `${statusColors.warning.bg} ${statusColors.warning.text}` : `${statusColors.error.bg} ${statusColors.error.text}`}>
                             {trust.trustScore}
                           </Badge>
                         ) : (

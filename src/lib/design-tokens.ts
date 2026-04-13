@@ -6,6 +6,102 @@
  * lookup machen — niemals ad-hoc Tailwind-Klassen für Status-Farben.
  */
 
+// ─── BelegPilot Design Language — Single Source of Truth ───
+// Zielbild: Ruhig, erwachsen, präzise, hochwertig
+
+// ─── Farben ───
+export const colors = {
+  primary: "hsl(213 94% 20%)",
+  primaryLight: "hsl(213 80% 95%)",
+  primaryHover: "hsl(213 90% 25%)",
+  success: "hsl(142 71% 35%)",
+  successLight: "hsl(142 71% 95%)",
+  warning: "hsl(38 92% 50%)",
+  warningLight: "hsl(38 92% 95%)",
+  error: "hsl(0 84% 52%)",
+  errorLight: "hsl(0 84% 96%)",
+  info: "hsl(213 70% 50%)",
+  infoLight: "hsl(213 70% 96%)",
+  confidenceHigh: "hsl(142 60% 40%)",
+  confidenceMedium: "hsl(38 80% 50%)",
+  confidenceLow: "hsl(0 0% 60%)",
+  autopilot: "hsl(259 60% 50%)",
+  autopilotLight: "hsl(259 60% 96%)",
+  suggestion: "hsl(213 70% 50%)",
+  suggestionLight: "hsl(213 70% 96%)",
+  banana: "hsl(45 93% 47%)",
+  bananaLight: "hsl(45 93% 96%)",
+  mandant: "hsl(172 66% 40%)",
+  mandantLight: "hsl(172 66% 96%)",
+  text: "hsl(222 47% 11%)",
+  textMuted: "hsl(215 16% 47%)",
+  textLight: "hsl(215 16% 65%)",
+  border: "hsl(214 32% 91%)",
+  borderLight: "hsl(214 20% 95%)",
+  surface: "hsl(0 0% 100%)",
+  surfaceMuted: "hsl(210 20% 98%)",
+  background: "hsl(210 20% 98%)",
+} as const;
+
+// ─── Typografie ───
+export const typography = {
+  pageTitle:     { size: "text-2xl",    weight: "font-semibold", tracking: "tracking-tight" },
+  sectionTitle:  { size: "text-lg",     weight: "font-semibold", tracking: "" },
+  cardTitle:     { size: "text-base",   weight: "font-medium",   tracking: "" },
+  body:          { size: "text-sm",     weight: "font-normal",   tracking: "" },
+  bodySmall:     { size: "text-xs",     weight: "font-normal",   tracking: "" },
+  label:         { size: "text-xs",     weight: "font-medium",   tracking: "uppercase tracking-wider" },
+  status:        { size: "text-xs",     weight: "font-medium",   tracking: "" },
+  micro:         { size: "text-[11px]", weight: "font-normal",   tracking: "" },
+  tableHeader:   { size: "text-xs",     weight: "font-medium",   tracking: "text-muted-foreground" },
+  tableCell:     { size: "text-sm",     weight: "font-normal",   tracking: "" },
+  stat:          { size: "text-3xl",    weight: "font-bold",     tracking: "tracking-tight" },
+  statLabel:     { size: "text-xs",     weight: "font-medium",   tracking: "text-muted-foreground" },
+} as const;
+
+// ─── Spacing ───
+export const spacing = {
+  page:        "px-6 py-6",
+  section:     "space-y-6",
+  card:        "p-5",
+  cardCompact: "p-3",
+  cardHeader:  "pb-3",
+  stack:       "space-y-4",
+  stackTight:  "space-y-2",
+  inline:      "gap-3",
+  inlineTight: "gap-1.5",
+  grid2:       "grid grid-cols-1 md:grid-cols-2 gap-4",
+  grid3:       "grid grid-cols-1 md:grid-cols-3 gap-4",
+  grid4:       "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4",
+} as const;
+
+// ─── Schatten & Radien ───
+export const elevation = {
+  card:      "shadow-sm border rounded-lg",
+  cardHover: "shadow-sm border rounded-lg hover:shadow-md transition-shadow",
+  panel:     "shadow-md border rounded-lg",
+  dropdown:  "shadow-lg border rounded-md",
+} as const;
+
+// ─── Helper: Tailwind-Klassen zusammenbauen ───
+export function typo(key: keyof typeof typography): string {
+  const t = typography[key];
+  return [t.size, t.weight, t.tracking].filter(Boolean).join(" ");
+}
+
+// ─── Status-Farb-Map (für Backgrounds, Text, Borders) ───
+export const statusColors = {
+  success:    { bg: "bg-green-50",  text: "text-green-800",  border: "border-green-200" },
+  warning:    { bg: "bg-amber-50",  text: "text-amber-800",  border: "border-amber-200" },
+  error:      { bg: "bg-red-50",    text: "text-red-800",    border: "border-red-200" },
+  info:       { bg: "bg-blue-50",   text: "text-blue-800",   border: "border-blue-200" },
+  neutral:    { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200" },
+  autopilot:  { bg: "bg-violet-50", text: "text-violet-800", border: "border-violet-200" },
+  suggestion: { bg: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200" },
+  banana:     { bg: "bg-yellow-50", text: "text-yellow-800", border: "border-yellow-200" },
+  mandant:    { bg: "bg-teal-50",   text: "text-teal-800",   border: "border-teal-200" },
+} as const;
+
 export type BadgeTone =
   | "blue"
   | "amber"

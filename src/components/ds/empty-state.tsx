@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { LucideIcon } from "lucide-react";
+import { typo } from "@/lib/design-tokens";
 
 export interface EmptyStateAction {
   label: string;
@@ -29,10 +30,10 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center justify-center text-center py-12 px-4 ${className || ""}`}
     >
-      {Icon && <Icon className="h-10 w-10 text-[var(--text-muted)] opacity-50 mb-3" />}
-      <p className="text-sm font-medium">{title}</p>
+      {Icon && <Icon className="h-10 w-10 text-muted-foreground opacity-50 mb-3" />}
+      <p className={typo("sectionTitle")}>{title}</p>
       {description && (
-        <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm">{description}</p>
+        <p className={`${typo("bodySmall")} text-muted-foreground mt-1 max-w-sm`}>{description}</p>
       )}
       {action && (
         <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>

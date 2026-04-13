@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { elevation, spacing } from "@/lib/design-tokens";
 
 export interface SectionCardProps {
   title?: string;
@@ -25,9 +26,9 @@ export function SectionCard({
   bodyClassName,
 }: SectionCardProps) {
   return (
-    <Card className={className}>
+    <Card className={cn(elevation.card, className)}>
       {title && (
-        <CardHeader className="pb-2">
+        <CardHeader className={spacing.cardHeader}>
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-sm flex items-center gap-2">
               {Icon && <Icon className={cn("h-4 w-4", iconColor)} />}

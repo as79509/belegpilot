@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -128,6 +129,7 @@ export default function CorrectionsPage() {
 
   return (
     <div className="space-y-4">
+      <Breadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Qualität" }, { label: de.correctionsDashboard.title }]} />
       <EntityHeader
         title={de.correctionsDashboard.title}
         badge={

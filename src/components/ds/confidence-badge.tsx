@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { statusColors } from "@/lib/design-tokens";
 
 export type ConfidenceLevel = "high" | "medium" | "low" | null | undefined;
 
@@ -21,9 +22,9 @@ function levelFromScore(score: number | null | undefined): ConfidenceLevel {
 }
 
 const LEVEL_CLASS: Record<NonNullable<ConfidenceLevel>, string> = {
-  high: "bg-green-100 text-green-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-red-100 text-red-800",
+  high: `${statusColors.success.bg} ${statusColors.success.text}`,
+  medium: `${statusColors.warning.bg} ${statusColors.warning.text}`,
+  low: `${statusColors.error.bg} ${statusColors.error.text}`,
 };
 
 const LEVEL_LABEL: Record<NonNullable<ConfidenceLevel>, string> = {

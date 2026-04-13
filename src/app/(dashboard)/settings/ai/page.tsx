@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -149,6 +150,7 @@ export default function AiSettingsPage() {
 
   return (
     <div className="space-y-8">
+      <Breadcrumb items={[{ label: "Einstellungen", href: "/settings" }, { label: "AI-Konfiguration" }]} />
       {/* Escalation Rules */}
       <div>
         <div className="flex items-center justify-between mb-4">
