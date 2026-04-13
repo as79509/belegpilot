@@ -72,8 +72,16 @@ export default function TasksPage() {
 
   async function toggleStatus(id: string, current: string) {
     const next = current === "open" ? "in_progress" : current === "in_progress" ? "done" : "open";
-    await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
-    fetchTasks();
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: next } : t));
+    try {
+      const res = await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+      if (!res.ok) throw new Error();
+      fetchTasks();
+    } catch {
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: current } : t));
+      toast.error("Status konnte nicht geändert werden");
+    }
   }
 
   function selectTemplate(templateType: string) {

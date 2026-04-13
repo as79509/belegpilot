@@ -33,3 +33,6 @@ export { DashboardSkeleton, TablePageSkeleton, DetailPageSkeleton, WizardSkeleto
 export { SaveIndicator, useSaveState } from "./save-indicator";
 
 export { FirstUseHint } from "./first-use-hint";
+
+export { TrustSignal } from "./trust-signal";
+export { ProtectionBadge } from "./protection-badge";

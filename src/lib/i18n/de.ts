@@ -1450,6 +1450,21 @@ export const de = {
     },
   },
 
+  trust: {
+    aiConfirmed: "KI-bestätigt",
+    aiSuggested: "KI-Vorschlag",
+    manualReview: "Manuell geprüft",
+    protected: "Geschützt",
+    blocked: "Gesperrt",
+    source: "Quelle",
+    confidence: "Sicherheit",
+    periodLocked: "Periode gesperrt",
+    autopilotBlocked: "Autopilot blockiert",
+    reviewRequired: "Manuelle Prüfung nötig",
+    exportPending: "Export ausstehend",
+    escalated: "Eskaliert",
+  },
+
   supplierOverride: {
     title: "Lieferanten-Autopilot",
     mode: "Autopilot-Modus",

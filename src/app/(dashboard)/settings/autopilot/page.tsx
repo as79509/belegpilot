@@ -15,6 +15,8 @@ import {
 import { Zap, AlertOctagon, Power, Save, Activity, ArrowRight, TrendingDown, ShieldCheck, BarChart3 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { InfoPanel } from "@/components/ds";
+import { TrustSignal } from "@/components/ds/trust-signal";
+import { ProtectionBadge } from "@/components/ds/protection-badge";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -181,6 +183,18 @@ export default function AutopilotSettingsPage() {
           <Zap className="h-6 w-6 text-amber-500" />
           <h1 className="text-2xl font-semibold tracking-tight">{de.autopilot.title}</h1>
           <Badge className={statusBadge.color}>{statusBadge.label}</Badge>
+          {config.mode === "shadow" && config.enabled && !config.killSwitchActive && (
+            <TrustSignal level="protected" reason="Beobachtungsmodus — Vorschläge werden nur angezeigt, nicht angewendet" />
+          )}
+          {config.mode === "prefill" && config.enabled && !config.killSwitchActive && (
+            <TrustSignal level="ai_suggested" reason="Vorausfüllungsmodus — Felder werden vorausgefüllt, Prüfung erforderlich" />
+          )}
+          {config.mode === "auto_ready" && config.enabled && !config.killSwitchActive && (
+            <TrustSignal level="ai_confirmed" reason="Automatik — Belege werden bei hoher Sicherheit automatisch genehmigt" />
+          )}
+          {config.killSwitchActive && (
+            <ProtectionBadge type="autopilot_blocked" detail={config.killSwitchReason || undefined} />
+          )}
         </div>
       </div>
 

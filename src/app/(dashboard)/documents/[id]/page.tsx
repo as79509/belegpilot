@@ -31,6 +31,8 @@ import { ReviewForm } from "@/components/review/review-form";
 import { ConfidenceBadge } from "@/components/ds/confidence-badge";
 import { StatusBadge } from "@/components/ds/status-badge";
 import { SectionCard } from "@/components/ds/section-card";
+import { TrustSignal } from "@/components/ds/trust-signal";
+import { ProtectionBadge } from "@/components/ds/protection-badge";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatRelativeTime, formatConfidence, formatCurrency, getConfidenceColor } from "@/lib/i18n/format";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
@@ -223,6 +225,8 @@ export default function DocumentDetailPage() {
   const handleToolbarApprove = useCallback(async () => {
     if (approving || !doc) return;
     setApproving(true);
+    const prevStatus = doc.status;
+    setDoc((prev: any) => prev ? { ...prev, status: "approved" } : null);
     try {
       const res = await fetch(`/api/documents/${doc.id}/approve`, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -238,13 +242,18 @@ export default function DocumentDetailPage() {
       }
       toast.success(de.review.approveSuccess);
       if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
-    } catch (err: any) { toast.error(err.message || de.errors.serverError); }
+    } catch (err: any) {
+      setDoc((prev: any) => prev ? { ...prev, status: prevStatus } : null);
+      toast.error(err.message || de.errors.serverError);
+    }
     finally { setApproving(false); }
   }, [doc, nextDocId, approving, router, suggestion]);
 
   const handleToolbarReject = useCallback(async () => {
     if (!rejectReason.trim() || !doc) return;
     setRejecting(true);
+    const prevStatus = doc.status;
+    setDoc((prev: any) => prev ? { ...prev, status: "rejected" } : null);
     try {
       const res = await fetch(`/api/documents/${doc.id}/reject`, {
         method: "POST",
@@ -265,7 +274,10 @@ export default function DocumentDetailPage() {
       setRejectDialogOpen(false);
       setRejectReason("");
       if (nextDocId) setTimeout(() => router.push(`/documents/${nextDocId}`), 400);
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) {
+      setDoc((prev: any) => prev ? { ...prev, status: prevStatus } : null);
+      toast.error(err.message);
+    }
     finally { setRejecting(false); }
   }, [doc, rejectReason, nextDocId, router, suggestion]);
 
@@ -672,6 +684,40 @@ export default function DocumentDetailPage() {
             </Button>
           ) : null}
         </div>
+      </div>
+
+      {/* Trust & Protection Signals */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Trust level based on suggestion */}
+        {suggestion && suggestion.status === "pending" && (
+          <TrustSignal
+            level={suggestion.confidenceScore >= 0.85 ? "ai_confirmed" : "ai_suggested"}
+            confidence={suggestion.confidenceScore}
+            reason={suggestion.reasoning || "KI-basierte Kontierung"}
+            source={suggestion.ruleId ? `Regel` : suggestion.supplierDefault ? "Lieferanten-Default" : "KI-Analyse"}
+          />
+        )}
+        {suggestion && suggestion.status === "accepted" && (
+          <TrustSignal level="ai_confirmed" reason="Vorschlag übernommen" />
+        )}
+        {doc.recordReviewStatus === "approved" && (
+          <TrustSignal level="manual" reason="Manuell genehmigt" />
+        )}
+        {doc.recordReviewStatus === "rejected" && (
+          <TrustSignal level="blocked" reason={doc.rejectionReason || "Abgelehnt"} />
+        )}
+        {autopilotEvent && autopilotEvent.decision === "auto_ready" && (
+          <TrustSignal level="ai_confirmed" reason="Autopilot hat automatisch genehmigt" source="Autopilot" confidence={autopilotEvent.confidenceScore} />
+        )}
+        {autopilotEvent && autopilotEvent.decision === "blocked" && (
+          <ProtectionBadge type="autopilot_blocked" detail={autopilotEvent.blockedBy || undefined} />
+        )}
+        {doc.status === "needs_review" && (
+          <ProtectionBadge type="review_required" />
+        )}
+        {doc.isEscalated && (
+          <ProtectionBadge type="escalated" />
+        )}
       </div>
 
       {/* Review-Kontext Panel (Phase 8.8.1) */}

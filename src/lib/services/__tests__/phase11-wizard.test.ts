@@ -381,4 +381,25 @@ describe("Phase 11 Wizard Architecture", () => {
     }
     expect(count).toBeGreaterThanOrEqual(4);
   });
+
+  // Phase 11X.8: Trust Layer
+  it("TrustSignal Komponente existiert", () => {
+    const c = fs.readFileSync("src/components/ds/trust-signal.tsx", "utf-8");
+    expect(c).toContain("TrustSignal");
+    expect(c).toContain("ai_confirmed");
+    expect(c).toContain("ai_suggested");
+    expect(c).toContain("protected");
+  });
+
+  it("ProtectionBadge Komponente existiert", () => {
+    const c = fs.readFileSync("src/components/ds/protection-badge.tsx", "utf-8");
+    expect(c).toContain("ProtectionBadge");
+    expect(c).toContain("period_locked");
+    expect(c).toContain("review_required");
+  });
+
+  it("Document-Detail nutzt TrustSignal", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/documents/[id]/page.tsx", "utf-8");
+    expect(c).toContain("TrustSignal");
+  });
 });
