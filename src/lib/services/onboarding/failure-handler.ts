@@ -101,17 +101,17 @@ export async function assessFailureModes(companyId: string, sessionId: string): 
   }
 
   // Contradictory: check for suppliers with many different accounts
-  const contradictorySuppliers = await prisma.$queryRaw<Array<{ supplierName: string; accountCount: number }>>`
-    SELECT "supplierName", COUNT(DISTINCT "accountId") as "accountCount"
-    FROM "Document"
-    WHERE "companyId" = ${companyId} AND "accountId" IS NOT NULL AND "supplierName" IS NOT NULL
-    GROUP BY "supplierName"
-    HAVING COUNT(DISTINCT "accountId") > 3
+  const contradictorySuppliers = await prisma.$queryRaw<Array<{ supplier_name: string; account_count: bigint }>>`
+    SELECT "supplier_name_normalized" as "supplier_name", COUNT(DISTINCT "account_code") as "account_count"
+    FROM "documents"
+    WHERE "company_id" = ${companyId} AND "account_code" IS NOT NULL AND "supplier_name_normalized" IS NOT NULL
+    GROUP BY "supplier_name_normalized"
+    HAVING COUNT(DISTINCT "account_code") > 3
     LIMIT 5
   `;
 
   if (contradictorySuppliers.length > 0) {
-    const names = contradictorySuppliers.map(s => s.supplierName).join(", ");
+    const names = contradictorySuppliers.map(s => s.supplier_name).join(", ");
     failures.push({
       area: "kontierung",
       type: "contradictory",

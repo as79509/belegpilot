@@ -153,7 +153,14 @@ export default function OnboardingWizardPage() {
         body: JSON.stringify({ action: "complete_step", step, data }),
       });
       if (res.ok) {
-        setState(await res.json());
+        const newState = await res.json();
+        setState(newState);
+        // If the new currentStep is not visible for this role, skip to next visible
+        const newStep = newState.currentStep;
+        if (!visibleStepNumbers.includes(newStep)) {
+          const nextVisible = visibleStepNumbers.find((s: number) => s > newStep);
+          if (nextVisible) handleNavigate(nextVisible);
+        }
         const stepKey = state?.stepStatuses.find((s) => s.step === step)?.key;
         toast.success((stepKey ? de.onboardingWizard.steps[stepKey as keyof typeof de.onboardingWizard.steps] : "Schritt") + " gespeichert");
       } else {
@@ -232,6 +239,11 @@ export default function OnboardingWizardPage() {
   const cs = state.currentStep;
   const pct = Math.round(state.progress * 100);
   const s1Valid = !!(s1.name && s1.legalName && s1.industry && (s1.vatNumber || s1.uid));
+
+  // Navigation helpers that respect visible steps
+  const visibleStepNumbers = visibleSteps.map(s => s.step);
+  const prevVisibleStep = [...visibleStepNumbers].reverse().find(s => s < cs) ?? null;
+  const nextVisibleStep = visibleStepNumbers.find(s => s > cs) ?? null;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -579,7 +591,7 @@ export default function OnboardingWizardPage() {
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="outline" disabled={cs <= 1} onClick={() => handleNavigate(cs - 1)}>
+        <Button variant="outline" disabled={!prevVisibleStep} onClick={() => prevVisibleStep && handleNavigate(prevVisibleStep)}>
           <ChevronLeft className="h-4 w-4 mr-1" />{de.onboardingWizard.back}
         </Button>
         <Badge variant="secondary" className="text-xs">{de.onboardingWizard.progress.replace("{percent}", String(pct))}</Badge>
@@ -591,13 +603,11 @@ export default function OnboardingWizardPage() {
           <Button onClick={() => handleCompleteStep(2, s2)} disabled={saving}>
             {saving ? "Speichere..." : de.onboardingWizard.next}<ChevronRight className="h-4 w-4 ml-1" />
           </Button>
-        ) : cs < 7 ? (
+        ) : cs < 7 && nextVisibleStep ? (
           <Button onClick={() => handleCompleteStep(cs, {})} disabled={saving}>
             {saving ? "Speichere..." : de.onboardingWizard.next}<ChevronRight className="h-4 w-4 ml-1" />
           </Button>
-        ) : (
-          <Button disabled={saving}>{de.onboardingWizard.complete}</Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -207,14 +207,18 @@ export async function getGoLiveStatus(companyId: string): Promise<GoLiveStatus |
   const currentPhase = session.goLivePhase as GoLivePhase;
   const expectedPhase = getExpectedPhase(daysActive);
 
-  // Auto-advance if phase should change
+  // Auto-advance through all phases that should have been reached
   const currentIdx = PHASE_ORDER.indexOf(currentPhase);
   const expectedIdx = PHASE_ORDER.indexOf(expectedPhase);
   if (expectedIdx > currentIdx) {
-    return advanceGoLivePhase(companyId);
+    for (let i = currentIdx; i < expectedIdx; i++) {
+      await advanceGoLivePhase(companyId);
+    }
   }
 
-  return buildGoLiveStatus(session.id);
+  // Re-read session after potential advances
+  const updated = await prisma.onboardingSession.findUnique({ where: { companyId } });
+  return buildGoLiveStatus(updated!.id);
 }
 
 export async function advanceGoLivePhase(companyId: string): Promise<GoLiveStatus | null> {
