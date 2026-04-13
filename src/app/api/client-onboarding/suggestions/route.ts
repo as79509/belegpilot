@@ -219,6 +219,10 @@ async function generateDataDrivenSuggestions(input: SuggestionInput): Promise<AI
     suggestions.push(...docSuggestions);
   }
 
+  // === 8. INDUSTRY-SPECIFIC SUGGESTIONS ===
+  const industrySuggestions = generateIndustrySpecificSuggestions(industry, insightsByType);
+  suggestions.push(...industrySuggestions);
+
   return suggestions;
 }
 
@@ -527,6 +531,285 @@ function generateDocumentBasedSuggestions(
       reason: `${uploadedFiles.length} Dokumente hochgeladen - automatische Verarbeitung empfohlen.`,
       source: "document",
       field: "autoInvoiceProcessing",
+      value: "enable",
+      status: "pending",
+    });
+  }
+
+  return suggestions;
+}
+
+// Industry-specific suggestion generator
+function generateIndustrySpecificSuggestions(
+  industry: string,
+  insights: Record<string, OnboardingInsight[]>
+): AISuggestion[] {
+  const suggestions: AISuggestion[] = [];
+
+  // === GASTRONOMIE ===
+  if (industry.includes("gastro") || industry.includes("hotel") || industry.includes("restaurant")) {
+    // Cash register integration
+    const processInsights = insights["process"] || [];
+    const hasCashRegister = processInsights.some(i => 
+      i.content.toLowerCase().includes("kasse") ||
+      i.content.toLowerCase().includes("pos")
+    );
+    
+    suggestions.push({
+      id: randomUUID(),
+      category: "Kassensystem",
+      suggestion: hasCashRegister 
+        ? "Kassensystem-Schnittstelle für automatischen Tagesabschluss"
+        : "Manuelle Tagesabschluss-Erfassung einrichten",
+      confidence: hasCashRegister ? 0.88 : 0.75,
+      confidenceLevel: hasCashRegister ? "high" : "needs_review",
+      reason: hasCashRegister 
+        ? "Kassensystem aus Gespräch erkannt."
+        : "Standard für Gastrobetriebe ohne POS-Integration.",
+      source: hasCashRegister ? "chat" : "rule",
+      field: "posIntegration",
+      value: hasCashRegister ? "integrated" : "manual",
+      status: "pending",
+    });
+
+    // Food cost tracking
+    suggestions.push({
+      id: randomUUID(),
+      category: "Wareneinsatz",
+      suggestion: "Wareneinsatz-Tracking für F&B aktivieren",
+      confidence: 0.87,
+      confidenceLevel: "high",
+      reason: "Wichtig für Kalkulation und Margenüberwachung in der Gastronomie.",
+      source: "rule",
+      field: "foodCostTracking",
+      value: "enable",
+      status: "pending",
+    });
+
+    // Tip handling
+    suggestions.push({
+      id: randomUUID(),
+      category: "Trinkgeld",
+      suggestion: "Trinkgeld-Konten für korrekte Verbuchung",
+      confidence: 0.82,
+      confidenceLevel: "needs_review",
+      reason: "Trinkgelder müssen korrekt als durchlaufende Posten verbucht werden.",
+      source: "rule",
+      field: "tipAccounts",
+      value: "enable",
+      status: "pending",
+    });
+  }
+
+  // === BAU / HANDWERK ===
+  if (industry.includes("bau") || industry.includes("handwerk") || industry.includes("renovation")) {
+    // Project accounting
+    suggestions.push({
+      id: randomUUID(),
+      category: "Projektbuchhaltung",
+      suggestion: "Projektbasierte Kostenstellen für Bauaufträge",
+      confidence: 0.89,
+      confidenceLevel: "high",
+      reason: "Ermöglicht projektgenaue Nachkalkulation und Margenanalyse.",
+      source: "rule",
+      field: "projectAccounting",
+      value: "enable",
+      status: "pending",
+    });
+
+    // Akonto handling
+    suggestions.push({
+      id: randomUUID(),
+      category: "Akonto-Rechnungen",
+      suggestion: "Akonto-Rechnungsverwaltung mit automatischer Schlussrechnung",
+      confidence: 0.91,
+      confidenceLevel: "high",
+      reason: "Standard im Bauwesen für Teilzahlungen während Projektlaufzeit.",
+      source: "rule",
+      field: "akontoManagement",
+      value: "enable",
+      status: "pending",
+    });
+
+    // Subcontractor management
+    const supplierInsights = insights["supplier"] || [];
+    if (supplierInsights.length > 0) {
+      suggestions.push({
+        id: randomUUID(),
+        category: "Subunternehmer",
+        suggestion: "Subunternehmer-Verwaltung mit Leistungsnachweisen",
+        confidence: 0.84,
+        confidenceLevel: "needs_review",
+        reason: "Subunternehmer aus Gespräch erkannt.",
+        source: "chat",
+        field: "subcontractorManagement",
+        value: "enable",
+        status: "pending",
+      });
+    }
+  }
+
+  // === IT / SOFTWARE ===
+  if (industry.includes("it") || industry.includes("software") || industry.includes("tech")) {
+    // Recurring revenue
+    const revenueInsights = insights["revenue"] || [];
+    const hasSubscriptions = revenueInsights.some(i => 
+      i.content.toLowerCase().includes("abo") ||
+      i.content.toLowerCase().includes("subscription") ||
+      i.content.toLowerCase().includes("saas") ||
+      i.content.toLowerCase().includes("monatlich")
+    );
+
+    if (hasSubscriptions) {
+      suggestions.push({
+        id: randomUUID(),
+        category: "Wiederkehrende Umsätze",
+        suggestion: "Abonnement-Verwaltung mit MRR/ARR-Tracking",
+        confidence: 0.88,
+        confidenceLevel: "high",
+        reason: "Wiederkehrende Einnahmen aus Gespräch erkannt.",
+        source: "chat",
+        field: "subscriptionTracking",
+        value: "enable",
+        status: "pending",
+      });
+    }
+
+    // International clients
+    const customerInsights = insights["customer"] || [];
+    const hasInternational = customerInsights.some(i => 
+      i.content.toLowerCase().includes("international") ||
+      i.content.toLowerCase().includes("ausland") ||
+      i.content.toLowerCase().includes("eu")
+    );
+
+    if (hasInternational) {
+      suggestions.push({
+        id: randomUUID(),
+        category: "Internationale Kunden",
+        suggestion: "Fremdwährungs-Konten und EU-Reverse-Charge einrichten",
+        confidence: 0.85,
+        confidenceLevel: "high",
+        reason: "Internationale Geschäftstätigkeit aus Gespräch erkannt.",
+        source: "chat",
+        field: "internationalAccounting",
+        value: "enable",
+        status: "pending",
+      });
+    }
+  }
+
+  // === HANDEL ===
+  if (industry.includes("handel") || industry.includes("retail") || industry.includes("shop")) {
+    // Inventory management
+    suggestions.push({
+      id: randomUUID(),
+      category: "Lagerbuchhaltung",
+      suggestion: "Lagerbewertung mit Durchschnittspreis-Methode",
+      confidence: 0.86,
+      confidenceLevel: "high",
+      reason: "Wichtig für korrekte Wareneinsatz-Berechnung im Handel.",
+      source: "rule",
+      field: "inventoryMethod",
+      value: "average_cost",
+      status: "pending",
+    });
+
+    // Margin tracking
+    suggestions.push({
+      id: randomUUID(),
+      category: "Margenanalyse",
+      suggestion: "Automatische Margenberechnung pro Warengruppe",
+      confidence: 0.83,
+      confidenceLevel: "needs_review",
+      reason: "Ermöglicht Sortimentsoptimierung basierend auf Deckungsbeitrag.",
+      source: "rule",
+      field: "marginTracking",
+      value: "enable",
+      status: "pending",
+    });
+  }
+
+  // === GESUNDHEIT / PRAXIS ===
+  if (industry.includes("gesund") || industry.includes("medizin") || industry.includes("praxis") || industry.includes("therapie")) {
+    // Insurance billing
+    const revenueInsights = insights["revenue"] || [];
+    const hasInsurance = revenueInsights.some(i => 
+      i.content.toLowerCase().includes("krankenkasse") ||
+      i.content.toLowerCase().includes("versicherung") ||
+      i.content.toLowerCase().includes("tarmed")
+    );
+
+    if (hasInsurance) {
+      suggestions.push({
+        id: randomUUID(),
+        category: "Krankenkassen-Abrechnung",
+        suggestion: "Debitorenverwaltung für Krankenkassen-Forderungen",
+        confidence: 0.89,
+        confidenceLevel: "high",
+        reason: "Krankenkassen-Abrechnung aus Gespräch erkannt.",
+        source: "chat",
+        field: "insuranceBilling",
+        value: "enable",
+        status: "pending",
+      });
+    }
+
+    // Patient accounting
+    suggestions.push({
+      id: randomUUID(),
+      category: "Patientenkonten",
+      suggestion: "Separate Debitorenkonten für Selbstzahler vs. Krankenkasse",
+      confidence: 0.84,
+      confidenceLevel: "needs_review",
+      reason: "Ermöglicht saubere Trennung von Zahlungsarten im Gesundheitswesen.",
+      source: "rule",
+      field: "patientAccounting",
+      value: "enable",
+      status: "pending",
+    });
+  }
+
+  // === IMMOBILIEN ===
+  if (industry.includes("immobil") || industry.includes("liegen") || industry.includes("verwaltung")) {
+    // Property accounting
+    suggestions.push({
+      id: randomUUID(),
+      category: "Liegenschaftsbuchhaltung",
+      suggestion: "Objektbasierte Kostenstellen für jede Liegenschaft",
+      confidence: 0.91,
+      confidenceLevel: "high",
+      reason: "Standard für Immobilienverwaltungen zur Abrechnung pro Objekt.",
+      source: "rule",
+      field: "propertyAccounting",
+      value: "by_property",
+      status: "pending",
+    });
+
+    // Tenant management
+    suggestions.push({
+      id: randomUUID(),
+      category: "Mieterverwaltung",
+      suggestion: "Mieterkonten mit automatischer Mahnlaufverwaltung",
+      confidence: 0.87,
+      confidenceLevel: "high",
+      reason: "Wichtig für Mietzins-Monitoring und Zahlungsverfolgung.",
+      source: "rule",
+      field: "tenantManagement",
+      value: "enable",
+      status: "pending",
+    });
+
+    // STWE/NK accounting
+    suggestions.push({
+      id: randomUUID(),
+      category: "Nebenkostenabrechnung",
+      suggestion: "Nebenkostenabrechnung mit Heizkosten-Verteilung",
+      confidence: 0.85,
+      confidenceLevel: "needs_review",
+      reason: "Für korrekte NK-Abrechnungen an Mieter erforderlich.",
+      source: "rule",
+      field: "utilityBilling",
       value: "enable",
       status: "pending",
     });

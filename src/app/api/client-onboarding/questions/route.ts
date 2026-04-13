@@ -9,9 +9,10 @@ import { generateText } from "ai";
  * 
  * POST - Start conversation or respond to questions
  * 
- * Actions:
- * - "start": Get initial question based on context
- * - "respond": Submit answer and get follow-up question
+ * Features:
+ * - Industry-specific question flows
+ * - Structured insight extraction
+ * - AI-powered follow-up questions
  */
 
 export interface OnboardingInsight {
@@ -21,6 +22,127 @@ export interface OnboardingInsight {
   confidence: number;
   source: "chat" | "document" | "form";
   extractedAt: string;
+}
+
+// Industry-specific question configurations
+const INDUSTRY_QUESTIONS: Record<string, {
+  initial: string;
+  followUps: string[];
+  focusAreas: string[];
+}> = {
+  "gastronomie": {
+    initial: "Betreiben Sie ein Restaurant, Café oder Bar? Wie viele Sitzplätze haben Sie etwa?",
+    followUps: [
+      "Haben Sie verschiedene Abteilungen wie Küche, Service und Bar separat?",
+      "Wie rechnen Sie ab - mit Kassensystem oder manuell?",
+      "Bieten Sie Catering oder Lieferservice an?",
+      "Wie viele festangestellte und Teilzeit-Mitarbeiter haben Sie etwa?",
+    ],
+    focusAreas: ["revenue", "employee", "process", "cost"],
+  },
+  "handel": {
+    initial: "Verkaufen Sie online, im Ladengeschäft oder beides? Was sind Ihre Hauptprodukte?",
+    followUps: [
+      "Wie viele verschiedene Artikel führen Sie etwa im Sortiment?",
+      "Wer sind Ihre wichtigsten Lieferanten?",
+      "Verkaufen Sie an Privatkunden oder auch an Firmen?",
+      "Haben Sie ein Lager oder arbeiten Sie mit Dropshipping?",
+    ],
+    focusAreas: ["supplier", "customer", "revenue", "cost"],
+  },
+  "dienstleistungen": {
+    initial: "Was für Dienstleistungen bieten Sie an? Arbeiten Sie hauptsächlich mit Firmen oder Privatpersonen?",
+    followUps: [
+      "Rechnen Sie nach Stunden oder mit Pauschalen ab?",
+      "Haben Sie wiederkehrende Kunden mit regelmässigen Aufträgen?",
+      "Arbeiten Sie alleine oder mit einem Team?",
+      "Gibt es projektbasierte Kosten wie Reisen oder Materialien?",
+    ],
+    focusAreas: ["customer", "revenue", "process", "cost"],
+  },
+  "bau": {
+    initial: "In welchem Baubereich sind Sie tätig? Hausbau, Renovationen oder spezialisierte Arbeiten?",
+    followUps: [
+      "Arbeiten Sie als Generalunternehmer oder Subunternehmer?",
+      "Wie lange dauern Ihre Projekte typischerweise?",
+      "Welche Materiallieferanten nutzen Sie regelmässig?",
+      "Wie handhaben Sie Akonto-Zahlungen und Schlussrechnungen?",
+    ],
+    focusAreas: ["supplier", "process", "revenue", "special"],
+  },
+  "it": {
+    initial: "Bieten Sie Softwareentwicklung, IT-Support oder beides an?",
+    followUps: [
+      "Arbeiten Sie mit Abonnements, Projekten oder Support-Verträgen?",
+      "Haben Sie internationale Kunden?",
+      "Nutzen Sie externe Entwickler oder Freelancer?",
+      "Welche Cloud-Dienste oder Lizenzen sind wichtige Kostenpunkte?",
+    ],
+    focusAreas: ["revenue", "cost", "customer", "process"],
+  },
+  "immobilien": {
+    initial: "Verwalten Sie Liegenschaften, vermitteln Sie oder beides?",
+    followUps: [
+      "Wie viele Objekte betreuen Sie etwa?",
+      "Kassieren Sie Mieten für Eigentümer ein?",
+      "Wie rechnen Sie mit den Eigentümern ab?",
+      "Fallen regelmässig Unterhalts- oder Renovationskosten an?",
+    ],
+    focusAreas: ["revenue", "cost", "process", "special"],
+  },
+  "gesundheit": {
+    initial: "In welchem Gesundheitsbereich sind Sie tätig? Praxis, Therapie oder Pflege?",
+    followUps: [
+      "Rechnen Sie über Krankenkassen ab oder direkt mit Patienten?",
+      "Haben Sie Angestellte oder arbeiten Sie selbständig?",
+      "Welche Materialen oder Medikamente müssen Sie einkaufen?",
+      "Gibt es spezielle Dokumentationspflichten in Ihrem Bereich?",
+    ],
+    focusAreas: ["revenue", "employee", "cost", "special"],
+  },
+};
+
+// Default questions for industries not specifically covered
+const DEFAULT_QUESTIONS = {
+  initial: "Was ist die Haupttätigkeit Ihres Unternehmens?",
+  followUps: [
+    "Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
+    "Welche Lieferanten oder Partner sind für Ihr Unternehmen wichtig?",
+    "Welche regelmässigen Ausgaben haben Sie? (Miete, Versicherungen, etc.)",
+    "Gibt es Besonderheiten, die wir bei der Buchhaltung beachten sollten?",
+  ],
+  focusAreas: ["revenue", "cost", "supplier", "customer"],
+};
+
+function getIndustryConfig(industry: string | undefined): typeof DEFAULT_QUESTIONS {
+  if (!industry) return DEFAULT_QUESTIONS;
+  
+  const normalizedIndustry = industry.toLowerCase();
+  
+  // Match industry to config
+  if (normalizedIndustry.includes("gastro") || normalizedIndustry.includes("hotel") || normalizedIndustry.includes("restaurant")) {
+    return INDUSTRY_QUESTIONS["gastronomie"];
+  }
+  if (normalizedIndustry.includes("handel") || normalizedIndustry.includes("retail") || normalizedIndustry.includes("shop")) {
+    return INDUSTRY_QUESTIONS["handel"];
+  }
+  if (normalizedIndustry.includes("beratung") || normalizedIndustry.includes("dienst") || normalizedIndustry.includes("agentur")) {
+    return INDUSTRY_QUESTIONS["dienstleistungen"];
+  }
+  if (normalizedIndustry.includes("bau") || normalizedIndustry.includes("handwerk") || normalizedIndustry.includes("renovation")) {
+    return INDUSTRY_QUESTIONS["bau"];
+  }
+  if (normalizedIndustry.includes("it") || normalizedIndustry.includes("software") || normalizedIndustry.includes("tech")) {
+    return INDUSTRY_QUESTIONS["it"];
+  }
+  if (normalizedIndustry.includes("immobil") || normalizedIndustry.includes("liegen") || normalizedIndustry.includes("verwaltung")) {
+    return INDUSTRY_QUESTIONS["immobilien"];
+  }
+  if (normalizedIndustry.includes("gesund") || normalizedIndustry.includes("medizin") || normalizedIndustry.includes("praxis") || normalizedIndustry.includes("therapie")) {
+    return INDUSTRY_QUESTIONS["gesundheit"];
+  }
+  
+  return DEFAULT_QUESTIONS;
 }
 
 export async function POST(request: NextRequest) {
@@ -65,30 +187,45 @@ async function generateInitialQuestion(context: {
   legalForm?: string;
   industry?: string;
 }): Promise<string> {
+  const industryConfig = getIndustryConfig(context.industry);
+  
   try {
     const systemPrompt = `Du bist ein freundlicher Schweizer Buchhaltungs-Assistent.
-Generiere eine erste Frage für ein Onboarding-Gespräch.
-Die Frage sollte:
-- Kurz und freundlich sein (max 2 Sätze)
-- Das Geschäftsmodell verstehen helfen
-- Den Firmennamen verwenden falls bekannt
+Generiere eine personalisierte Willkommensfrage für das Onboarding.
 
-Antworte NUR mit der Frage, ohne JSON oder Formatierung.`;
+Kontext:
+- Firma: ${context.companyName || "unbekannt"}
+- Branche: ${context.industry || "unbekannt"}
+- Rechtsform: ${context.legalForm || "unbekannt"}
+
+Basis-Frage für diese Branche: "${industryConfig.initial}"
+
+Regeln:
+- Personalisiere die Frage mit dem Firmennamen falls bekannt
+- Bleibe bei max 2 Sätzen
+- Sei freundlich und professionell
+- Antworte NUR mit der Frage, ohne JSON`;
 
     const result = await generateText({
       model: "anthropic/claude-sonnet-4-20250514",
       system: systemPrompt,
-      prompt: `Kontext: Firma "${context.companyName || 'unbekannt'}", Branche "${context.industry || 'unbekannt'}", Rechtsform "${context.legalForm || 'unbekannt'}"`,
+      prompt: "Generiere die personalisierte Willkommensfrage:",
     });
 
-    return result.text.trim() || getFallbackWelcome(context);
+    return result.text.trim() || getFallbackWelcome(context, industryConfig);
   } catch {
-    return getFallbackWelcome(context);
+    return getFallbackWelcome(context, industryConfig);
   }
 }
 
-function getFallbackWelcome(context: { companyName?: string }): string {
-  return `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
+function getFallbackWelcome(
+  context: { companyName?: string },
+  industryConfig: typeof DEFAULT_QUESTIONS
+): string {
+  const greeting = context.companyName 
+    ? `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! `
+    : "Willkommen! ";
+  return greeting + industryConfig.initial;
 }
 
 async function processUserResponse(
@@ -108,6 +245,7 @@ async function processUserResponse(
   insights?: OnboardingInsight[];
 }> {
   const userMessageCount = previousMessages.filter(m => m.role === "user").length + 1;
+  const industryConfig = getIndustryConfig(context.industry);
 
   try {
     const conversationSummary = previousMessages
@@ -118,7 +256,7 @@ async function processUserResponse(
 
 Kontext:
 - Firma: ${context.companyName || "unbekannt"}
-- Branche: ${context.industry || "unbekannt"}
+- Branche: ${context.industry || "unbekannt"} (Fokus auf: ${industryConfig.focusAreas.join(", ")})
 - Rechtsform: ${context.legalForm || "unbekannt"}
 
 Bisheriges Gespräch:
@@ -126,9 +264,12 @@ ${conversationSummary}
 
 Antworten bisher: ${userMessageCount}
 
+Verfügbare Folgefragen für diese Branche:
+${industryConfig.followUps.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
 WICHTIG - Extrahiere strukturierte Business Insights:
 
-Insight-Typen:
+Insight-Typen (fokussiere auf ${industryConfig.focusAreas.join(", ")}):
 - "revenue": Umsatzquellen, Hauptprodukte, Preismodelle
 - "cost": Regelmässige Kosten, grosse Ausgaben
 - "supplier": Lieferanten, Einkaufspartner
@@ -152,10 +293,10 @@ Antworte IMMER im JSON-Format:
 }
 
 Regeln:
+- Wähle sinnvolle Folgefragen aus der Liste oder generiere branchenspezifische
 - Extrahiere ALLE relevanten Informationen aus der Antwort
 - Confidence: 0.9+ für explizit genannte Fakten, 0.6-0.8 für Interpretationen
-- Nach 5 Antworten: complete=true
-- Fragen kurz (1-2 Sätze)
+- Nach ${Math.min(industryConfig.followUps.length + 1, 5)} Antworten: complete=true
 - Nicht nach bereits beantworteten Themen fragen`;
 
     const result = await generateText({
@@ -170,7 +311,6 @@ Regeln:
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       
-      // Convert raw insights to structured format with IDs
       const structuredInsights: OnboardingInsight[] = (parsed.insights || []).map((i: { type: string; content: string; confidence: number }) => ({
         id: crypto.randomUUID(),
         type: i.type,
@@ -180,14 +320,13 @@ Regeln:
         extractedAt: new Date().toISOString(),
       }));
 
-      // Persist insights to draft if draftId provided
       if (draftId && structuredInsights.length > 0) {
         await persistInsights(draftId, userId, structuredInsights);
       }
 
       return {
         question: parsed.question || undefined,
-        response: parsed.complete ? "Vielen Dank! Wir haben genug Informationen für die optimale Einrichtung." : undefined,
+        response: parsed.complete ? "Vielen Dank! Wir haben genug Informationen für die optimale Einrichtung Ihrer Buchhaltung." : undefined,
         complete: parsed.complete || false,
         insights: structuredInsights,
       };
@@ -196,23 +335,21 @@ Regeln:
     console.error("[Questions] AI response failed:", err);
   }
 
-  // Fallback logic
-  if (userMessageCount >= 5) {
+  // Fallback logic with industry-specific questions
+  const maxQuestions = Math.min(industryConfig.followUps.length + 1, 5);
+  
+  if (userMessageCount >= maxQuestions) {
     return {
-      response: "Vielen Dank! Wir haben jetzt genug Informationen.",
+      response: "Vielen Dank! Wir haben jetzt genug Informationen für Ihre Buchhaltungseinrichtung.",
       complete: true,
     };
   }
 
-  const fallbackQuestions: Record<number, string> = {
-    1: "Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
-    2: "Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
-    3: "Welche regelmässigen Ausgaben haben Sie? (Miete, Versicherungen, etc.)",
-    4: "Gibt es Besonderheiten, die wir bei der Buchhaltung beachten sollten?",
-  };
+  const fallbackQuestion = industryConfig.followUps[userMessageCount - 1] 
+    || "Haben Sie weitere wichtige Informationen für uns?";
 
   return {
-    question: fallbackQuestions[userMessageCount] || "Haben Sie weitere wichtige Informationen?",
+    question: fallbackQuestion,
   };
 }
 
@@ -231,7 +368,6 @@ async function persistInsights(
     const draftData = draft.data as Record<string, unknown>;
     const existingInsights = (draftData.businessInsights as OnboardingInsight[]) || [];
     
-    // Merge new insights with existing ones (avoid duplicates by content)
     const mergedInsights = [...existingInsights];
     for (const newInsight of newInsights) {
       const exists = mergedInsights.some(
