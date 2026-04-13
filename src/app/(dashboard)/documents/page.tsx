@@ -8,16 +8,16 @@ import { DocumentTable } from "@/components/documents/document-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
 import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 
 const QUICK_FILTERS = [
-  { key: "", label: "Alle" },
-  { key: "needs_review", label: de.status.needs_review, color: "bg-orange-100 text-orange-800" },
-  { key: "ready", label: de.status.ready, color: "bg-green-100 text-green-800" },
-  { key: "failed", label: de.status.failed, color: "bg-red-100 text-red-800" },
+  { key: "", label: "Alle", color: "" },
+  { key: "needs_review", label: de.status.needs_review, color: "bg-orange-50 text-orange-700 border-orange-200" },
+  { key: "ready", label: de.status.ready, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { key: "failed", label: de.status.failed, color: "bg-red-50 text-red-700 border-red-200" },
 ];
 
 export default function DocumentsPage() {
@@ -70,7 +70,7 @@ export default function DocumentsPage() {
     setConfidence(""); setDocumentType("");
   }
 
-  // Seiten-spezifische Shortcuts
+  // Page shortcuts
   usePageShortcuts([
     {
       key: "n",
@@ -103,152 +103,263 @@ export default function DocumentsPage() {
   if (confidence === "medium") { extraParams.confidenceMin = "0.5"; extraParams.confidenceMax = "0.8"; }
   if (confidence === "low") { extraParams.confidenceMax = "0.5"; }
 
-  console.log("[Documents] Filters loaded from URL");
-
   return (
-    <div className="space-y-4">
-      <EntityHeader
-        title={de.documents.title}
-        badge={
-          counts.total != null ? (
-            <Badge variant="secondary" className="text-xs">
-              {counts.total} {de.documentList.totalDocs}
-            </Badge>
-          ) : undefined
-        }
-        primaryAction={{
-          label: de.documents.upload,
-          icon: Upload,
-          onClick: () => setShowUpload(!showUpload),
-        }}
-        secondaryActions={[
-          {
-            label: "Filter",
-            icon: Filter,
-            onClick: () => setShowFilters(!showFilters),
-          },
-          {
-            label: "Aktualisieren",
-            icon: RefreshCw,
-            variant: "ghost",
-            onClick: () => setRefreshKey((k) => k + 1),
-          },
-        ]}
-      />
-
-      {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
-
-      {/* Summary alerts using InfoPanel */}
-      {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (
-        <div className="grid gap-2 md:grid-cols-2">
-          {(counts.escalated ?? 0) > 0 && (
-            <InfoPanel tone="warning" icon={AlertTriangle}>
-              <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
-            </InfoPanel>
-          )}
-          {(counts.unverified_suppliers ?? 0) > 0 && (
-            <InfoPanel tone="warning" icon={ShieldAlert}>
-              <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
-            </InfoPanel>
-          )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">{de.documents.title}</h1>
+          <p className="text-sm text-[var(--text-tertiary)] mt-1">
+            {counts.total != null ? `${counts.total} ${de.documentList.totalDocs}` : "Belege verwalten"}
+          </p>
         </div>
-      )}
-
-      {/* Quick filter buttons */}
-      <div className="flex flex-wrap gap-2">
-        {QUICK_FILTERS.map((f) => (
-          <Button
-            key={f.key}
-            variant={statusFilter === f.key ? "default" : "outline"}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
             size="sm"
-            onClick={() => setStatusFilter(f.key)}
-            className={cn(statusFilter === f.key ? "" : "text-muted-foreground")}
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
           >
-            {f.label}
-            {f.key && counts[f.key] != null && (
-              <Badge variant="secondary" className={cn("ml-1.5 text-xs px-1.5", f.color)}>{counts[f.key]}</Badge>
-            )}
+            <RefreshCw className="h-4 w-4" />
           </Button>
-        ))}
+          <Button 
+            onClick={() => setShowUpload(!showUpload)}
+            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/90"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {de.documents.upload}
+          </Button>
+        </div>
       </div>
 
-      {/* Advanced filters */}
-      {showFilters && (
-        <div className="border rounded-md p-4 bg-white space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">{de.filters.dateFrom}</label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{de.filters.dateTo}</label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{de.filters.amountFrom}</label>
-              <Input type="number" step="0.01" value={amountFrom} onChange={(e) => setAmountFrom(e.target.value)} placeholder="0.00" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{de.filters.amountTo}</label>
-              <Input type="number" step="0.01" value={amountTo} onChange={(e) => setAmountTo(e.target.value)} placeholder="0.00" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{de.documents.supplier}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-                <option value="">Alle</option>
-                {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.nameNormalized}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Währung</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="">Alle</option>
-                <option value="CHF">CHF</option>
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Export-Status</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={exportStatus} onChange={(e) => setExportStatus(e.target.value)}>
-                <option value="">Alle</option>
-                <option value="exported">Exportiert</option>
-                <option value="not_exported">Nicht exportiert</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Konfidenz</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={confidence} onChange={(e) => setConfidence(e.target.value)}>
-                <option value="">Alle</option>
-                <option value="high">Hoch (&gt;80%)</option>
-                <option value="medium">Mittel (50-80%)</option>
-                <option value="low">Niedrig (&lt;50%)</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div>
-              <label className="text-xs text-muted-foreground">Belegtyp</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-                <option value="">Alle</option>
-                {Object.entries(de.documentType).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-            {hasAdvancedFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="mt-4">
-                <X className="h-3 w-3 mr-1" />{de.filters.clearAll}
-              </Button>
-            )}
-          </div>
+      {/* Upload Zone */}
+      {showUpload && (
+        <Card className="border-[var(--border-default)] border-dashed">
+          <CardContent className="pt-6">
+            <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Alert Panels */}
+      {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {(counts.escalated ?? 0) > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-amber-100">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-amber-800">{counts.escalated} {de.documentList.escalatedCount}</p>
+                  <p className="text-xs text-amber-600">Belege mit niedrigem Vertrauen</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {(counts.unverified_suppliers ?? 0) > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-amber-100">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-amber-800">{counts.unverified_suppliers} {de.documentList.unverifiedCount}</p>
+                  <p className="text-xs text-amber-600">Lieferanten nicht verifiziert</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
-      <DocumentTable
-        refreshKey={refreshKey}
-        initialStatus={statusFilter}
-        extraParams={extraParams}
-        key={`${statusFilter}-${JSON.stringify(extraParams)}`}
-      />
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Quick Filters */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setStatusFilter(f.key)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+                statusFilter === f.key
+                  ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]"
+                  : "bg-white text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-secondary)]"
+              )}
+            >
+              {f.label}
+              {f.key && counts[f.key] != null && (
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "ml-1 text-xs px-1.5",
+                    statusFilter === f.key ? "bg-white/20 text-white" : f.color || "bg-slate-100"
+                  )}
+                >
+                  {counts[f.key]}
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Advanced Filter Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={cn(
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+            showFilters || hasAdvancedFilters
+              ? "bg-blue-50 text-blue-700 border-blue-200"
+              : "bg-white text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-secondary)]"
+          )}
+        >
+          <Filter className="h-3.5 w-3.5" />
+          Filter
+          {hasAdvancedFilters && (
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+          )}
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showFilters && "rotate-180")} />
+        </button>
+
+        {/* Clear Filters */}
+        {hasAdvancedFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            <X className="h-3 w-3" />
+            Filter zurücksetzen
+          </button>
+        )}
+      </div>
+
+      {/* Advanced Filters */}
+      {showFilters && (
+        <Card className="border-[var(--border-default)]">
+          <CardContent className="pt-5 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">{de.filters.dateFrom}</label>
+                <Input 
+                  type="date" 
+                  value={dateFrom} 
+                  onChange={(e) => setDateFrom(e.target.value)} 
+                  className="h-9 border-[var(--border-default)]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">{de.filters.dateTo}</label>
+                <Input 
+                  type="date" 
+                  value={dateTo} 
+                  onChange={(e) => setDateTo(e.target.value)} 
+                  className="h-9 border-[var(--border-default)]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">{de.filters.amountFrom}</label>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  value={amountFrom} 
+                  onChange={(e) => setAmountFrom(e.target.value)} 
+                  placeholder="0.00" 
+                  className="h-9 border-[var(--border-default)]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">{de.filters.amountTo}</label>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  value={amountTo} 
+                  onChange={(e) => setAmountTo(e.target.value)} 
+                  placeholder="0.00" 
+                  className="h-9 border-[var(--border-default)]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">{de.documents.supplier}</label>
+                <select 
+                  className="w-full h-9 border border-[var(--border-default)] rounded-lg px-3 text-sm bg-white text-[var(--text-primary)] focus:border-[var(--brand-accent)] focus:ring-2 focus:ring-[var(--brand-accent)]/20 transition-colors" 
+                  value={supplierId} 
+                  onChange={(e) => setSupplierId(e.target.value)}
+                >
+                  <option value="">Alle</option>
+                  {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.nameNormalized}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">Währung</label>
+                <select 
+                  className="w-full h-9 border border-[var(--border-default)] rounded-lg px-3 text-sm bg-white text-[var(--text-primary)] focus:border-[var(--brand-accent)] focus:ring-2 focus:ring-[var(--brand-accent)]/20 transition-colors" 
+                  value={currency} 
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="">Alle</option>
+                  <option value="CHF">CHF</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">Export-Status</label>
+                <select 
+                  className="w-full h-9 border border-[var(--border-default)] rounded-lg px-3 text-sm bg-white text-[var(--text-primary)] focus:border-[var(--brand-accent)] focus:ring-2 focus:ring-[var(--brand-accent)]/20 transition-colors" 
+                  value={exportStatus} 
+                  onChange={(e) => setExportStatus(e.target.value)}
+                >
+                  <option value="">Alle</option>
+                  <option value="exported">Exportiert</option>
+                  <option value="not_exported">Nicht exportiert</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">Konfidenz</label>
+                <select 
+                  className="w-full h-9 border border-[var(--border-default)] rounded-lg px-3 text-sm bg-white text-[var(--text-primary)] focus:border-[var(--brand-accent)] focus:ring-2 focus:ring-[var(--brand-accent)]/20 transition-colors" 
+                  value={confidence} 
+                  onChange={(e) => setConfidence(e.target.value)}
+                >
+                  <option value="">Alle</option>
+                  <option value="high">Hoch (&gt;80%)</option>
+                  <option value="medium">Mittel (50-80%)</option>
+                  <option value="low">Niedrig (&lt;50%)</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-48">
+                <label className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5 block">Belegtyp</label>
+                <select 
+                  className="w-full h-9 border border-[var(--border-default)] rounded-lg px-3 text-sm bg-white text-[var(--text-primary)] focus:border-[var(--brand-accent)] focus:ring-2 focus:ring-[var(--brand-accent)]/20 transition-colors" 
+                  value={documentType} 
+                  onChange={(e) => setDocumentType(e.target.value)}
+                >
+                  <option value="">Alle</option>
+                  {Object.entries(de.documentType).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Document Table */}
+      <Card className="border-[var(--border-default)]">
+        <CardContent className="p-0">
+          <DocumentTable
+            refreshKey={refreshKey}
+            initialStatus={statusFilter}
+            extraParams={extraParams}
+            key={`${statusFilter}-${JSON.stringify(extraParams)}`}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

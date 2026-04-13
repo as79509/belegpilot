@@ -48,54 +48,99 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ============================================
+   PREMIUM FINTECH DESIGN SYSTEM
+   Inspired by Clemta - Calm, Professional, Modern
+   ============================================ */
+
 :root {
-  --brand-primary: #1B2A4A;
+  /* Core Brand Colors */
+  --brand-primary: #0F172A;
   --brand-accent: #3B82F6;
   --brand-success: #16A34A;
   --brand-warning: #F59E0B;
   --brand-danger: #DC2626;
+  
+  /* Premium Surfaces */
   --surface-primary: #FFFFFF;
   --surface-secondary: #F8FAFC;
+  --surface-tertiary: #F1F5F9;
+  --surface-elevated: #FFFFFF;
+  
+  /* Text Hierarchy */
   --text-primary: #0F172A;
-  --text-secondary: #64748B;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
   --text-muted: #94A3B8;
+  --text-inverse: #FFFFFF;
+  
+  /* Border System */
   --border-default: #E2E8F0;
-  --spacing-compact: 0.5rem;
-  --spacing-tight: 0.75rem;
-  --spacing-normal: 1rem;
-  --card-padding-compact: 0.75rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border-subtle: #F1F5F9;
+  --border-strong: #CBD5E1;
+  
+  /* Sidebar - Light Theme (Clemta-style) */
+  --sidebar-bg: #FFFFFF;
+  --sidebar-text: #475569;
+  --sidebar-text-muted: #94A3B8;
+  --sidebar-hover: #F8FAFC;
+  --sidebar-active: #F1F5F9;
+  --sidebar-active-text: #0F172A;
+  --sidebar-border: #F1F5F9;
+  
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
+  --spacing-2xl: 2rem;
+  
+  /* Premium Card Styles */
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --card-shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  
+  /* Premium Radius */
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+  --radius-input: 0.5rem;
+  --radius-badge: 0.375rem;
+  --radius-full: 9999px;
+  
+  /* shadcn tokens - mapped to premium system */
+  --background: oklch(0.985 0.002 247.858);
+  --foreground: oklch(0.145 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.02 260);
+  --primary: oklch(0.205 0.02 260);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0.002 247.858);
+  --secondary-foreground: oklch(0.205 0.02 260);
+  --muted: oklch(0.97 0.002 247.858);
+  --muted-foreground: oklch(0.45 0.015 260);
+  --accent: oklch(0.97 0.002 247.858);
+  --accent-foreground: oklch(0.205 0.02 260);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.91 0.004 247.858);
+  --input: oklch(0.91 0.004 247.858);
+  --ring: oklch(0.55 0.17 250);
+  --chart-1: oklch(0.55 0.17 250);
+  --chart-2: oklch(0.65 0.15 160);
+  --chart-3: oklch(0.55 0.18 40);
+  --chart-4: oklch(0.65 0.13 80);
+  --chart-5: oklch(0.50 0.15 290);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.35 0.02 260);
+  --sidebar-primary: oklch(0.205 0.02 260);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.97 0.002 247.858);
+  --sidebar-accent-foreground: oklch(0.205 0.02 260);
+  --sidebar-border: oklch(0.95 0.002 247.858);
+  --sidebar-ring: oklch(0.55 0.17 250);
 }
 
 .dark {
@@ -137,30 +182,29 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;
   }
 }
 
-/* Premium density overrides */
+/* Premium Typography */
 :root {
-  --card-padding: 0.875rem;
-  --section-gap: 1.25rem;
-  --table-cell-padding: 0.5rem 0.75rem;
-  --heading-tracking: -0.025em;
+  --card-padding: 1rem;
+  --section-gap: 1.5rem;
+  --table-cell-padding: 0.75rem 1rem;
+  --heading-tracking: -0.02em;
   --body-size: 0.875rem;
-  --small-size: 0.75rem;
-  --badge-size: 0.6875rem;
+  --small-size: 0.8125rem;
+  --badge-size: 0.75rem;
+  
+  /* Status Colors */
   --status-ok: #16a34a;
   --status-warning: #d97706;
   --status-error: #dc2626;
   --status-info: #2563eb;
-  --status-muted: #6b7280;
-
-  /* === Design System Tokens (Phase 8.6.1) === */
-  /* Status Colors — siehe src/lib/design-tokens.ts */
+  --status-muted: #64748b;
   --status-processing: #3B82F6;
   --status-review: #F59E0B;
   --status-ready: #16A34A;
@@ -186,14 +230,95 @@
   --confidence-low: #94A3B8;
 }
 
-/* Tables: tighter padding */
+/* Premium Table Styling */
 table th,
 table td {
   padding: var(--table-cell-padding);
   font-size: var(--body-size);
 }
 
-/* Headings: tighter letter spacing */
+/* Premium Headings */
 h1, h2, h3 {
   letter-spacing: var(--heading-tracking);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+h2 {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+h3 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+/* Premium Card Hover Effect */
+.premium-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.premium-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  border-color: var(--border-strong);
+}
+
+/* Premium Gradient Cards (for hero sections) */
+.gradient-card-dark {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  color: white;
+}
+
+.gradient-card-blue {
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  color: white;
+}
+
+.gradient-card-amber {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: white;
+}
+
+.gradient-card-green {
+  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+  color: white;
+}
+
+/* Smooth transitions for interactive elements */
+.transition-premium {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

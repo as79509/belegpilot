@@ -4,39 +4,76 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Upload, Building2, Download, Workflow,
-  Settings, ScrollText, ChevronDown, Link2,
+  LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
+  Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
+  Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
+  Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight, Wand2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
+import { useCompany } from "@/lib/contexts/company-context";
 
-const navGroups = [
-  { label: de.nav.documentsGroup, defaultOpen: true, items: [
+interface NavGroup {
+  label: string;
+  items: { href: string; label: string; icon: any }[];
+  defaultOpen?: boolean;
+}
+
+const belegeGroup: NavGroup = {
+  label: "Belege",
+  defaultOpen: true,
+  items: [
     { href: "/documents", label: de.nav.documents, icon: FileText },
-    { href: "/documents?upload=true", label: de.nav.upload, icon: Upload },
-  ]},
-  { label: de.nav.accountingGroup, defaultOpen: true, items: [
-    { href: "/exports", label: de.nav.exports, icon: Download },
-    { href: "/rules", label: de.nav.rules, icon: Workflow },
-    { href: "/settings?tab=integrations", label: de.nav.bexio, icon: Link2 },
-  ]},
-  { label: de.nav.masterData, items: [
+    { href: "/email", label: de.emailImport.title, icon: Mail },
     { href: "/suppliers", label: de.nav.suppliers, icon: Building2 },
-  ]},
-  { label: de.nav.system, items: [
+  ],
+};
+
+const buchhaltungGroup: NavGroup = {
+  label: "Buchhaltung",
+  defaultOpen: true,
+  items: [
+    { href: "/journal", label: de.journal.title, icon: BookOpen },
+    { href: "/bank", label: de.bank.title, icon: Wallet },
+    { href: "/vat", label: de.vatReturn.title, icon: Receipt },
+    { href: "/exports", label: de.nav.exports, icon: Download },
+  ],
+};
+
+const kontrolleGroup: NavGroup = {
+  label: "Kontrolle",
+  items: [
+    { href: "/periods", label: de.periods.title, icon: CalendarCheck },
+    { href: "/tasks", label: de.tasksMgmt.title, icon: ListTodo },
+    { href: "/reports", label: de.reports.title, icon: BarChart3 },
+  ],
+};
+
+const systemGroup: NavGroup = {
+  label: "System",
+  items: [
+    { href: "/rules", label: de.nav.rules, icon: Workflow },
     { href: "/settings", label: de.nav.settings, icon: Settings },
-    { href: "/audit-log", label: de.nav.auditLog, icon: ScrollText },
-  ]},
-];
+  ],
+};
 
 export function MobileSidebar() {
   const pathname = usePathname();
+  const { activeCompany } = useCompany();
+  const navGroups = [belegeGroup, buchhaltungGroup, kontrolleGroup, systemGroup];
+  
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   );
 
   function toggleGroup(label: string) {
-    setOpenGroups((prev) => { const n = new Set(prev); if (n.has(label)) n.delete(label); else n.add(label); return n; });
+    setOpenGroups((prev) => { 
+      const n = new Set(prev); 
+      if (n.has(label)) n.delete(label); 
+      else n.add(label); 
+      return n; 
+    });
   }
 
   function isActive(href: string) {
@@ -45,30 +82,82 @@ export function MobileSidebar() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--brand-primary)] text-white">
-      <div className="flex items-center h-14 px-4 border-b border-white/10">
-        <span className="text-lg font-semibold tracking-tight">BelegPilot</span>
+    <div className="flex flex-col h-full bg-white">
+      {/* Logo & Company */}
+      <div className="flex items-center h-14 px-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)] flex items-center justify-center">
+            <span className="text-white text-sm font-bold">BP</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
+              {activeCompany?.company?.name || "BelegPilot"}
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="px-2 pt-3 pb-1">
-        <Link href="/dashboard" className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors", pathname === "/dashboard" ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white")}>
-          <LayoutDashboard className="h-4 w-4 shrink-0" />{de.nav.dashboard}
+
+      {/* Search */}
+      <div className="px-3 py-3 border-b border-[var(--border-subtle)]">
+        <button 
+          type="button"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-muted)] bg-[var(--surface-secondary)] rounded-lg"
+        >
+          <Search className="h-4 w-4" />
+          <span>Suche</span>
+        </button>
+      </div>
+
+      {/* Dashboard */}
+      <div className="px-3 pt-4 pb-1">
+        <Link 
+          href="/dashboard" 
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            pathname === "/dashboard" 
+              ? "bg-[var(--surface-tertiary)] text-[var(--text-primary)]" 
+              : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+          )}
+        >
+          <LayoutDashboard className="h-[18px] w-[18px]" />
+          {de.nav.dashboard}
         </Link>
       </div>
-      <nav className="flex-1 px-2 py-1 space-y-1">
+
+      {/* Navigation Groups */}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
         {navGroups.map((group) => {
           const isOpen = openGroups.has(group.label);
           return (
-            <div key={group.label}>
-              <button type="button" onClick={() => toggleGroup(group.label)} className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-white/40 uppercase tracking-wider">
+            <div key={group.label} className="mb-1">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label)}
+                className="flex items-center justify-between w-full px-3 pt-4 pb-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider"
+              >
                 {group.label}
-                <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", isOpen ? "" : "-rotate-90")} />
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", isOpen ? "" : "-rotate-90")} />
               </button>
-              <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-96" : "max-h-0")}>
-                {group.items.map((item) => { const Icon = item.icon; return (
-                  <Link key={item.href} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ml-1", isActive(item.href) ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white")}>
-                    <Icon className="h-4 w-4 shrink-0" />{item.label}
-                  </Link>
-                ); })}
+              <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-[500px]" : "max-h-0")}>
+                {group.items.map((item) => { 
+                  const Icon = item.icon; 
+                  const active = isActive(item.href);
+                  return (
+                    <Link 
+                      key={item.href} 
+                      href={item.href} 
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        active 
+                          ? "bg-[var(--surface-tertiary)] text-[var(--text-primary)]" 
+                          : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+                      )}
+                    >
+                      <Icon className="h-[18px] w-[18px]" />
+                      {item.label}
+                    </Link>
+                  ); 
+                })}
               </div>
             </div>
           );

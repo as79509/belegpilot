@@ -10,7 +10,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, Menu, Bell, Settings, ChevronRight } from "lucide-react";
+import { LogOut, User, Menu, Bell, Settings, ChevronRight, HelpCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileSidebar } from "./mobile-sidebar";
 import { NotificationCenter } from "@/components/shared/notification-center";
@@ -23,10 +23,12 @@ interface HeaderProps {
 }
 
 const roleBadgeVariant: Record<string, string> = {
-  admin: "bg-blue-100 text-blue-800",
-  reviewer: "bg-amber-100 text-amber-800",
-  accounting: "bg-green-100 text-green-800",
-  readonly: "bg-gray-100 text-gray-800",
+  admin: "bg-blue-50 text-blue-700 border-blue-200",
+  trustee: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  reviewer: "bg-amber-50 text-amber-700 border-amber-200",
+  accounting: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  readonly: "bg-slate-50 text-slate-600 border-slate-200",
+  viewer: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 const routeLabels: Record<string, string> = {
@@ -37,6 +39,13 @@ const routeLabels: Record<string, string> = {
   "/rules": de.nav.rules,
   "/settings": de.nav.settings,
   "/audit-log": de.nav.auditLog,
+  "/journal": de.journal.title,
+  "/bank": de.bank.title,
+  "/vat": de.vatReturn.title,
+  "/tasks": de.tasksMgmt.title,
+  "/periods": de.periods.title,
+  "/trustee": de.trustee.overview,
+  "/reports": de.reports.title,
 };
 
 export function Header({ userName, userRole }: HeaderProps) {
@@ -56,32 +65,36 @@ export function Header({ userName, userRole }: HeaderProps) {
 
   if (parts[0]) {
     const base = `/${parts[0]}`;
-    crumbs.push({ label: routeLabels[base] || parts[0], href: base });
+    crumbs.push({ label: routeLabels[base] || parts[0].charAt(0).toUpperCase() + parts[0].slice(1), href: base });
   }
   if (parts[1] && parts[0] !== "dashboard") {
     // Sub-page (document detail, supplier detail, etc.)
-    crumbs.push({ label: parts[1].length > 12 ? parts[1].slice(0, 8) + "..." : parts[1] });
+    const subLabel = parts[1].length > 16 ? parts[1].slice(0, 12) + "..." : parts[1];
+    crumbs.push({ label: subLabel });
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center border-b bg-[var(--surface-primary)] px-4 md:px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center border-b border-[var(--border-default)] bg-white px-4 md:px-6">
       {/* Mobile menu */}
       <Sheet>
-        <SheetTrigger className="md:hidden mr-2 inline-flex items-center justify-center rounded-md p-2 hover:bg-accent">
-          <Menu className="h-5 w-5" />
+        <SheetTrigger className="md:hidden mr-3 inline-flex items-center justify-center rounded-lg p-2 hover:bg-[var(--surface-secondary)] transition-colors">
+          <Menu className="h-5 w-5 text-[var(--text-secondary)]" />
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-60">
+        <SheetContent side="left" className="p-0 w-64">
           <MobileSidebar />
         </SheetContent>
       </Sheet>
 
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-1 text-sm">
+      <nav className="flex items-center gap-1.5 text-sm">
+        <Link href="/dashboard" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+          Home
+        </Link>
         {crumbs.map((crumb, i) => (
-          <span key={i} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />}
-            {crumb.href ? (
-              <Link href={crumb.href} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          <span key={i} className="flex items-center gap-1.5">
+            <span className="text-[var(--text-muted)]">/</span>
+            {crumb.href && i < crumbs.length - 1 ? (
+              <Link href={crumb.href} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
                 {crumb.label}
               </Link>
             ) : (
@@ -93,40 +106,71 @@ export function Header({ userName, userRole }: HeaderProps) {
 
       <div className="flex-1" />
 
-      {/* Explain button */}
-      <div className="mr-1">
+      {/* Right side actions */}
+      <div className="flex items-center gap-2">
+        {/* Explain button */}
         <ExplainButton />
-      </div>
 
-      {/* Notification center */}
-      <div className="mr-3">
+        {/* Help */}
+        <Button variant="ghost" size="icon-sm" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+          <HelpCircle className="h-[18px] w-[18px]" />
+        </Button>
+
+        {/* Notification center */}
         <NotificationCenter />
-      </div>
 
-      {/* User dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent transition-colors">
-          <div className="h-7 w-7 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-xs font-bold">
-            {userName.charAt(0).toUpperCase()}
-          </div>
-          <span className="hidden sm:inline">{userName}</span>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <div className="px-3 py-2">
-            <p className="text-sm font-medium">{userName}</p>
-            <Badge variant="secondary" className={`text-xs mt-1 ${roleBadgeVariant[userRole] || ""}`}>
-              {de.role[userRole as keyof typeof de.role] || userRole}
-            </Badge>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => window.location.href = "/settings"}>
-            <Settings className="h-4 w-4 mr-2" />{de.nav.settings}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-            <LogOut className="h-4 w-4 mr-2" />{de.auth.signOut}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        {/* User dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="inline-flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm font-medium hover:bg-[var(--surface-secondary)] transition-colors ml-1">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center text-sm font-semibold">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div className="hidden sm:flex flex-col items-start">
+              <span className="text-sm font-medium text-[var(--text-primary)]">{userName}</span>
+              <span className="text-xs text-[var(--text-muted)]">
+                {de.role[userRole as keyof typeof de.role] || userRole}
+              </span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-[var(--text-muted)] rotate-90 hidden sm:block" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="px-3 py-3 border-b border-[var(--border-default)]">
+              <p className="text-sm font-medium text-[var(--text-primary)]">{userName}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">demo@belegpilot.ch</p>
+              <Badge 
+                variant="outline" 
+                className={`text-xs mt-2 border ${roleBadgeVariant[userRole] || "bg-slate-50 text-slate-600 border-slate-200"}`}
+              >
+                {de.role[userRole as keyof typeof de.role] || userRole}
+              </Badge>
+            </div>
+            <div className="py-1">
+              <DropdownMenuItem 
+                onClick={() => window.location.href = "/settings"}
+                className="cursor-pointer px-3 py-2"
+              >
+                <Settings className="h-4 w-4 mr-2.5 text-[var(--text-muted)]" />
+                <span>{de.nav.settings}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => window.location.href = "/audit-log"}
+                className="cursor-pointer px-3 py-2"
+              >
+                <User className="h-4 w-4 mr-2.5 text-[var(--text-muted)]" />
+                <span>Profil</span>
+              </DropdownMenuItem>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="cursor-pointer px-3 py-2 text-red-600 focus:text-red-600"
+            >
+              <LogOut className="h-4 w-4 mr-2.5" />
+              <span>{de.auth.signOut}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

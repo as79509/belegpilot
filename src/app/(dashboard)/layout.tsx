@@ -20,14 +20,14 @@ export default async function DashboardLayout({
   return (
     <SessionProvider session={session}>
       <CompanyProvider>
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-[var(--surface-secondary)]">
           <Sidebar />
-          <div className="flex flex-col flex-1 md:pl-60 overflow-hidden">
+          <div className="flex flex-col flex-1 md:pl-64 overflow-hidden">
             <Header
               userName={session.user.name || "Benutzer"}
               userRole={session.user.role || "readonly"}
             />
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[var(--surface-secondary)]">
+            <main className="flex-1 overflow-y-auto p-5 md:p-6">
               {children}
             </main>
           </div>
