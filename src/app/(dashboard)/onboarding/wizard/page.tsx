@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/table";
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Wand2, Clock, AlertCircle,
-  MessageSquare, Lightbulb, SkipForward, Zap, XCircle, ArrowRight,
+  MessageSquare, Lightbulb, SkipForward, Zap, XCircle, ArrowRight, AlertTriangle,
+  Rocket,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { InfoPanel } from "@/components/ds";
@@ -397,8 +398,8 @@ export default function OnboardingWizardPage() {
         </Card>
       )}
 
-      {/* Step 3 + Steps 6-7: Placeholder */}
-      {(cs === 3 || cs === 6 || cs === 7) && (
+      {/* Step 3: Placeholder */}
+      {cs === 3 && (
         <Card>
           <CardContent className="py-12 text-center">
             <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
@@ -408,6 +409,16 @@ export default function OnboardingWizardPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Step 7: Go-Live */}
+      {cs === 7 && (
+        <Step7GoLive sessionId={state.sessionId} companyId={state.companyId} onCompleted={fetchState} />
+      )}
+
+      {/* Step 6: Readiness & Unknowns */}
+      {cs === 6 && state && (
+        <Step6Readiness companyId={state.companyId} sessionId={state.sessionId} onComplete={(data) => handleCompleteStep(6, data)} />
       )}
 
       {/* Step 5: Intelligence Review */}
@@ -559,6 +570,242 @@ export default function OnboardingWizardPage() {
         ) : (
           <Button disabled={saving}>{de.onboardingWizard.complete}</Button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Step 6: Readiness & Unknowns ---------- */
+
+interface ReadinessData {
+  moduleReadiness: Record<string, string>;
+  readinessScore: number;
+  knownUnknowns: { open: number; blockers: number };
+}
+
+interface UnknownItem {
+  id: string;
+  area: string;
+  description: string;
+  criticality: string;
+  blocksGoLive: boolean;
+  reducesReadiness: boolean;
+  suggestedAction: string | null;
+  responsibleRole: string | null;
+  status: string;
+  resolution: string | null;
+}
+
+interface GoLiveCheckData {
+  canGoLive: boolean;
+  readinessScore: number;
+  moduleReadiness: Record<string, string>;
+  blockers: string[];
+  warnings: string[];
+  recommendedGoLiveConfig: {
+    autopilotMode: string;
+    reviewLevel: string;
+    monitoringLevel: string;
+  };
+  estimatedStabilizationDays: number;
+}
+
+const LEVEL_COLORS: Record<string, string> = {
+  not_started: "border-slate-200 text-slate-500",
+  partial: "border-amber-200 text-amber-700",
+  manual_ok: "border-blue-200 text-blue-700",
+  suggestions_ready: "border-blue-300 text-blue-800",
+  prefill_ready: "border-green-200 text-green-700",
+  shadow_ready: "border-green-300 text-green-800",
+  auto_ready: "border-green-400 text-green-900",
+};
+
+const LEVEL_PERCENT: Record<string, number> = {
+  not_started: 0, partial: 20, manual_ok: 40, suggestions_ready: 60,
+  prefill_ready: 70, shadow_ready: 85, auto_ready: 100,
+};
+
+function Step6Readiness({ companyId, sessionId, onComplete }: { companyId: string; sessionId: string; onComplete: (data: any) => void }) {
+  const [readiness, setReadiness] = useState<ReadinessData | null>(null);
+  const [unknowns, setUnknowns] = useState<UnknownItem[]>([]);
+  const [unknownsSummary, setUnknownsSummary] = useState({ total: 0, open: 0, resolved: 0, blockers: 0 });
+  const [goLiveCheck, setGoLiveCheck] = useState<GoLiveCheckData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [readinessRes, unknownsRes, goLiveRes] = await Promise.all([
+        fetch("/api/onboarding/wizard/readiness"),
+        fetch("/api/onboarding/unknowns"),
+        fetch("/api/onboarding/wizard/golive-check"),
+      ]);
+      if (readinessRes.ok) setReadiness(await readinessRes.json());
+      if (unknownsRes.ok) {
+        const data = await unknownsRes.json();
+        setUnknowns(data.unknowns);
+        setUnknownsSummary(data.summary);
+      }
+      if (goLiveRes.ok) setGoLiveCheck(await goLiveRes.json());
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function handleResolveUnknown(id: string, action: "resolve" | "accept" | "defer") {
+    try {
+      const res = await fetch("/api/onboarding/unknowns", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      if (res.ok) {
+        toast.success(action === "resolve" ? "Frage geklärt" : action === "accept" ? "Akzeptiert" : "Zurückgestellt");
+        fetchAll();
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  if (loading) return <Skeleton className="h-64 w-full" />;
+
+  const score = readiness?.readinessScore ?? 0;
+  const pctScore = Math.round(score * 100);
+  const moduleEntries = Object.entries(readiness?.moduleReadiness ?? {});
+  const readyCount = moduleEntries.filter(([, l]) => !["not_started", "partial"].includes(l)).length;
+  const partialCount = moduleEntries.filter(([, l]) => l === "partial").length;
+  const notStartedCount = moduleEntries.filter(([, l]) => l === "not_started").length;
+
+  // Group unknowns by area (only open ones)
+  const openUnknowns = unknowns.filter((u) => u.status === "open");
+  const groupedByArea: Record<string, UnknownItem[]> = {};
+  for (const u of openUnknowns) {
+    if (!groupedByArea[u.area]) groupedByArea[u.area] = [];
+    groupedByArea[u.area].push(u);
+  }
+
+  const moduleLabels = de.onboardingWizard.readiness.modules as Record<string, string>;
+  const levelLabels = de.onboardingWizard.readiness.levels as Record<string, string>;
+
+  return (
+    <div className="space-y-4">
+      {/* Overall Readiness */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-6">
+            <div className="relative flex items-center justify-center">
+              <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted/30" />
+                <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="6"
+                  className={pctScore >= 70 ? "text-green-500" : pctScore >= 40 ? "text-amber-500" : "text-red-500"}
+                  strokeDasharray={`${2 * Math.PI * 35}`}
+                  strokeDashoffset={`${2 * Math.PI * 35 * (1 - score)}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="absolute text-lg font-bold">{pctScore}%</span>
+            </div>
+            <div className="flex-1 space-y-1">
+              <h3 className="text-base font-semibold">{de.onboardingWizard.step6.overallReadiness}</h3>
+              <Badge className={goLiveCheck?.canGoLive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                {goLiveCheck?.canGoLive ? de.onboardingWizard.step6.canGoLive : de.onboardingWizard.step6.cannotGoLive}
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                {de.onboardingWizard.step6.modulesReady
+                  .replace("{ready}", String(readyCount))
+                  .replace("{partial}", String(partialCount))
+                  .replace("{notStarted}", String(notStartedCount))}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Module Readiness Grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {moduleEntries.map(([mod, level]) => (
+          <Card key={mod} className={cn("p-3 border", LEVEL_COLORS[level] || "")}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{moduleLabels[mod] || mod}</span>
+              <Badge variant="secondary" className="text-xs">{levelLabels[level] || level}</Badge>
+            </div>
+            <div className="mt-1.5 h-1 bg-muted rounded-full">
+              <div className="h-1 rounded-full bg-current" style={{ width: `${LEVEL_PERCENT[level] || 0}%` }} />
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Known Unknowns */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              {de.onboardingWizard.step6.unknowns.title} ({unknownsSummary.open})
+            </CardTitle>
+            {unknownsSummary.blockers > 0 && (
+              <Badge className="bg-red-100 text-red-800">
+                {de.onboardingWizard.step6.unknowns.blockerCount.replace("{count}", String(unknownsSummary.blockers))}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {openUnknowns.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">{de.onboardingWizard.step6.unknowns.noUnknowns}</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(groupedByArea).map(([area, items]) => (
+                <div key={area}>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">{area}</h4>
+                  <div className="space-y-1">
+                    {items.map((u) => (
+                      <div key={u.id} className={cn("flex items-center justify-between p-2 rounded text-sm",
+                        u.blocksGoLive ? "bg-red-50 border-l-2 border-red-400" : "bg-muted/50"
+                      )}>
+                        <div className="flex-1 min-w-0">
+                          <span>{u.description}</span>
+                          {u.suggestedAction && <p className="text-xs text-muted-foreground">{u.suggestedAction}</p>}
+                        </div>
+                        <div className="flex gap-1 shrink-0 ml-2">
+                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "resolve")}>{de.onboardingWizard.step6.unknowns.resolve}</Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "accept")}>{de.onboardingWizard.step6.unknowns.accept}</Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleResolveUnknown(u.id, "defer")}>{de.onboardingWizard.step6.unknowns.defer}</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Blocker warnings */}
+      {goLiveCheck && !goLiveCheck.canGoLive && (
+        <InfoPanel tone="error" icon={AlertTriangle}>
+          <strong>{de.onboardingWizard.step6.goLiveBlocked}</strong>
+          <ul className="mt-1 text-sm space-y-0.5">
+            {goLiveCheck.blockers.map((b, i) => <li key={i}>• {b}</li>)}
+          </ul>
+        </InfoPanel>
+      )}
+
+      {goLiveCheck?.canGoLive && (
+        <InfoPanel tone="success" icon={CheckCircle2}>
+          {de.onboardingWizard.step6.goLiveReady}
+        </InfoPanel>
+      )}
+
+      {/* Proceed */}
+      <div className="flex justify-end">
+        <Button onClick={() => onComplete({ readinessScore: score, canGoLive: goLiveCheck?.canGoLive })}>
+          {de.onboardingWizard.next} <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
       </div>
     </div>
   );
@@ -753,5 +1000,214 @@ function Step5Intelligence({ sessionId, onComplete }: { sessionId: string; onCom
         </Button>
       </div>
     </div>
+  );
+}
+
+/* ---------- Step 7: Go-Live ---------- */
+
+const phaseLabels: Record<string, string> = {
+  go_live_started: "Go-Live gestartet",
+  first_week: "Erste Woche",
+  first_30_days: "Erste 30 Tage",
+  stabilized: "Stabilisiert",
+  normal: "Normaler Betrieb",
+};
+
+interface GoLiveStatusData {
+  phase: string;
+  startedAt: string;
+  config: {
+    autopilotMode: string;
+    reviewLevel: string;
+    monitoringLevel: string;
+    activatedModules: string[];
+    restrictedModules: string[];
+    disabledModules: string[];
+  };
+  daysActive: number;
+  nextPhaseAt: string | null;
+  nextPhaseLabel: string | null;
+  readinessScore: number;
+  moduleReadiness: Record<string, string>;
+  openTasksCount: number;
+  openUnknownsCount: number;
+  recommendations: string[];
+}
+
+function StatusCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <Card className="p-3 text-center">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-medium">{value}</p>
+    </Card>
+  );
+}
+
+function Step7GoLive({ sessionId, companyId, onCompleted }: { sessionId: string; companyId: string; onCompleted: () => void }) {
+  const [goLiveStatus, setGoLiveStatus] = useState<GoLiveStatusData | null>(null);
+  const [goLiveCheck, setGoLiveCheck] = useState<GoLiveCheckData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        // Load go-live status
+        const statusRes = await fetch("/api/onboarding/golive");
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          if (data) {
+            setGoLiveStatus(data);
+            setLoading(false);
+            return;
+          }
+        }
+        // Load readiness check
+        const readinessRes = await fetch("/api/onboarding/wizard/readiness");
+        if (readinessRes.ok) {
+          const readiness = await readinessRes.json();
+          setGoLiveCheck(readiness.goLiveCheck || null);
+        }
+      } catch { /* non-critical */ }
+      finally { setLoading(false); }
+    }
+    load();
+  }, [companyId]);
+
+  async function handleStartGoLive() {
+    setStarting(true);
+    try {
+      const res = await fetch("/api/onboarding/golive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
+      });
+      if (res.ok) {
+        const status = await res.json();
+        setGoLiveStatus(status);
+        toast.success("Go-Live gestartet!");
+        onCompleted();
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setStarting(false); }
+  }
+
+  if (loading) return <Skeleton className="h-48 w-full" />;
+
+  // AFTER Go-Live
+  if (goLiveStatus) {
+    return (
+      <div className="space-y-4">
+        {/* Phase-Badge */}
+        <div className="text-center">
+          <Badge className="text-base px-4 py-1.5 bg-green-100 text-green-800">
+            {phaseLabels[goLiveStatus.phase] || goLiveStatus.phase}
+          </Badge>
+          <p className="text-sm text-muted-foreground mt-2">
+            Tag {goLiveStatus.daysActive} — {goLiveStatus.nextPhaseLabel ? `Nächste Phase: ${goLiveStatus.nextPhaseLabel}` : "Normaler Betrieb"}
+          </p>
+        </div>
+
+        {/* Status-Grid 2x3 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <StatusCard label="Autopilot" value={goLiveStatus.config.autopilotMode} />
+          <StatusCard label="Review" value={goLiveStatus.config.reviewLevel} />
+          <StatusCard label="Monitoring" value={goLiveStatus.config.monitoringLevel} />
+          <StatusCard label="Aktive Module" value={goLiveStatus.config.activatedModules.length} />
+          <StatusCard label="Offene Aufgaben" value={goLiveStatus.openTasksCount} />
+          <StatusCard label="Offene Fragen" value={goLiveStatus.openUnknownsCount} />
+        </div>
+
+        {/* Restrictions */}
+        {goLiveStatus.config.restrictedModules.length > 0 && (
+          <InfoPanel tone="info" icon={AlertCircle}>
+            <strong>Eingeschränkte Module:</strong> {goLiveStatus.config.restrictedModules.join(", ")}
+          </InfoPanel>
+        )}
+
+        {/* Recommendations */}
+        {goLiveStatus.recommendations.length > 0 && (
+          <Card><CardContent className="pt-4">
+            <h3 className="text-sm font-semibold mb-2">Empfehlungen für diese Phase</h3>
+            {goLiveStatus.recommendations.map((r, i) => (
+              <p key={i} className="text-sm text-muted-foreground">• {r}</p>
+            ))}
+          </CardContent></Card>
+        )}
+
+        {/* Completed notice */}
+        <InfoPanel tone="success" icon={CheckCircle2}>
+          <strong>Onboarding abgeschlossen!</strong>
+          <p className="text-sm">Der Mandant ist live. Sie können jetzt über das Dashboard arbeiten.</p>
+          <Link href="/dashboard"><Button variant="outline" size="sm" className="mt-2">Zum Dashboard</Button></Link>
+        </InfoPanel>
+      </div>
+    );
+  }
+
+  // BEFORE Go-Live
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="text-center">
+          <Rocket className="h-12 w-12 mx-auto mb-3 text-primary" />
+          <h2 className="text-xl font-semibold">Mandant live schalten</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Der Mandant startet in einer kontrollierten Hochlaufphase
+          </p>
+        </div>
+
+        {goLiveCheck && (
+          <>
+            {/* Recommended config */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Autopilot</p>
+                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.autopilotMode}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Review</p>
+                <p className="font-medium">{goLiveCheck.recommendedGoLiveConfig.reviewLevel}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Stabilisierung</p>
+                <p className="font-medium">~{goLiveCheck.estimatedStabilizationDays} Tage</p>
+              </Card>
+            </div>
+
+            {/* Warnings */}
+            {goLiveCheck.warnings.length > 0 && (
+              <InfoPanel tone="warning" icon={AlertTriangle}>
+                {goLiveCheck.warnings.map((w, i) => <p key={i} className="text-sm">{w}</p>)}
+              </InfoPanel>
+            )}
+
+            {/* Blockers */}
+            {goLiveCheck.blockers.length > 0 && (
+              <InfoPanel tone="error" icon={AlertTriangle}>
+                <strong>Go-Live blockiert:</strong>
+                {goLiveCheck.blockers.map((b, i) => <p key={i} className="text-sm">{b}</p>)}
+              </InfoPanel>
+            )}
+
+            {/* Start Button */}
+            <Button size="lg" className="w-full" onClick={handleStartGoLive}
+                    disabled={!goLiveCheck.canGoLive || starting}>
+              {starting ? "Starte..." : goLiveCheck.canGoLive ? "Go-Live starten" : "Go-Live blockiert"}
+            </Button>
+          </>
+        )}
+
+        {!goLiveCheck && (
+          <InfoPanel tone="info" icon={AlertCircle}>
+            <p className="text-sm">Readiness-Check wird geladen...</p>
+          </InfoPanel>
+        )}
+      </CardContent>
+    </Card>
   );
 }

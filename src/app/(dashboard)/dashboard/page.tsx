@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
-  FileText, ListTodo, Upload, ChevronDown,
+  FileText, ListTodo, Upload, ChevronDown, Rocket,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
@@ -165,6 +165,7 @@ export default function DashboardPage() {
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
   const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
+  const [goLiveStatus, setGoLiveStatus] = useState<any>(null);
 
   const role = activeCompany?.role || "";
   const isViewer = role === "viewer" || role === "readonly";
@@ -193,6 +194,11 @@ export default function DashboardPage() {
     fetch("/api/setup/status")
       .then((r) => (r.ok ? r.json() : null))
       .then((s) => { if (s) setSetupStatus(s); })
+      .catch(() => {});
+
+    fetch("/api/onboarding/golive")
+      .then((r) => r.ok ? r.json() : null)
+      .then(setGoLiveStatus)
       .catch(() => {});
   }, []);
 
@@ -299,6 +305,29 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Go-Live Hochlauf-Widget */}
+      {goLiveStatus && goLiveStatus.phase && goLiveStatus.phase !== "normal" && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Rocket className="h-4 w-4 text-blue-600" />
+                <span className="font-medium text-blue-800">
+                  Hochlaufphase: {
+                    { go_live_started: "Go-Live gestartet", first_week: "Erste Woche", first_30_days: "Erste 30 Tage", stabilized: "Stabilisiert" }[goLiveStatus.phase as string] || goLiveStatus.phase
+                  }
+                </span>
+              </div>
+              <Badge variant="secondary">Tag {goLiveStatus.daysActive}</Badge>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              Autopilot: {goLiveStatus.config.autopilotMode} • Review: {goLiveStatus.config.reviewLevel}
+              {goLiveStatus.config.restrictedModules.length > 0 && ` • ${goLiveStatus.config.restrictedModules.length} Module eingeschränkt`}
+            </p>
           </CardContent>
         </Card>
       )}

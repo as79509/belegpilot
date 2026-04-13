@@ -143,11 +143,75 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("applyBootstrappedItems");
   });
 
+  // Phase 11.6: Readiness UI, GoLive-Check, Known-Unknowns Verwaltung
+  it("GoLive Check Service existiert", () => {
+    const content = fs.readFileSync("src/lib/services/onboarding/golive-check.ts", "utf-8");
+    expect(content).toContain("checkGoLiveReadiness");
+    expect(content).toContain("canGoLive");
+    expect(content).toContain("blockers");
+    expect(content).toContain("recommendedGoLiveConfig");
+  });
+
+  it("Known-Unknowns API existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/unknowns/route.ts")).toBe(true);
+    const content = fs.readFileSync("src/app/api/onboarding/unknowns/route.ts", "utf-8");
+    expect(content).toContain("onboardingKnownUnknown");
+    expect(content).toContain("resolve");
+  });
+
+  it("GoLive Check API existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/wizard/golive-check/route.ts")).toBe(true);
+  });
+
+  it("Wizard Step 6 hat Readiness UI statt Placeholder", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(content).toContain("Step6Readiness");
+    expect(content).toContain("handleResolveUnknown");
+    expect(content).toContain("goLiveCheck");
+    expect(content).toContain("LEVEL_COLORS");
+  });
+
+  it("i18n hat Step 6 Keys", () => {
+    const content = fs.readFileSync("src/lib/i18n/de.ts", "utf-8");
+    expect(content).toContain("step6");
+    expect(content).toContain("Gesamtreife");
+    expect(content).toContain("goLiveBlocked");
+    expect(content).toContain("goLiveReady");
+  });
+
   it("Wizard Step 5 hat Intelligence Review statt Placeholder", () => {
     const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
     expect(content).toContain("Step5Intelligence");
     expect(content).toContain("handleRunBootstrap");
     expect(content).toContain("handleApply");
     expect(content).toContain("GOV_BADGE");
+  });
+
+  // Phase 11.7+11.8: Go-Live, First-30-Days, Known-Unknowns Verwaltung
+  it("GoLive Service existiert mit Phase-Management", () => {
+    const content = fs.readFileSync("src/lib/services/onboarding/golive-service.ts", "utf-8");
+    expect(content).toContain("startGoLive");
+    expect(content).toContain("getGoLiveStatus");
+    expect(content).toContain("advanceGoLivePhase");
+    expect(content).toContain("first_week");
+    expect(content).toContain("first_30_days");
+  });
+
+  it("GoLive API existiert", () => {
+    expect(fs.existsSync("src/app/api/onboarding/golive/route.ts")).toBe(true);
+  });
+
+  it("Known-Unknowns API mit resolve/accept/defer", () => {
+    const content = fs.readFileSync("src/app/api/onboarding/unknowns/route.ts", "utf-8");
+    expect(content).toContain("resolve");
+    expect(content).toContain("accept");
+    expect(content).toContain("defer");
+  });
+
+  it("Wizard Step 7 hat Go-Live UI statt Placeholder", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(content).toContain("handleStartGoLive");
+    expect(content).toContain("goLiveStatus");
+    expect(content).toContain("phaseLabels");
   });
 });
