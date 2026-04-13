@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ds";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +118,7 @@ export default function TasksPage() {
           {loading ? (
             <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
           ) : tasks.length === 0 ? (
-            <div className="text-center py-12"><ListTodo className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm text-muted-foreground">{de.tasksMgmt.noTasks}</p></div>
+            <EmptyState icon={ListTodo} title={de.emptyStates.tasks.title} description={de.emptyStates.tasks.description} />
           ) : (
             <Table>
               <TableHeader><TableRow>

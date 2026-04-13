@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntityHeader, StatusBadge, EmptyState, InfoPanel } from "@/components/ds";
+import { FirstUseHint } from "@/components/ds/first-use-hint";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { Receipt, Plus, AlertTriangle, Download, FileCode } from "lucide-react";
@@ -202,6 +203,12 @@ export default function VatPage() {
           icon: Plus,
           onClick: () => setCreateOpen(true),
         }}
+      />
+
+      <FirstUseHint
+        id="vat-intro"
+        title="Tipp: MwSt-Abrechnung"
+        description="MwSt-Abrechnungen werden aus bereits gebuchten Belegen erstellt. Genehmigen Sie zuerst Belege."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

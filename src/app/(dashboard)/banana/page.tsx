@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { EntityHeader, EmptyState, InfoPanel } from "@/components/ds";
+import { FirstUseHint } from "@/components/ds/first-use-hint";
 import { useCompany } from "@/lib/contexts/company-context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -369,6 +370,12 @@ export default function BananaPage() {
           onClick: handleAutoMap,
           icon: Zap,
         } : undefined}
+      />
+
+      <FirstUseHint
+        id="banana-intro"
+        title="Tipp: Banana-Export"
+        description="Banana-Export erstellt Buchungsdateien im Banana-Format. Stellen Sie sicher dass der Kontenplan gemappt ist."
       />
 
       {loading ? (

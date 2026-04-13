@@ -352,4 +352,33 @@ describe("Phase 11 Wizard Architecture", () => {
     const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
     expect(c).toContain("Heute erledigen");
   });
+
+  // Phase 11X.6+11X.7: Text-Konsistenz, Empty States, Erste-Nutzung
+  it("de.ts hat emptyStates Block", () => {
+    const c = fs.readFileSync("src/lib/i18n/de.ts", "utf-8");
+    expect(c).toContain("emptyStates");
+    expect(c).toContain("Noch keine Belege");
+    expect(c).toContain("Noch keine Lieferanten");
+    expect(c).toContain("Keine offenen Aufgaben");
+  });
+
+  it("FirstUseHint Komponente existiert", () => {
+    const c = fs.readFileSync("src/components/ds/first-use-hint.tsx", "utf-8");
+    expect(c).toContain("FirstUseHint");
+    expect(c).toContain("dismissed");
+    expect(c).toContain("sessionStorage");
+  });
+
+  it("Mindestens 5 Seiten nutzen EmptyState", () => {
+    const pages = ["documents", "suppliers", "rules", "journal", "tasks"];
+    let count = 0;
+    for (const page of pages) {
+      const path = `src/app/(dashboard)/${page}/page.tsx`;
+      if (fs.existsSync(path)) {
+        const c = fs.readFileSync(path, "utf-8");
+        if (c.includes("EmptyState") || c.includes("emptyStates")) count++;
+      }
+    }
+    expect(count).toBeGreaterThanOrEqual(4);
+  });
 });

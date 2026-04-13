@@ -31,3 +31,5 @@ export type { DataTableWrapperProps, DataTableColumn } from "./data-table-wrappe
 export { DashboardSkeleton, TablePageSkeleton, DetailPageSkeleton, WizardSkeleton } from "./page-skeleton";
 
 export { SaveIndicator, useSaveState } from "./save-indicator";
+
+export { FirstUseHint } from "./first-use-hint";

@@ -216,7 +216,7 @@ export default function JournalPage() {
           {loading ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
           ) : filteredEntries.length === 0 ? (
-            <div className="text-center py-12"><BookOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm text-muted-foreground">{de.journal.noEntries}</p></div>
+            <EmptyState icon={BookOpen} title={de.emptyStates.journal.title} description={de.emptyStates.journal.description} />
           ) : (
             <Table>
               <TableHeader>

@@ -391,7 +391,7 @@ export default function RulesPage() {
         </div>
 
         {rules.length === 0 ? (
-          <EmptyState icon={Workflow} title={de.emptyStates.rules.title} description={de.emptyStates.rules.description} action={{ label: de.emptyStates.rules.action!, onClick: () => setShowCreate(true) }} />
+          <EmptyState icon={Workflow} title={de.emptyStates.rules.title} description={de.emptyStates.rules.description} action={{ label: de.emptyStates.rules.action!, onClick: () => setDialogOpen(true) }} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {rules.filter((r) => globalFilter === "all" ? true : globalFilter === "global" ? (r as any).isGlobal : !(r as any).isGlobal).map((rule) => (

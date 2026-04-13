@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntityHeader, StatusBadge, EmptyState, ConfidenceBadge, InfoPanel } from "@/components/ds";
+import { FirstUseHint } from "@/components/ds/first-use-hint";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { Upload, Plus, Landmark, Search, FileText, ArrowRight } from "lucide-react";
@@ -306,6 +307,12 @@ export default function BankReconciliationPage() {
         }]}
       />
 
+      <FirstUseHint
+        id="bank-intro"
+        title="Tipp: Bankabstimmung"
+        description="Verbinden Sie Ihr Bankkonto um automatischen Beleg-Abgleich zu nutzen."
+      />
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="unmatched">
@@ -467,7 +474,7 @@ export default function BankReconciliationPage() {
                 ) : statements.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="p-0">
-                      <EmptyState icon={FileText} title={de.bank.noStatements} description="" />
+                      <EmptyState icon={FileText} title={de.emptyStates.bank.title} description={de.emptyStates.bank.description} />
                     </TableCell>
                   </TableRow>
                 ) : (

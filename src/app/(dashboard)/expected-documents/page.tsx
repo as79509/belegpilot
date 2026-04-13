@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ds";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -237,7 +238,7 @@ export default function ExpectedDocumentsPage() {
           {loading ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">{de.expectedDocs.noExpected}</p>
+            <EmptyState icon={ClipboardList} title={de.emptyStates.expectedDocs.title} description={de.emptyStates.expectedDocs.description} />
           ) : (
             <Table>
               <TableHeader>
