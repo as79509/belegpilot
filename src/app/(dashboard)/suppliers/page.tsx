@@ -7,29 +7,49 @@ import { interact } from "@/lib/interaction-classes";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/ds";
 import { SupplierRowActions } from "@/components/suppliers/supplier-row-actions";
 import { useCompany } from "@/lib/contexts/company-context";
 import { typo, statusColors } from "@/lib/design-tokens";
 import { useRole } from "@/lib/hooks/use-role";
+import { toast } from "sonner";
 
 export default function SuppliersPage() {
   const router = useRouter();
   const { activeCompany, capabilities } = useCompany();
   const role = activeCompany?.role || "";
-  const canMutate = capabilities?.canMutate?.suppliers ?? (role === "admin" || role === "reviewer");
+  const canMutate = capabilities?.canMutate?.suppliers ?? (role === "admin" || role === "trustee");
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [trustScores, setTrustScores] = useState<Record<string, { trustScore: number; riskLevel: string }>>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nameNormalized: "",
+    vatNumber: "",
+    iban: "",
+    defaultCategory: "",
+    defaultAccountCode: "",
+    paymentTermDays: "",
+  });
 
   useEffect(() => {
     fetch("/api/suppliers/trust-scores")
@@ -65,6 +85,39 @@ export default function SuppliersPage() {
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
 
   const { isViewer } = useRole();
+
+  async function handleCreateSupplier() {
+    setCreating(true);
+    try {
+      const response = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || de.suppliers.createError);
+      }
+
+      toast.success(de.suppliers.createSuccess);
+      setCreateOpen(false);
+      setCreateForm({
+        nameNormalized: "",
+        vatNumber: "",
+        iban: "",
+        defaultCategory: "",
+        defaultAccountCode: "",
+        paymentTermDays: "",
+      });
+      setPage(1);
+      await fetchSuppliers();
+    } catch (error: any) {
+      toast.error(error.message || de.suppliers.createError);
+    } finally {
+      setCreating(false);
+    }
+  }
 
   // Viewer: simplified read-only list
   if (isViewer) {
@@ -105,7 +158,14 @@ export default function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <EntityHeader title={de.suppliers.title} />
+      <EntityHeader
+        title={de.suppliers.title}
+        primaryAction={canMutate ? {
+          label: de.suppliers.create,
+          icon: Plus,
+          onClick: () => setCreateOpen(true),
+        } : undefined}
+      />
 
       <FilterBar
         searchValue={search}
@@ -135,7 +195,14 @@ export default function SuppliersPage() {
               ))}
             </TableBody></Table>
           ) : suppliers.length === 0 ? (
-            <EmptyState icon={Building2} title={de.suppliers.noSuppliers} />
+            <EmptyState
+              icon={Building2}
+              title={de.suppliers.noSuppliers}
+              action={canMutate ? {
+                label: de.suppliers.create,
+                onClick: () => setCreateOpen(true),
+              } : undefined}
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -199,6 +266,75 @@ export default function SuppliersPage() {
           </Button>
         </div>
       )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{de.suppliers.createTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="supplier-name">{de.suppliers.name}</Label>
+              <Input
+                id="supplier-name"
+                value={createForm.nameNormalized}
+                onChange={(event) => setCreateForm((current) => ({ ...current, nameNormalized: event.target.value }))}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="supplier-vat">{de.detail.vatNumber}</Label>
+                <Input
+                  id="supplier-vat"
+                  value={createForm.vatNumber}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, vatNumber: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier-iban">{de.detail.iban}</Label>
+                <Input
+                  id="supplier-iban"
+                  value={createForm.iban}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, iban: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier-category">{de.suppliers.defaultCategory}</Label>
+                <Input
+                  id="supplier-category"
+                  value={createForm.defaultCategory}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, defaultCategory: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier-account">{de.suppliers.defaultAccount}</Label>
+                <Input
+                  id="supplier-account"
+                  value={createForm.defaultAccountCode}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, defaultAccountCode: event.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supplier-payment-term">{de.suppliers.paymentTermDays}</Label>
+              <Input
+                id="supplier-payment-term"
+                inputMode="numeric"
+                value={createForm.paymentTermDays}
+                onChange={(event) => setCreateForm((current) => ({ ...current, paymentTermDays: event.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              {de.common.cancel}
+            </Button>
+            <Button onClick={handleCreateSupplier} disabled={creating}>
+              {creating ? de.suppliers.creating : de.suppliers.create}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -130,7 +130,10 @@ export async function POST(
       if (suggestion.suggestedCategory) docUpdate.expenseCategory = suggestion.suggestedCategory;
       if (suggestion.suggestedCostCenter) docUpdate.costCenter = suggestion.suggestedCostCenter;
       if (Object.keys(docUpdate).length > 0) {
-        await prisma.document.update({ where: { id }, data: docUpdate });
+        await prisma.document.updateMany({
+          where: { id, companyId: ctx.companyId },
+          data: docUpdate,
+        });
       }
     }
 
@@ -141,7 +144,10 @@ export async function POST(
       if (modifiedTo.category) docUpdate.expenseCategory = modifiedTo.category;
       if (modifiedTo.costCenter) docUpdate.costCenter = modifiedTo.costCenter;
       if (Object.keys(docUpdate).length > 0) {
-        await prisma.document.update({ where: { id }, data: docUpdate });
+        await prisma.document.updateMany({
+          where: { id, companyId: ctx.companyId },
+          data: docUpdate,
+        });
       }
 
       // Korrekturen tracken: Vorschlag → tatsächlich gewählter Wert

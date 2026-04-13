@@ -7,6 +7,19 @@ import {
   extractInsightsFromAnswer,
 } from "@/lib/services/onboarding/business-chat";
 
+interface ChatPostResponse {
+  status: "success" | "empty" | "degraded";
+  message: string;
+  recorded: boolean;
+  insights: Array<any>;
+  suggestedRules: Array<any>;
+  suggestedKnowledge: Array<any>;
+  suggestedExpectedDocs: Array<any>;
+  resolvedUnknowns: string[];
+  newUnknowns: Array<any>;
+  followUpQuestions: string[];
+}
+
 export async function GET() {
   const ctx = await getActiveCompany();
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
@@ -46,22 +59,30 @@ export async function POST(request: NextRequest) {
 
     // Extract insights
     const result = await extractInsightsFromAnswer(ctx.companyId, session.id, questionId, answer);
+    const recorded = result.status !== "degraded";
 
-    // Save answer in stepData
-    const stepData = (session.stepData as Record<string, any>) || {};
-    const step4Data = stepData["4"] || { answeredQuestions: [] };
-    step4Data.answeredQuestions = [
-      ...(step4Data.answeredQuestions || []),
-      { id: questionId, answer, answeredAt: new Date().toISOString(), insightCount: result.insights.length },
-    ];
-    stepData["4"] = step4Data;
+    if (recorded) {
+      // Save answer in stepData
+      const stepData = (session.stepData as Record<string, any>) || {};
+      const step4Data = stepData["4"] || { answeredQuestions: [] };
+      step4Data.answeredQuestions = [
+        ...(step4Data.answeredQuestions || []),
+        { id: questionId, answer, answeredAt: new Date().toISOString(), insightCount: result.insights.length },
+      ];
+      stepData["4"] = step4Data;
 
-    await prisma.onboardingSession.update({
-      where: { id: session.id },
-      data: { stepData: stepData as any, lastActiveAt: new Date() },
-    });
+      await prisma.onboardingSession.update({
+        where: { id: session.id },
+        data: { stepData: stepData as any, lastActiveAt: new Date() },
+      });
+    }
 
-    return NextResponse.json(result);
+    const response: ChatPostResponse = {
+      ...result,
+      recorded,
+    };
+
+    return NextResponse.json(response, { status: recorded ? 200 : 503 });
   } catch (error: any) {
     console.error("[Chat] POST failed:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

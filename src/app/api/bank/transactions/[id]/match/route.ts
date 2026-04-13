@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { computeChanges, logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(
   request: NextRequest,
@@ -24,8 +25,8 @@ export async function POST(
   if (!tx) return NextResponse.json({ error: "Transaktion nicht gefunden" }, { status: 404 });
 
   if (noMatch) {
-    const updated = await prisma.bankTransaction.update({
-      where: { id },
+    const result = await prisma.bankTransaction.updateMany({
+      where: { id, companyId: ctx.companyId },
       data: {
         matchStatus: "no_match",
         matchedDocumentId: null,
@@ -35,6 +36,29 @@ export async function POST(
         matchedBy: ctx.session.user.id,
       },
     });
+    if (result.count === 0) return NextResponse.json({ error: "Transaktion nicht gefunden" }, { status: 404 });
+
+    const updated = await prisma.bankTransaction.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!updated) return NextResponse.json({ error: "Transaktion nicht gefunden" }, { status: 404 });
+
+    await logAudit({
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
+      action: "bank_transaction_marked_unmatched",
+      entityType: "bank_transaction",
+      entityId: updated.id,
+      changes: computeChanges(tx as any, updated as any, [
+        "matchStatus",
+        "matchedDocumentId",
+        "matchConfidence",
+        "matchMethod",
+        "matchedAt",
+        "matchedBy",
+      ]),
+    });
+
     return NextResponse.json(updated);
   }
 
@@ -47,8 +71,8 @@ export async function POST(
   });
   if (!doc) return NextResponse.json({ error: "Beleg nicht gefunden" }, { status: 404 });
 
-  const updated = await prisma.bankTransaction.update({
-    where: { id },
+  const result = await prisma.bankTransaction.updateMany({
+    where: { id, companyId: ctx.companyId },
     data: {
       matchStatus: "manual_matched",
       matchedDocumentId: documentId,
@@ -57,6 +81,28 @@ export async function POST(
       matchedAt: new Date(),
       matchedBy: ctx.session.user.id,
     },
+  });
+  if (result.count === 0) return NextResponse.json({ error: "Transaktion nicht gefunden" }, { status: 404 });
+
+  const updated = await prisma.bankTransaction.findFirst({
+    where: { id, companyId: ctx.companyId },
+  });
+  if (!updated) return NextResponse.json({ error: "Transaktion nicht gefunden" }, { status: 404 });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "bank_transaction_matched",
+    entityType: "bank_transaction",
+    entityId: updated.id,
+    changes: computeChanges(tx as any, updated as any, [
+      "matchStatus",
+      "matchedDocumentId",
+      "matchConfidence",
+      "matchMethod",
+      "matchedAt",
+      "matchedBy",
+    ]),
   });
 
   return NextResponse.json(updated);

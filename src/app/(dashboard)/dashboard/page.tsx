@@ -170,7 +170,8 @@ export default function DashboardPage() {
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
   const [goLiveStatus, setGoLiveStatus] = useState<any>(null);
 
-  const { isViewer, isTrustee } = useRole();
+  const { isViewer, isReviewer, isTrustee } = useRole();
+  const canUseWorkQueues = isReviewer || isTrustee;
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
@@ -321,7 +322,7 @@ export default function DashboardPage() {
       )}
 
       {/* Schnellzugriff (nur für Treuhänder/Admin) */}
-      {!isViewer && (
+      {canUseWorkQueues && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
             { label: "Korrekturen", href: "/corrections", icon: AlertTriangle },
@@ -342,7 +343,7 @@ export default function DashboardPage() {
       )}
 
       {/* Heute erledigen (Treuhänder/Admin) */}
-      {isTrustee && (
+      {canUseWorkQueues && (
         <Card>
           <CardContent className="pt-4">
             <h3 className="text-sm font-semibold mb-3">Heute erledigen</h3>

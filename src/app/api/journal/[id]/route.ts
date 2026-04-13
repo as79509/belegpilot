@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
+import { computeChanges, logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getActiveCompany();
@@ -51,7 +53,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    const updated = await prisma.journalEntry.update({ where: { id }, data });
+    if (existing.entryDate) {
+      const lock = await checkPeriodLock(ctx.companyId, new Date(existing.entryDate));
+      if (lock.locked) {
+        return NextResponse.json({ error: lock.message }, { status: 409 });
+      }
+    }
+
+    const changes = computeChanges(existing as any, data, fields);
+
+    const updateResult = await prisma.journalEntry.updateMany({
+      where: { id, companyId: ctx.companyId },
+      data,
+    });
+    if (updateResult.count === 0) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+    const updated = await prisma.journalEntry.findFirst({ where: { id, companyId: ctx.companyId } });
+    if (!updated) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+    if (changes) {
+      await logAudit({
+        companyId: ctx.companyId,
+        userId: ctx.session.user.id,
+        action: "journal_entry_updated",
+        entityType: "journal_entry",
+        entityId: id,
+        changes,
+      });
+    }
+
     return NextResponse.json({ entry: updated, warnings });
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }); }
 }
@@ -63,6 +93,30 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
   }
   const { id } = await params;
-  await prisma.journalEntry.delete({ where: { id } });
+  const existing = await prisma.journalEntry.findFirst({ where: { id, companyId: ctx.companyId } });
+  if (!existing) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+  const lock = await checkPeriodLock(ctx.companyId, new Date(existing.entryDate));
+  if (lock.locked) {
+    return NextResponse.json({ error: lock.message }, { status: 409 });
+  }
+
+  const deleted = await prisma.journalEntry.deleteMany({ where: { id, companyId: ctx.companyId } });
+  if (deleted.count === 0) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "journal_entry_deleted",
+    entityType: "journal_entry",
+    entityId: id,
+    changes: {
+      deleted: {
+        before: existing,
+        after: null,
+      },
+    },
+  });
+
   return NextResponse.json({ success: true });
 }

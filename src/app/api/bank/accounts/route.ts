@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
   const ctx = await getActiveCompany();
@@ -37,6 +38,26 @@ export async function POST(request: NextRequest) {
       name,
       bankName: bankName || null,
       currency: currency || "CHF",
+    },
+  });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "bank_account_created",
+    entityType: "bank_account",
+    entityId: account.id,
+    changes: {
+      created: {
+        before: null,
+        after: {
+          iban: account.iban,
+          name: account.name,
+          bankName: account.bankName,
+          currency: account.currency,
+          isActive: account.isActive,
+        },
+      },
     },
   });
 

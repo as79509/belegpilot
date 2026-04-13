@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { inngest } from "@/lib/inngest/client";
+import { dispatchDocumentProcessing } from "@/lib/services/documents/document-processing-dispatch";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
@@ -31,20 +31,30 @@ export async function POST() {
     });
 
     let submitted = 0;
+    let failed = 0;
     for (const doc of stuck) {
       await prisma.document.update({
         where: { id: doc.id },
-        data: { status: "uploaded" },
+        data: {
+          status: "uploaded",
+          processingDecision: null,
+        },
       });
-      try {
-        await inngest.send({ name: "document/uploaded", data: { documentId: doc.id } });
+      const dispatchResult = await dispatchDocumentProcessing({
+        companyId: ctx.companyId,
+        documentId: doc.id,
+        source: "reset_stuck",
+      });
+      if (dispatchResult.ok) {
         submitted++;
-      } catch (e) { console.warn("[ResetStuck] Inngest send failed for", doc.id, e); }
+      } else {
+        failed++;
+      }
     }
 
-    console.log(`[Reset-Stuck] Reset ${stuck.length} documents, submitted ${submitted} for reprocessing`);
+    console.log(`[Reset-Stuck] Reset ${stuck.length} documents, submitted ${submitted} for reprocessing, failed ${failed}`);
 
-    return NextResponse.json({ found: stuck.length, submitted });
+    return NextResponse.json({ found: stuck.length, submitted, failed });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

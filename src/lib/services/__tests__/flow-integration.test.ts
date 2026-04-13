@@ -6,8 +6,8 @@ describe("Flow Integration Audit", () => {
 
   it("Upload Route triggert Inngest Pipeline", () => {
     const content = fs.readFileSync("src/app/api/documents/upload/route.ts", "utf-8");
-    expect(content).toContain("inngest");
-    expect(content).toMatch(/inngest\.send\(/);
+    expect(content).toContain("dispatchDocumentProcessing");
+    expect(content).toContain('source: "upload"');
   });
 
   it("Inngest Functions hat OCR + AI + Validation + Rules + Suggestion + Autopilot Steps", () => {

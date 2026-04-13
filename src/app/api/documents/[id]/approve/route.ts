@@ -37,8 +37,8 @@ export async function POST(
       }
     }
 
-    const updated = await prisma.document.update({
-      where: { id },
+    const updateResult = await prisma.document.updateMany({
+      where: { id, companyId: ctx.companyId },
       data: {
         status: "ready",
         reviewStatus: "approved",
@@ -46,6 +46,16 @@ export async function POST(
         reviewedAt: new Date(),
       },
     });
+    if (updateResult.count === 0) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    const updated = await prisma.document.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
 
     await logAudit({
       companyId: ctx.companyId,

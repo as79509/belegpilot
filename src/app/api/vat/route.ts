@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { calculateVatReturn } from "@/lib/services/vat/vat-calculator";
+import type { VatCreateResponse } from "@/lib/services/vat/vat-contract";
 import { validateVatReturn } from "@/lib/services/vat/vat-validator";
 
 export async function GET(request: NextRequest) {
@@ -111,9 +112,11 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({
+  const response: VatCreateResponse<typeof vatReturn> = {
     vatReturn,
     calculation: calc,
     warnings,
-  }, { status: 201 });
+  };
+
+  return NextResponse.json(response, { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
   const ctx = await getActiveCompany();
@@ -50,6 +51,26 @@ export async function POST(request: NextRequest) {
       label: label || null,
       autoProcess: autoProcess !== false,
       allowedSenders: allowedSenders || null,
+    },
+  });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "email_inbox_created",
+    entityType: "email_inbox",
+    entityId: inbox.id,
+    changes: {
+      created: {
+        before: null,
+        after: {
+          inboxAddress: inbox.inboxAddress,
+          label: inbox.label,
+          autoProcess: inbox.autoProcess,
+          allowedSenders: inbox.allowedSenders,
+          isActive: inbox.isActive,
+        },
+      },
     },
   });
 

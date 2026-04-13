@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { checkPeriodLock } from "@/lib/services/cockpit/period-guard";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET(request: NextRequest) {
   const ctx = await getActiveCompany();
@@ -115,6 +116,30 @@ export async function POST(request: NextRequest) {
         documentId: body.documentId || null,
         entryType: body.entryType || "manual",
         createdBy: ctx.session.user.id,
+      },
+    });
+
+    await logAudit({
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
+      action: "journal_entry_created",
+      entityType: "journal_entry",
+      entityId: entry.id,
+      changes: {
+        created: {
+          before: null,
+          after: {
+            entryDate: entry.entryDate,
+            debitAccount: entry.debitAccount,
+            creditAccount: entry.creditAccount,
+            amount: entry.amount,
+            currency: entry.currency,
+            description: entry.description,
+            reference: entry.reference,
+            entryType: entry.entryType,
+            documentId: entry.documentId,
+          },
+        },
       },
     });
 

@@ -150,10 +150,20 @@ export async function POST(
       return NextResponse.json({ error: "Keine Felder zur Aktualisierung ausgewählt" }, { status: 400 });
     }
 
-    const updated = await prisma.supplier.update({
-      where: { id },
+    const updateResult = await prisma.supplier.updateMany({
+      where: { id, companyId: ctx.companyId },
       data: updateData,
     });
+    if (updateResult.count === 0) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    const updated = await prisma.supplier.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
 
     await logAudit({
       companyId: ctx.companyId,

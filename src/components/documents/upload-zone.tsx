@@ -8,7 +8,7 @@ import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 import Link from "next/link";
 
-const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
 
 interface UploadResult {
   documentId: string;
@@ -99,7 +99,6 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       "application/pdf": [".pdf"],
       "image/jpeg": [".jpg", ".jpeg"],
       "image/png": [".png"],
-      "image/webp": [".webp"],
     },
     maxSize: 20 * 1024 * 1024,
     disabled: uploading,

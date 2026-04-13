@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { computeChanges, logAudit } from "@/lib/services/audit/audit-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -27,7 +28,35 @@ export async function PATCH(
   if (body.allowedSenders !== undefined) data.allowedSenders = body.allowedSenders;
   if (body.isActive !== undefined) data.isActive = body.isActive;
 
-  const updated = await prisma.emailInbox.update({ where: { id }, data });
+  const result = await prisma.emailInbox.updateMany({
+    where: { id, companyId: ctx.companyId },
+    data,
+  });
+  if (result.count === 0) return NextResponse.json({ error: "Eingang nicht gefunden" }, { status: 404 });
+
+  const updated = await prisma.emailInbox.findFirst({
+    where: { id, companyId: ctx.companyId },
+  });
+  if (!updated) return NextResponse.json({ error: "Eingang nicht gefunden" }, { status: 404 });
+
+  const changes = computeChanges(existing as any, updated as any, [
+    "label",
+    "autoProcess",
+    "allowedSenders",
+    "isActive",
+  ]);
+
+  if (changes) {
+    await logAudit({
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
+      action: "email_inbox_updated",
+      entityType: "email_inbox",
+      entityId: updated.id,
+      changes,
+    });
+  }
+
   return NextResponse.json(updated);
 }
 
@@ -48,6 +77,30 @@ export async function DELETE(
   });
   if (!existing) return NextResponse.json({ error: "Eingang nicht gefunden" }, { status: 404 });
 
-  await prisma.emailInbox.delete({ where: { id } });
+  const result = await prisma.emailInbox.deleteMany({
+    where: { id, companyId: ctx.companyId },
+  });
+  if (result.count === 0) return NextResponse.json({ error: "Eingang nicht gefunden" }, { status: 404 });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "email_inbox_deleted",
+    entityType: "email_inbox",
+    entityId: existing.id,
+    changes: {
+      deleted: {
+        before: {
+          inboxAddress: existing.inboxAddress,
+          label: existing.label,
+          autoProcess: existing.autoProcess,
+          allowedSenders: existing.allowedSenders,
+          isActive: existing.isActive,
+        },
+        after: null,
+      },
+    },
+  });
+
   return NextResponse.json({ success: true });
 }

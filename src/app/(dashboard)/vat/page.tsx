@@ -15,6 +15,7 @@ import { EntityHeader, StatusBadge, EmptyState, InfoPanel } from "@/components/d
 import { FirstUseHint } from "@/components/ds/first-use-hint";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
+import { mergeVatCreateResponse, selectVatReturnById, type VatCreateResponse } from "@/lib/services/vat/vat-contract";
 import { Receipt, Plus, AlertTriangle, Download, FileCode } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/lib/contexts/company-context";
@@ -87,21 +88,20 @@ export default function VatPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (preferredSelectedId?: string) => {
     setLoading(true);
     const res = await fetch("/api/vat");
     if (res.ok) {
       const data = await res.json();
-      const returns = data.returns || data;
+      const returns: VatReturn[] = data.returns || data;
       setVatReturns(returns);
-      // If something is selected, refresh it
-      if (selected) {
-        const updated = returns.find((v: VatReturn) => v.id === selected.id);
-        if (updated) setSelected(updated);
+      const nextSelected: VatReturn | null = selectVatReturnById(returns, preferredSelectedId || selected?.id);
+      if (nextSelected) {
+        setSelected(nextSelected);
       }
     }
     setLoading(false);
-  }, [selected]);
+  }, [selected?.id]);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -117,11 +117,11 @@ export default function VatPage() {
         const err = await res.json();
         throw new Error(err.error);
       }
-      const created = await res.json();
+      const created: VatReturn = mergeVatCreateResponse((await res.json()) as VatCreateResponse<VatReturn>);
       toast.success(de.vatReturn.createSuccess);
       setCreateOpen(false);
-      await load();
       setSelected(created);
+      await load(created.id);
     } catch (err: any) {
       toast.error(err.message);
     } finally {

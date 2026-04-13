@@ -134,7 +134,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[] | ["*"]> = {
   ],
   reviewer: [
     // Belege
-    "documents:read", "documents:write", "documents:approve",
+    "documents:read", "documents:write", "documents:approve", "documents:bulk",
     // Lieferanten (nur lesen)
     "suppliers:read",
     // Regeln + Knowledge (nur lesen)

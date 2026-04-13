@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/i18n/de";
 import { useCompany } from "@/lib/contexts/company-context";
+import { normalizeAppRole, type AppRole } from "@/lib/hooks/use-role";
 
 interface NavItem {
   href: string;
@@ -25,12 +26,10 @@ interface NavGroup {
   defaultOpen?: boolean;
 }
 
-type NavRole = "viewer" | "trustee" | "admin";
+type NavRole = AppRole;
 
-function getNavRole(role: string): NavRole {
-  if (role === "admin") return "admin";
-  if (role === "trustee") return "trustee";
-  return "viewer";
+export function getNavRole(role: string): NavRole {
+  return normalizeAppRole(role);
 }
 
 // ── Viewer (Unternehmer) — 6 flat entries ──

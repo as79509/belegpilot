@@ -114,10 +114,20 @@ export async function PATCH(
     const changes = computeChanges(document as any, updateData, EDITABLE_FIELDS);
 
     // Update document
-    const updated = await prisma.document.update({
-      where: { id },
+    const updateResult = await prisma.document.updateMany({
+      where: { id, companyId: ctx.companyId },
       data: updateData,
     });
+    if (updateResult.count === 0) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    const updated = await prisma.document.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
 
     // Re-run validation after field changes
     const canonical = toCanonical(updated);
@@ -126,8 +136,8 @@ export async function PATCH(
     const factors = buildConfidenceFactors(aiConfidence, canonical, validationResult, 0);
     const compositeConfidence = computeCompositeConfidence(factors);
 
-    await prisma.document.update({
-      where: { id },
+    await prisma.document.updateMany({
+      where: { id, companyId: ctx.companyId },
       data: {
         validationResults: validationResult as any,
         confidenceScore: compositeConfidence,
@@ -147,8 +157,8 @@ export async function PATCH(
     }
 
     // Re-fetch with relations
-    const result = await prisma.document.findUnique({
-      where: { id },
+    const result = await prisma.document.findFirst({
+      where: { id, companyId: ctx.companyId },
       include: {
         file: true,
         ocrResult: true,

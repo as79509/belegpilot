@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
+import { computeChanges, logAudit } from "@/lib/services/audit/audit-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -29,7 +30,30 @@ export async function PATCH(
   if (body.currency !== undefined) data.currency = body.currency;
   if (body.isActive !== undefined) data.isActive = body.isActive;
 
-  const updated = await prisma.bankAccount.update({ where: { id }, data });
+  const changes = computeChanges(existing as any, data, ["name", "iban", "bankName", "currency", "isActive"]);
+
+  const updateResult = await prisma.bankAccount.updateMany({
+    where: { id, companyId: ctx.companyId },
+    data,
+  });
+  if (updateResult.count === 0) return NextResponse.json({ error: "Bankkonto nicht gefunden" }, { status: 404 });
+
+  const updated = await prisma.bankAccount.findFirst({
+    where: { id, companyId: ctx.companyId },
+  });
+  if (!updated) return NextResponse.json({ error: "Bankkonto nicht gefunden" }, { status: 404 });
+
+  if (changes) {
+    await logAudit({
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
+      action: "bank_account_updated",
+      entityType: "bank_account",
+      entityId: id,
+      changes,
+    });
+  }
+
   return NextResponse.json(updated);
 }
 
@@ -51,6 +75,22 @@ export async function DELETE(
   });
   if (!existing) return NextResponse.json({ error: "Bankkonto nicht gefunden" }, { status: 404 });
 
-  await prisma.bankAccount.delete({ where: { id } });
+  const deleted = await prisma.bankAccount.deleteMany({ where: { id, companyId: ctx.companyId } });
+  if (deleted.count === 0) return NextResponse.json({ error: "Bankkonto nicht gefunden" }, { status: 404 });
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "bank_account_deleted",
+    entityType: "bank_account",
+    entityId: id,
+    changes: {
+      deleted: {
+        before: existing,
+        after: null,
+      },
+    },
+  });
+
   return NextResponse.json({ success: true });
 }

@@ -22,6 +22,16 @@ export interface RoundTripImportResult {
   }>;
 }
 
+export interface RoundTripBatchSummary {
+  importBatchId: string;
+  importedAt: string;
+  totalRows: number;
+  matched: number;
+  modified: number;
+  newInBanana: number;
+  unmatched: number;
+}
+
 interface BananaRow {
   date: Date | null;
   doc: string | null;
@@ -197,6 +207,45 @@ export async function importBananaFile(companyId: string, csvContent: string): P
   for (const data of entriesToCreate) { await prisma.bananaRoundTripEntry.create({ data }); }
   const learnSignals = await generateLearnSignals(companyId, allDeltas);
   return { totalRows: rows.length, matched, modified, newInBanana, unmatched, importBatchId, deltas: allDeltas, learnSignals };
+}
+
+export async function listBananaImportBatches(companyId: string): Promise<RoundTripBatchSummary[]> {
+  const entries = await prisma.bananaRoundTripEntry.findMany({
+    where: { companyId },
+    select: {
+      importBatchId: true,
+      importedAt: true,
+      matchStatus: true,
+    },
+    orderBy: { importedAt: "desc" },
+    take: 1000,
+  });
+
+  const batches = new Map<string, RoundTripBatchSummary>();
+
+  for (const entry of entries) {
+    if (!batches.has(entry.importBatchId)) {
+      batches.set(entry.importBatchId, {
+        importBatchId: entry.importBatchId,
+        importedAt: entry.importedAt.toISOString(),
+        totalRows: 0,
+        matched: 0,
+        modified: 0,
+        newInBanana: 0,
+        unmatched: 0,
+      });
+    }
+
+    const batch = batches.get(entry.importBatchId)!;
+    batch.totalRows += 1;
+
+    if (entry.matchStatus === "matched") batch.matched += 1;
+    if (entry.matchStatus === "modified") batch.modified += 1;
+    if (entry.matchStatus === "new_in_banana") batch.newInBanana += 1;
+    if (entry.matchStatus === "unmatched") batch.unmatched += 1;
+  }
+
+  return [...batches.values()].sort((a, b) => b.importedAt.localeCompare(a.importedAt));
 }
 
 async function generateLearnSignals(companyId: string, currentDeltas: RoundTripImportResult["deltas"]): Promise<RoundTripImportResult["learnSignals"]> {

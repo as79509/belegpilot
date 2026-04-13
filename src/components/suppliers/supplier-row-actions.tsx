@@ -47,8 +47,7 @@ export function SupplierRowActions({ supplier, canMutate, onChanged }: Props) {
   }
 
   function showSupplierDocs() {
-    const name = supplier.nameNormalized || "";
-    router.push(`/documents?supplier=${encodeURIComponent(name)}`);
+    router.push(`/documents?supplierId=${encodeURIComponent(supplier.id)}`);
   }
 
   return (

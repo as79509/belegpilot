@@ -27,6 +27,25 @@ const AUDIT_EXCEPTIONS = [
   "suppliers/autocomplete",
 ];
 
+const REQUIRED_AUDIT_ROUTES = [
+  "documents/bulk-approve/route.ts",
+  "documents/bulk-reject/route.ts",
+  "journal/route.ts",
+  "journal/[id]/route.ts",
+  "bank/import/route.ts",
+  "bank/accounts/route.ts",
+  "bank/accounts/[id]/route.ts",
+  "bank/transactions/[id]/match/route.ts",
+  "email/inboxes/route.ts",
+  "email/inboxes/[id]/route.ts",
+  "integrations/[providerId]/import/route.ts",
+  "suppliers/route.ts",
+  "suppliers/[id]/route.ts",
+  "suppliers/[id]/verify/route.ts",
+  "suppliers/merge/route.ts",
+  "suppliers/[id]/suggest-defaults/route.ts",
+];
+
 describe("Audit-Logging Coverage", () => {
   it("kritische Entity-Routes haben logAudit", () => {
     const apiDir = path.resolve("src/app/api");
@@ -59,6 +78,28 @@ describe("Audit-Logging Coverage", () => {
         r.includes("reject")
     );
     expect(criticalMissing).toEqual([]);
+  });
+
+  it("Kernrouten mit Mutationen verlangen explizit Audit-Logging", () => {
+    const apiDir = path.resolve("src/app/api");
+    const missing: string[] = [];
+
+    for (const route of REQUIRED_AUDIT_ROUTES) {
+      const fullPath = path.join(apiDir, route);
+      const content = fs.readFileSync(fullPath, "utf-8");
+
+      const hasMutation =
+        content.includes("export async function POST") ||
+        content.includes("export async function PATCH") ||
+        content.includes("export async function DELETE") ||
+        content.includes("export async function PUT");
+
+      if (!hasMutation || !content.includes("logAudit")) {
+        missing.push(route);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 
   it("audit-service exportiert logAudit und computeChanges", () => {

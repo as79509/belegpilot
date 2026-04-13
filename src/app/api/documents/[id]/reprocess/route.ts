@@ -3,8 +3,8 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { DbNull } from "@/generated/prisma/internal/prismaNamespace";
-import { inngest } from "@/lib/inngest/client";
 import { logAudit } from "@/lib/services/audit/audit-service";
+import { dispatchDocumentProcessing } from "@/lib/services/documents/document-processing-dispatch";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
@@ -51,15 +51,13 @@ export async function POST(
       },
     });
 
-    console.log("[Reprocess] Sending inngest event for:", id);
-    try {
-      await inngest.send({
-        name: "document/uploaded",
-        data: { documentId: id },
-      });
-      console.log("[Reprocess] Inngest event sent");
-    } catch (inngestErr) {
-      console.error("[Reprocess] Inngest send failed:", inngestErr);
+    const dispatchResult = await dispatchDocumentProcessing({
+      companyId: ctx.companyId,
+      documentId: id,
+      source: "reprocess",
+    });
+    if (!dispatchResult.ok) {
+      return NextResponse.json({ error: dispatchResult.error }, { status: 503 });
     }
 
     await logAudit({

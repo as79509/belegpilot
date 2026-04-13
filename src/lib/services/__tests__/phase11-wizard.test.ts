@@ -107,6 +107,15 @@ describe("Phase 11 Wizard Architecture", () => {
     expect(content).toContain("fetchChatQuestions");
   });
 
+  it("Wizard Step 3 nutzt echte Upload- und Klassifikationslogik", () => {
+    const content = fs.readFileSync("src/app/(dashboard)/onboarding/wizard/page.tsx", "utf-8");
+    expect(content).toContain("Step3Documents");
+    expect(content).toContain("UploadZone");
+    expect(content).toContain('fetch("/api/onboarding/guidance")');
+    expect(content).toContain('fetch("/api/onboarding/classify")');
+    expect(content).not.toContain("Step 3: Placeholder");
+  });
+
   it("i18n hat Step 4 Chat-Keys", () => {
     const content = fs.readFileSync("src/lib/i18n/de.ts", "utf-8");
     expect(content).toContain("step4");

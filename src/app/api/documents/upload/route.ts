@@ -3,8 +3,8 @@ import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
-import { inngest } from "@/lib/inngest/client";
 import { generateDocumentNumber } from "@/lib/services/document-number";
+import { dispatchDocumentProcessing } from "@/lib/services/documents/document-processing-dispatch";
 import { rateLimit } from "@/lib/rate-limit";
 import { createHash } from "crypto";
 
@@ -139,17 +139,20 @@ export async function POST(request: NextRequest) {
         });
 
         // Trigger Inngest processing (non-blocking — don't fail upload if Inngest is down)
-        try {
-          console.log("[Upload] Sending inngest event for document:", document.id);
-          await inngest.send({
-            name: "document/uploaded",
-            data: { documentId: document.id },
+          const dispatchResult = await dispatchDocumentProcessing({
+            companyId,
+            documentId: document.id,
+            source: "upload",
           });
-          console.log("[Upload] Inngest event sent successfully");
-        } catch (inngestError) {
-          console.error("[Upload] Inngest send failed:", inngestError);
-        }
-
+          if (!dispatchResult.ok) {
+            results.push({
+              documentId: document.id,
+              fileName: file.name,
+              status: "error",
+              error: dispatchResult.error,
+            });
+            continue;
+          }
         results.push({
           documentId: document.id,
           fileName: file.name,

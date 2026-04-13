@@ -38,6 +38,7 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   "documents/download-zip": { POST: "exports:create" },
 
   // Lieferanten
+  "suppliers": { POST: "suppliers:write" },
   "suppliers/[id]": { PATCH: "suppliers:write" },
   "suppliers/merge": { POST: "suppliers:write" },
   "suppliers/[id]/verify": { POST: "suppliers:verify" },

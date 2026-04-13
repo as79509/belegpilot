@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
-import { importBananaFile } from "@/lib/services/banana/banana-round-trip";
+import { importBananaFile, listBananaImportBatches } from "@/lib/services/banana/banana-round-trip";
 import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function GET() {
@@ -9,7 +9,8 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
 
   // Stub: return empty batch list — full implementation in Phase 10.1.3
-  return NextResponse.json({ batches: [] });
+  const batches = await listBananaImportBatches(ctx.companyId);
+  return NextResponse.json({ batches });
 }
 
 export async function POST(request: NextRequest) {

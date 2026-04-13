@@ -112,6 +112,9 @@ export default function EmailImportPage() {
       toast.success(de.emailImport.saveSuccess);
       setEditOpen(false);
       await load();
+    } else {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error || "E-Mail-Eingang konnte nicht gespeichert werden");
     }
   }
 
@@ -145,13 +148,13 @@ export default function EmailImportPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{de.emailImport.todayReceived}</p>
-              <p className="text-2xl font-bold mt-1">{totalProcessed}</p>
+              <p className="text-xs text-muted-foreground">{de.emailImport.activeInboxes}</p>
+              <p className="text-2xl font-bold mt-1">{activeCount}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{de.emailImport.thisWeek}</p>
+              <p className="text-xs text-muted-foreground">{de.emailImport.processed}</p>
               <p className="text-2xl font-bold mt-1">{totalProcessed}</p>
             </CardContent>
           </Card>
@@ -165,6 +168,16 @@ export default function EmailImportPage() {
           </Card>
         </div>
       )}
+
+      <InfoPanel tone="info" icon={Mail}>
+        <strong>{de.emailImport.title}</strong>
+        <p className="text-sm mt-1">
+          Der Import ist derzeit webhook-basiert. BelegPilot verbindet sich nicht direkt mit Gmail, Outlook, IMAP oder POP3.
+        </p>
+        <p className="text-sm mt-1">
+          AnhÃ¤nge werden als Belege angelegt. Eine fachliche Rechnungserkennung vor dem Anlegen gibt es aktuell nicht.
+        </p>
+      </InfoPanel>
 
       {/* Inbox Table */}
       <div className="border rounded-md bg-white">
@@ -196,8 +209,7 @@ export default function EmailImportPage() {
                     <InfoPanel tone="info" icon={Mail}>
                       <strong>{de.emailImport.title}</strong>
                       <p className="text-sm mt-1">
-                        Erstelle eine Inbox und konfiguriere deinen E-Mail-Dienst (z.B. Mailgun, SendGrid)
-                        mit der angezeigten Webhook-URL. Belege werden dann automatisch importiert.
+                        Erstelle eine Inbox und leite E-Mails aus deinem Mail-System an die erzeugte Adresse oder den vorgeschalteten Webhook weiter.
                       </p>
                     </InfoPanel>
                   </div>
@@ -253,19 +265,19 @@ export default function EmailImportPage() {
             <div>
               <Label>{de.emailImport.label}</Label>
               <Input
-                placeholder="z.B. Haupteingang Rechnungen"
+                placeholder="z. B. Haupteingang Rechnungen"
                 value={createLabel}
                 onChange={(e) => setCreateLabel(e.target.value)}
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Eine eindeutige E-Mail-Adresse wird automatisch generiert.
+              Eine eindeutige Empfangsadresse wird automatisch generiert.
             </p>
           </div>
           <DialogFooter>
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Erstelle…" : de.emailImport.addInbox}
+              {creating ? "Erstelle..." : de.emailImport.addInbox}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -343,7 +355,7 @@ function CopyButton({ text }: { text: string }) {
   }
 
   return (
-    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground p-0.5" title="Kopieren">
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground p-0.5" title="Adresse kopieren">
       {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );

@@ -9,10 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
     if (!ctx) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    if (
-      !hasPermission(ctx.session.user.role, "documents:bulk") &&
-      !["admin", "reviewer"].includes(ctx.session.user.role)
-    ) {
+    if (!hasPermission(ctx.session.user.role, "documents:bulk")) {
       return NextResponse.json(
         { error: "Keine Berechtigung für Massen-Freigabe" },
         { status: 403 }
@@ -45,8 +42,8 @@ export async function POST(request: NextRequest) {
     // Bulk update all approvable documents
     let approved = 0;
     for (const doc of docs) {
-      await prisma.document.update({
-        where: { id: doc.id },
+      await prisma.document.updateMany({
+        where: { id: doc.id, companyId: ctx.companyId },
         data: {
           status: "ready",
           reviewStatus: "approved",

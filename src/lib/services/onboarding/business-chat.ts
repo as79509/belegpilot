@@ -21,6 +21,8 @@ export interface ChatInsight {
 }
 
 export interface ChatExtractionResult {
+  status: "success" | "empty" | "degraded";
+  message: string;
   insights: ChatInsight[];
   suggestedRules: Array<{ type: string; description: string; confidence: string }>;
   suggestedKnowledge: Array<{ title: string; content: string; confidence: string }>;
@@ -235,6 +237,7 @@ Regeln:
 - Keine Erfindungen oder Vermutungen \u00fcber nicht genannte Details`;
 
   let parsed: any = { insights: [], suggestedRules: [], suggestedKnowledge: [], suggestedExpectedDocs: [], followUpQuestions: [], resolvedTopics: [] };
+  let extractionFailed = false;
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -249,9 +252,26 @@ Regeln:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      extractionFailed = true;
     }
   } catch (err) {
     console.error("[BusinessChat] Claude extraction failed:", err);
+    extractionFailed = true;
+  }
+
+  if (extractionFailed) {
+    return {
+      status: "degraded",
+      message: "Die KI-Auswertung ist derzeit nicht verf\u00fcgbar. Ihre Antwort wurde noch nicht gespeichert.",
+      insights: [],
+      suggestedRules: [],
+      suggestedKnowledge: [],
+      suggestedExpectedDocs: [],
+      resolvedUnknowns: [],
+      newUnknowns: [],
+      followUpQuestions: [],
+    };
   }
 
   // Map insights with IDs
@@ -283,37 +303,49 @@ Regeln:
     });
   }
 
-  // Update BusinessProfile
-  if (profile) {
-    const existingArray = (profile.insights as any[]) || [];
-    const existingRules = (profile.suggestedRules as any[]) || [];
-    const existingKnowledge = (profile.suggestedKnowledge as any[]) || [];
-    const existingExpected = (profile.suggestedExpectedDocs as any[]) || [];
+  const hasInsights =
+    insights.length > 0 ||
+    (parsed.suggestedRules || []).length > 0 ||
+    (parsed.suggestedKnowledge || []).length > 0 ||
+    (parsed.suggestedExpectedDocs || []).length > 0 ||
+    resolvedUnknowns.length > 0;
 
-    await prisma.businessProfile.update({
-      where: { id: profile.id },
-      data: {
-        insights: [...existingArray, ...insights] as any,
-        suggestedRules: [...existingRules, ...(parsed.suggestedRules || [])] as any,
-        suggestedKnowledge: [...existingKnowledge, ...(parsed.suggestedKnowledge || [])] as any,
-        suggestedExpectedDocs: [...existingExpected, ...(parsed.suggestedExpectedDocs || [])] as any,
-      },
-    });
-  } else {
-    // Create BusinessProfile if it doesn't exist
-    await prisma.businessProfile.create({
-      data: {
-        companyId,
-        sessionId,
-        insights: insights as any,
-        suggestedRules: (parsed.suggestedRules || []) as any,
-        suggestedKnowledge: (parsed.suggestedKnowledge || []) as any,
-        suggestedExpectedDocs: (parsed.suggestedExpectedDocs || []) as any,
-      },
-    });
+  if (hasInsights) {
+    if (profile) {
+      const existingArray = (profile.insights as any[]) || [];
+      const existingRules = (profile.suggestedRules as any[]) || [];
+      const existingKnowledge = (profile.suggestedKnowledge as any[]) || [];
+      const existingExpected = (profile.suggestedExpectedDocs as any[]) || [];
+
+      await prisma.businessProfile.update({
+        where: { id: profile.id },
+        data: {
+          insights: [...existingArray, ...insights] as any,
+          suggestedRules: [...existingRules, ...(parsed.suggestedRules || [])] as any,
+          suggestedKnowledge: [...existingKnowledge, ...(parsed.suggestedKnowledge || [])] as any,
+          suggestedExpectedDocs: [...existingExpected, ...(parsed.suggestedExpectedDocs || [])] as any,
+        },
+      });
+    } else {
+      // Create BusinessProfile if it doesn't exist
+      await prisma.businessProfile.create({
+        data: {
+          companyId,
+          sessionId,
+          insights: insights as any,
+          suggestedRules: (parsed.suggestedRules || []) as any,
+          suggestedKnowledge: (parsed.suggestedKnowledge || []) as any,
+          suggestedExpectedDocs: (parsed.suggestedExpectedDocs || []) as any,
+        },
+      });
+    }
   }
 
   return {
+    status: hasInsights ? "success" : "empty",
+    message: hasInsights
+      ? "Erkenntnisse wurden erkannt und gespeichert."
+      : "Die Antwort wurde gespeichert, aber es wurden keine verwertbaren Erkenntnisse erkannt.",
     insights,
     suggestedRules: parsed.suggestedRules || [],
     suggestedKnowledge: parsed.suggestedKnowledge || [],

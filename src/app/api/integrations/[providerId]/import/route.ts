@@ -6,6 +6,7 @@ import "@/lib/services/integrations/providers/csv-provider";
 import "@/lib/services/integrations/providers/bexio-provider";
 import { getAdapter } from "@/lib/services/integrations/provider-registry";
 import type { IntegrationAction } from "@/lib/services/integrations/integration-provider";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(
   request: NextRequest,
@@ -23,6 +24,17 @@ export async function POST(
   if (!adapter) return NextResponse.json({ error: "Provider nicht gefunden: " + providerId }, { status: 404 });
   if (!adapter.executeImport) return NextResponse.json({ error: "Provider unterst\u00fctzt keinen Import" }, { status: 400 });
 
+  const integration = await prisma.integration.findFirst({
+    where: {
+      companyId: ctx.companyId,
+      providerName: providerId,
+      isEnabled: true,
+    },
+  });
+  if (!integration) {
+    return NextResponse.json({ error: "Integration ist nicht aktiviert" }, { status: 409 });
+  }
+
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const action = formData.get("action") as string | null;
@@ -35,6 +47,28 @@ export async function POST(
 
   const content = await file.text();
   const result = await adapter.executeImport(ctx.companyId, action as IntegrationAction, content, file.name);
+
+  await logAudit({
+    companyId: ctx.companyId,
+    userId: ctx.session.user.id,
+    action: "integration_import_executed",
+    entityType: "integration",
+    entityId: integration.id,
+    changes: {
+      import: {
+        before: null,
+        after: {
+          providerId,
+          action,
+          fileName: file.name,
+          success: result.success,
+          imported: result.imported,
+          skipped: result.skipped,
+          errorCount: result.errors.length,
+        },
+      },
+    },
+  });
 
   return NextResponse.json({ result });
 }

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Move all documents from secondary to primary
     const movedDocs = await prisma.document.updateMany({
-      where: { supplierId: secondaryId },
+      where: { supplierId: secondaryId, companyId: ctx.companyId },
       data: { supplierId: primaryId },
     });
 
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     ];
 
     // Update primary supplier
-    await prisma.supplier.update({
-      where: { id: primaryId },
+    await prisma.supplier.updateMany({
+      where: { id: primaryId, companyId: ctx.companyId },
       data: {
         nameVariants: mergedVariants,
         documentCount: primary.documentCount + secondary.documentCount,
@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Deactivate secondary
-    await prisma.supplier.update({
-      where: { id: secondaryId },
+    await prisma.supplier.updateMany({
+      where: { id: secondaryId, companyId: ctx.companyId },
       data: { isActive: false },
     });
 

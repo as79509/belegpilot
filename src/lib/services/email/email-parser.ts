@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db";
 import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
 import { generateDocumentNumber } from "@/lib/services/document-number";
-import { inngest } from "@/lib/inngest/client";
 import { createHash } from "crypto";
+import { dispatchDocumentProcessing } from "@/lib/services/documents/document-processing-dispatch";
 
 // -- Types --
 
@@ -22,6 +22,13 @@ export interface ParsedAttachment {
   contentType: string;
   size: number;
   content: Buffer;
+}
+
+export interface EmailAttachmentProcessingResult {
+  documentIds: string[];
+  createdCount: number;
+  duplicateCount: number;
+  failedAttachments: Array<{ filename: string; error: string }>;
 }
 
 // Allowed attachment types
@@ -145,9 +152,12 @@ function extractAttachments(raw: any): ParsedAttachment[] {
 export async function processEmailAttachments(
   companyId: string,
   email: ParsedEmail
-): Promise<string[]> {
+): Promise<EmailAttachmentProcessingResult> {
   const storage = new SupabaseStorageService();
   const documentIds: string[] = [];
+  const failedAttachments: Array<{ filename: string; error: string }> = [];
+  let createdCount = 0;
+  let duplicateCount = 0;
 
   for (const att of email.attachments) {
     try {
@@ -160,6 +170,7 @@ export async function processEmailAttachments(
 
       if (existingFile && existingFile.document.companyId === companyId) {
         documentIds.push(existingFile.document.id);
+        duplicateCount++;
         continue;
       }
 
@@ -178,7 +189,7 @@ export async function processEmailAttachments(
           companyId,
           documentNumber,
           status: "uploaded",
-          documentType: "invoice",
+          documentType: "other",
         },
       });
 
@@ -214,22 +225,29 @@ export async function processEmailAttachments(
       });
 
       // Trigger processing pipeline
-      try {
-        await inngest.send({
-          name: "document/uploaded",
-          data: { documentId: document.id },
+      const dispatchResult = await dispatchDocumentProcessing({
+        companyId,
+        documentId: document.id,
+        source: "email",
+      });
+      if (!dispatchResult.ok) {
+        failedAttachments.push({
+          filename: att.filename,
+          error: dispatchResult.error || "Verarbeitung konnte nicht gestartet werden",
         });
-      } catch (inngestError) {
-        console.error("[EmailImport] Inngest send failed:", inngestError);
+      } else {
+        createdCount++;
       }
 
       documentIds.push(document.id);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Anhang konnte nicht verarbeitet werden";
       console.error("[EmailImport] Failed to process attachment " + att.filename + ":", err);
+      failedAttachments.push({ filename: att.filename, error: message });
     }
   }
 
-  return documentIds;
+  return { documentIds, createdCount, duplicateCount, failedAttachments };
 }
 
 // -- Helpers --

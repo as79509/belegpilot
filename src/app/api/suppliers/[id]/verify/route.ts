@@ -15,10 +15,22 @@ export async function POST(
   }
 
   const { id } = await params;
-  const updated = await prisma.supplier.update({
-    where: { id },
+  const existing = await prisma.supplier.findFirst({
+    where: { id, companyId: ctx.companyId },
+    select: { id: true, isVerified: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+  const result = await prisma.supplier.updateMany({
+    where: { id, companyId: ctx.companyId },
     data: { isVerified: true },
   });
+  if (result.count === 0) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+
+  const updated = await prisma.supplier.findFirst({
+    where: { id, companyId: ctx.companyId },
+  });
+  if (!updated) return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
 
   await logAudit({
     companyId: ctx.companyId,
@@ -26,6 +38,14 @@ export async function POST(
     action: "supplier_verified",
     entityType: "supplier",
     entityId: id,
+    changes: existing.isVerified
+      ? undefined
+      : {
+          isVerified: {
+            before: false,
+            after: true,
+          },
+        },
   });
 
   return NextResponse.json(updated);

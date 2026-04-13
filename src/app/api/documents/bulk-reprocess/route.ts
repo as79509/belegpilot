@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { inngest } from "@/lib/inngest/client";
+import { dispatchDocumentProcessing } from "@/lib/services/documents/document-processing-dispatch";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -33,23 +33,28 @@ export async function POST(request: NextRequest) {
     });
 
     let submitted = 0;
+    let failed = 0;
     for (const doc of docs) {
       await prisma.document.update({
         where: { id: doc.id },
-        data: { status: "uploaded" },
+        data: {
+          status: "uploaded",
+          processingDecision: null,
+        },
       });
-      try {
-        await inngest.send({
-          name: "document/uploaded",
-          data: { documentId: doc.id },
-        });
+      const dispatchResult = await dispatchDocumentProcessing({
+        companyId: ctx.companyId,
+        documentId: doc.id,
+        source: "bulk_reprocess",
+      });
+      if (dispatchResult.ok) {
         submitted++;
-      } catch {
-        // Continue even if Inngest fails for one
+      } else {
+        failed++;
       }
     }
 
-    return NextResponse.json({ submitted, total: docs.length });
+    return NextResponse.json({ submitted, failed, total: docs.length });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

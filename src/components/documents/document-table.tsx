@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useCompany } from "@/lib/contexts/company-context";
 import { InlineEditCell } from "./inline-edit-cell";
 import { DocumentRowActions } from "./document-row-actions";
+import { hasPermission } from "@/lib/permissions";
 
 interface Document {
   id: string;
@@ -62,7 +63,10 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
   const router = useRouter();
   const { activeCompany } = useCompany();
   const role = activeCompany?.role || "";
-  const canMutate = role === "admin" || role === "trustee" || role === "reviewer";
+  const canEdit = hasPermission(role, "documents:write");
+  const canBulk = hasPermission(role, "documents:bulk");
+  const canExport = hasPermission(role, "exports:create");
+  const canReprocess = hasPermission(role, "documents:write");
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,9 +218,17 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
     });
     if (res.ok) {
       const r = await res.json();
-      toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
+      if (r.submitted > 0) {
+        toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
+      }
+      if (r.failed > 0) {
+        toast.error(`${r.failed} Verarbeitung konnte nicht gestartet werden`);
+      }
       setSelected(new Set());
       fetchDocuments();
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || "Erneute Verarbeitung fehlgeschlagen");
     }
   }
 
@@ -274,16 +286,20 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
         selectedCount={selected.size}
         onClearSelection={() => setSelected(new Set())}
         actions={
-          canMutate
-            ? [
-                { label: `${selected.size} ${de.bulkActions.approveSelected}`, icon: CheckCircle, onClick: bulkApprove },
-                { label: `${selected.size} ${de.bulkActions.rejectSelected}`, icon: XCircle, onClick: bulkReject, variant: "destructive" },
-                { label: `${selected.size} ${de.bulkActions.exportSelected}`, icon: Download, onClick: bulkExport },
-                { label: de.bulk.reprocess, icon: RefreshCw, onClick: bulkReprocess },
-              ]
-            : [
-                { label: `${selected.size} ${de.bulkActions.exportSelected}`, icon: Download, onClick: bulkExport },
-              ]
+          [
+            ...(canBulk
+              ? [
+                  { label: `${selected.size} ${de.bulkActions.approveSelected}`, icon: CheckCircle, onClick: bulkApprove },
+                  { label: `${selected.size} ${de.bulkActions.rejectSelected}`, icon: XCircle, onClick: bulkReject, variant: "destructive" as const },
+                ]
+              : []),
+            ...(canExport
+              ? [{ label: `${selected.size} ${de.bulkActions.exportSelected}`, icon: Download, onClick: bulkExport }]
+              : []),
+            ...(canReprocess
+              ? [{ label: de.bulk.reprocess, icon: RefreshCw, onClick: bulkReprocess }]
+              : []),
+          ]
         }
       />
 
@@ -399,21 +415,21 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <InlineEditCell
                       value={doc.accountCode}
-                      editable={canMutate}
+                      editable={canEdit}
                       onSave={(v) => patchField(doc.id, "accountCode", v)}
                     />
                   </TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <InlineEditCell
                       value={doc.expenseCategory}
-                      editable={canMutate}
+                      editable={canEdit}
                       onSave={(v) => patchField(doc.id, "expenseCategory", v)}
                     />
                   </TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <InlineEditCell
                       value={doc.costCenter}
-                      editable={canMutate}
+                      editable={canEdit}
                       onSave={(v) => patchField(doc.id, "costCenter", v)}
                     />
                   </TableCell>
@@ -456,7 +472,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DocumentRowActions
                       doc={doc}
-                      canMutate={canMutate}
+                      canMutate={canEdit}
                       onChanged={fetchDocuments}
                     />
                   </TableCell>

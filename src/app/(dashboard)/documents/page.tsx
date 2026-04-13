@@ -14,6 +14,7 @@ import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds
 import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { typo, statusColors } from "@/lib/design-tokens";
 import { useRole } from "@/lib/hooks/use-role";
+import { hasPermission } from "@/lib/permissions";
 
 const QUICK_FILTERS = [
   { key: "", label: "Alle" },
@@ -89,7 +90,8 @@ export default function DocumentsPage() {
     },
   ]);
 
-  const { isViewer } = useRole();
+  const { role, isViewer } = useRole();
+  const canUpload = hasPermission(role, "documents:write");
 
   const hasAdvancedFilters = dateFrom || dateTo || amountFrom || amountTo || supplierId || currency || exportStatus || confidence || documentType;
 
@@ -99,13 +101,13 @@ export default function DocumentsPage() {
       <div className="space-y-4">
         <EntityHeader
           title={de.documents.title}
-          primaryAction={{
+          primaryAction={canUpload ? {
             label: de.documents.upload,
             icon: Upload,
             onClick: () => setShowUpload(!showUpload),
-          }}
+          } : undefined}
         />
-        {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
+        {canUpload && showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
         <DocumentTable
           refreshKey={refreshKey}
           initialStatus=""
@@ -130,8 +132,6 @@ export default function DocumentsPage() {
   if (confidence === "medium") { extraParams.confidenceMin = "0.5"; extraParams.confidenceMax = "0.8"; }
   if (confidence === "low") { extraParams.confidenceMax = "0.5"; }
 
-  console.log("[Documents] Filters loaded from URL");
-
   return (
     <div className="space-y-4">
       <EntityHeader
@@ -143,11 +143,11 @@ export default function DocumentsPage() {
             </Badge>
           ) : undefined
         }
-        primaryAction={{
+        primaryAction={canUpload ? {
           label: de.documents.upload,
           icon: Upload,
           onClick: () => setShowUpload(!showUpload),
-        }}
+        } : undefined}
         secondaryActions={[
           {
             label: "Filter",
@@ -163,7 +163,7 @@ export default function DocumentsPage() {
         ]}
       />
 
-      {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
+      {canUpload && showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
 
       {/* Trustee info line */}
       {(counts.needs_review ?? 0) > 0 && (

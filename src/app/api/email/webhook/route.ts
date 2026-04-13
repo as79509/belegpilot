@@ -72,11 +72,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Process attachments
-    const documentIds = await processEmailAttachments(inbox.companyId, email);
+    const processingResult = await processEmailAttachments(inbox.companyId, email);
 
     // Update inbox stats
-    await prisma.emailInbox.update({
-      where: { id: inbox.id },
+    await prisma.emailInbox.updateMany({
+      where: { id: inbox.id, companyId: inbox.companyId },
       data: {
         processedCount: { increment: 1 },
         lastReceivedAt: new Date(),
@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Create notification
-    if (documentIds.length > 0) {
+    if (processingResult.documentIds.length > 0) {
       const tmpl = NotificationTemplates.emailDocumentReceived(
-        documentIds.length,
+        processingResult.documentIds.length,
         email.from
       );
       await createNotification({
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         severity: tmpl.severity,
         link: "/documents",
         metadata: {
-          documentIds,
+          documentIds: processingResult.documentIds,
           emailFrom: email.from,
           emailSubject: email.subject,
         },
@@ -106,8 +106,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: "ok",
-      processed: documentIds.length,
-      documentIds,
+      processed: processingResult.createdCount,
+      duplicates: processingResult.duplicateCount,
+      failed: processingResult.failedAttachments.length,
+      failures: processingResult.failedAttachments,
+      documentIds: processingResult.documentIds,
     });
   } catch (err: any) {
     console.error("[EmailWebhook] Error:", err);

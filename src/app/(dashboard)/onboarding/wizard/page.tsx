@@ -15,11 +15,13 @@ import {
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, Wand2, Clock, AlertCircle,
   MessageSquare, Lightbulb, SkipForward, Zap, XCircle, ArrowRight, AlertTriangle,
+  FileText, Repeat, Home, Shield, Car, Upload,
   Rocket,
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { InfoPanel } from "@/components/ds";
 import { WizardSkeleton } from "@/components/ds/page-skeleton";
+import { UploadZone } from "@/components/documents/upload-zone";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -53,6 +55,68 @@ interface WizardState {
   status: string;
 }
 
+interface ChatAnswerResult {
+  status: "success" | "empty" | "degraded";
+  message: string;
+  recorded: boolean;
+  insights: Array<{ content: string; confidence: "high" | "medium" | "low"; type: string }>;
+  suggestedRules: Array<any>;
+  suggestedKnowledge: Array<any>;
+  suggestedExpectedDocs: Array<any>;
+  resolvedUnknowns: string[];
+  newUnknowns: Array<any>;
+  followUpQuestions: string[];
+}
+
+interface ChatAnsweredEntry {
+  q: any;
+  a: string;
+  result: ChatAnswerResult;
+}
+
+interface Step3UploadCategory {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  priority: "high" | "medium" | "low";
+  currentCount: number;
+  recommendedMin: number;
+  recommendedMax: number;
+  examples: string[];
+  status: "empty" | "insufficient" | "sufficient" | "good";
+}
+
+interface Step3UploadGuidance {
+  categories: Step3UploadCategory[];
+  overallProgress: number;
+  readyForBootstrapping: boolean;
+  totalDocuments: number;
+  totalCategories: number;
+}
+
+interface Step3BootstrapResult {
+  documents: Array<{
+    documentId: string;
+    supplierName: string | null;
+    amount: number | null;
+    date: string | null;
+    classification: string;
+    classificationReason: string;
+    confidence: "high" | "medium" | "low";
+    suggestedActions: string[];
+  }>;
+  summary: {
+    total: number;
+    byClass: Record<string, number>;
+    uniqueSuppliers: number;
+    recurringCandidates: number;
+    missingTypes: string[];
+  };
+  recommendations: string[];
+  newKnownUnknowns: Array<{ area: string; description: string; criticality: string; suggestedAction: string }>;
+}
+
 const LEGAL_FORMS = ["Einzelfirma", "GmbH", "AG", "Kollektivgesellschaft", "Verein", "Stiftung", "Genossenschaft"];
 const INDUSTRIES = [
   "Gastgewerbe & Hotellerie", "Handel & Detailhandel", "Baugewerbe", "IT & Technologie",
@@ -60,6 +124,21 @@ const INDUSTRIES = [
   "Bildung", "Landwirtschaft", "Produktion & Industrie", "Beratung & Dienstleistung",
   "Kultur & Medien", "Tourismus", "Energie", "Andere",
 ];
+const STEP3_ICON_MAP: Record<string, any> = { FileText, Repeat, Home, Shield, Car, AlertTriangle };
+const STEP3_STATUS_BORDER: Record<string, string> = {
+  good: "border-green-200 bg-green-50/50",
+  sufficient: "border-blue-200 bg-blue-50/30",
+  insufficient: "",
+  empty: "border-slate-200 bg-slate-50/30",
+};
+const STEP3_CLASS_BADGE: Record<string, { label: string; className: string }> = {
+  learning_base: { label: de.onboarding.step3.classifications.learning_base, className: "bg-blue-100 text-blue-800" },
+  recurring: { label: de.onboarding.step3.classifications.recurring, className: "bg-green-100 text-green-800" },
+  contractual: { label: de.onboarding.step3.classifications.contractual, className: "bg-purple-100 text-purple-800" },
+  critical: { label: de.onboarding.step3.classifications.critical, className: "bg-red-100 text-red-800" },
+  exception: { label: de.onboarding.step3.classifications.exception, className: "bg-amber-100 text-amber-800" },
+  uncertain: { label: de.onboarding.step3.classifications.uncertain, className: "bg-slate-100 text-slate-700" },
+};
 
 export default function OnboardingWizardPage() {
   const { activeCompany } = useCompany();
@@ -95,8 +174,8 @@ export default function OnboardingWizardPage() {
   const [chatCurrentIdx, setChatCurrentIdx] = useState(0);
   const [chatAnswer, setChatAnswer] = useState("");
   const [chatSubmitting, setChatSubmitting] = useState(false);
-  const [chatResult, setChatResult] = useState<any>(null);
-  const [chatAnswered, setChatAnswered] = useState<any[]>([]);
+  const [chatResult, setChatResult] = useState<ChatAnswerResult | null>(null);
+  const [chatAnswered, setChatAnswered] = useState<ChatAnsweredEntry[]>([]);
   const [chatAnsweredCount, setChatAnsweredCount] = useState(0);
 
   const fetchState = useCallback(async () => {
@@ -200,19 +279,24 @@ export default function OnboardingWizardPage() {
     setChatSubmitting(true);
     setChatResult(null);
     try {
+      const submittedAnswer = chatAnswer;
       const res = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: chatQuestions[chatCurrentIdx].id, answer: chatAnswer }),
+        body: JSON.stringify({ questionId: chatQuestions[chatCurrentIdx].id, answer: submittedAnswer }),
       });
-      if (res.ok) {
-        const result = await res.json();
+      const result = await res.json();
+      if (res.ok || result?.status === "degraded") {
         setChatResult(result);
-        setChatAnswered((prev) => [...prev, { q: chatQuestions[chatCurrentIdx], a: chatAnswer, result }]);
-        setChatAnsweredCount((c) => c + 1);
-        setChatAnswer("");
+        if (result.recorded) {
+          setChatAnswered((prev) => [...prev, { q: chatQuestions[chatCurrentIdx], a: submittedAnswer, result }]);
+          setChatAnsweredCount((c) => c + 1);
+          setChatAnswer("");
+        } else {
+          toast.error(result.message);
+        }
       } else {
-        toast.error((await res.json()).error);
+        toast.error(result.error);
       }
     } catch (err: any) { toast.error(err.message); }
     finally { setChatSubmitting(false); }
@@ -438,17 +522,9 @@ export default function OnboardingWizardPage() {
         </Card>
       )}
 
-      {/* Step 3: Placeholder */}
+      {/* Step 3: Historische Belege */}
       {cs === 3 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-muted-foreground mb-4">{de.onboardingWizard.placeholder}</p>
-            <Button variant="outline" onClick={() => handleCompleteStep(cs, {})} disabled={saving}>
-              {de.onboardingWizard.skip}
-            </Button>
-          </CardContent>
-        </Card>
+        <Step3Documents onComplete={(data) => handleCompleteStep(3, data)} saving={saving} />
       )}
 
       {/* Step 7: Go-Live */}
@@ -501,7 +577,7 @@ export default function OnboardingWizardPage() {
                   value={chatAnswer}
                   onChange={(e) => setChatAnswer(e.target.value)}
                   rows={4}
-                  placeholder="Ihre Antwort..."
+                  placeholder={de.onboardingWizard.step4.answerPlaceholder}
                 />
                 <div className="flex items-center justify-between">
                   <button
@@ -521,15 +597,28 @@ export default function OnboardingWizardPage() {
 
           {/* Extraction result */}
           {chatResult && (
-            <Card className="border-green-200 bg-green-50/30">
+            <Card className={cn(
+              chatResult.status === "success" && "border-green-200 bg-green-50/30",
+              chatResult.status === "empty" && "border-amber-200 bg-amber-50/30",
+              chatResult.status === "degraded" && "border-red-200 bg-red-50/30"
+            )}>
               <CardContent className="pt-4 space-y-3">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  {de.onboardingWizard.step4.extractedInsights}
+                  {chatResult.status === "success" && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                  {chatResult.status === "empty" && <AlertCircle className="h-4 w-4 text-amber-600" />}
+                  {chatResult.status === "degraded" && <AlertTriangle className="h-4 w-4 text-red-600" />}
+                  {chatResult.status === "success" && de.onboardingWizard.step4.extractedInsights}
+                  {chatResult.status === "empty" && de.onboardingWizard.step4.emptyTitle}
+                  {chatResult.status === "degraded" && de.onboardingWizard.step4.degradedTitle}
                 </h3>
+                {chatResult.status !== "success" && (
+                  <p className="text-sm text-muted-foreground">
+                    {chatResult.status === "empty" ? de.onboardingWizard.step4.emptyDescription : de.onboardingWizard.step4.degradedDescription}
+                  </p>
+                )}
                 {chatResult.insights.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {chatResult.insights.map((i: any, idx: number) => (
+                    {chatResult.insights.map((i, idx: number) => (
                       <Badge key={idx} className={i.confidence === "high" ? "bg-green-100 text-green-800" : i.confidence === "medium" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>
                         {de.onboardingWizard.step4.insightTypes[i.type as keyof typeof de.onboardingWizard.step4.insightTypes] || i.type}: {i.content}
                       </Badge>
@@ -538,22 +627,45 @@ export default function OnboardingWizardPage() {
                 )}
                 {chatResult.suggestedRules.length > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3 inline mr-1 text-green-600" />{chatResult.suggestedRules.length} Regel-Vorschl\u00e4ge erkannt
+                    <CheckCircle2 className="h-3 w-3 inline mr-1 text-green-600" />
+                    {de.onboardingWizard.step4.rulesDetected.replace("{count}", String(chatResult.suggestedRules.length))}
                   </div>
                 )}
                 {chatResult.suggestedKnowledge.length > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3 inline mr-1 text-green-600" />{chatResult.suggestedKnowledge.length} Wissenseintr\u00e4ge erkannt
+                    <CheckCircle2 className="h-3 w-3 inline mr-1 text-green-600" />
+                    {de.onboardingWizard.step4.knowledgeDetected.replace("{count}", String(chatResult.suggestedKnowledge.length))}
                   </div>
+                )}
+                {chatResult.status === "empty" && chatResult.insights.length === 0 && (
+                  <Badge variant="secondary">{de.onboardingWizard.step4.noInsightsDetected}</Badge>
                 )}
                 {chatResult.resolvedUnknowns.length > 0 && (
                   <InfoPanel tone="success" icon={CheckCircle2}>
                     {de.onboardingWizard.step4.unknownsResolved.replace("{count}", String(chatResult.resolvedUnknowns.length))}
                   </InfoPanel>
                 )}
-                <Button onClick={handleNextQuestion} variant="outline">
-                  {chatQuestions.length > chatCurrentIdx + 1 ? de.onboardingWizard.step4.nextQuestion : de.onboardingWizard.step4.allAnswered}
-                </Button>
+                {chatResult.status === "degraded" && (
+                  <InfoPanel tone="error" icon={AlertTriangle}>
+                    {de.onboardingWizard.step4.answerNotSaved}
+                  </InfoPanel>
+                )}
+                <div className="flex gap-2">
+                  {chatResult.status === "degraded" ? (
+                    <>
+                      <Button onClick={() => setChatResult(null)} variant="outline">
+                        {de.onboardingWizard.step4.retryAnswer}
+                      </Button>
+                      <Button onClick={handleNextQuestion} variant="ghost">
+                        {de.onboardingWizard.step4.skipQuestion}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button onClick={handleNextQuestion} variant="outline">
+                      {chatQuestions.length > chatCurrentIdx + 1 ? de.onboardingWizard.step4.nextQuestion : de.onboardingWizard.step4.allAnswered}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -569,16 +681,19 @@ export default function OnboardingWizardPage() {
           {chatAnswered.length > 0 && (
             <Card>
               <CardContent className="pt-4">
-                <h3 className="text-sm font-semibold mb-2">Bisherige Antworten</h3>
+                <h3 className="text-sm font-semibold mb-2">{de.onboardingWizard.step4.historyTitle}</h3>
                 <div className="space-y-2">
                   {chatAnswered.map((item, idx) => (
                     <div key={idx} className="text-xs border rounded p-2">
                       <p className="font-medium">{item.q.question}</p>
                       <p className="text-muted-foreground mt-1 line-clamp-2">{item.a}</p>
                       <div className="flex gap-1 mt-1">
-                        {item.result.insights.map((i: any, j: number) => (
+                        {item.result.insights.map((i, j: number) => (
                           <Badge key={j} variant="secondary" className="text-[0.65rem]">{i.content}</Badge>
                         ))}
+                        {item.result.status === "empty" && item.result.insights.length === 0 && (
+                          <Badge variant="outline" className="text-[0.65rem]">{de.onboardingWizard.step4.noInsightsDetected}</Badge>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -858,6 +973,253 @@ function Step6Readiness({ companyId, sessionId, isViewer, onComplete }: { compan
           {de.onboardingWizard.next} <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+function Step3Documents({ onComplete, saving }: { onComplete: (data: Record<string, any>) => void; saving: boolean }) {
+  const [guidance, setGuidance] = useState<Step3UploadGuidance | null>(null);
+  const [bootstrap, setBootstrap] = useState<Step3BootstrapResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const fetchGuidance = useCallback(async () => {
+    const res = await fetch("/api/onboarding/guidance");
+    if (res.ok) setGuidance(await res.json());
+  }, []);
+
+  const fetchClassification = useCallback(async () => {
+    const res = await fetch("/api/onboarding/classify");
+    if (res.ok) setBootstrap(await res.json());
+  }, []);
+
+  const fetchStep3Data = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchGuidance(), fetchClassification()]);
+    } catch {
+      toast.error(de.common.error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchClassification, fetchGuidance]);
+
+  useEffect(() => {
+    fetchStep3Data();
+  }, [fetchStep3Data]);
+
+  async function handleStartAnalysis() {
+    setAnalyzing(true);
+    try {
+      const res = await fetch("/api/onboarding/analyze", { method: "POST" });
+      if (res.ok) {
+        toast.success(de.onboarding.step3.readyForBootstrap);
+        await fetchClassification();
+      } else {
+        const err = await res.json();
+        toast.error(err.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  const completionData = {
+    totalDocuments: guidance?.totalDocuments ?? 0,
+    totalCategories: guidance?.totalCategories ?? 0,
+    readyForBootstrapping: guidance?.readyForBootstrapping ?? false,
+    classificationSummary: bootstrap?.summary ?? null,
+    missingTypes: bootstrap?.summary.missingTypes ?? [],
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">{de.onboarding.step3.title}</CardTitle>
+              <p className="text-sm text-muted-foreground">{de.onboarding.step3.description}</p>
+            </div>
+            {guidance && (
+              guidance.readyForBootstrapping ? (
+                <Badge className="bg-green-100 text-green-800">{de.onboarding.step3.readyForBootstrap}</Badge>
+              ) : (
+                <Badge variant="secondary">
+                  {de.onboarding.step3.uploaded
+                    .replace("{current}", String(guidance.totalDocuments))
+                    .replace("{recommended}", "5")}
+                </Badge>
+              )
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowUpload((value) => !value)}>
+              <Upload className="h-4 w-4 mr-2" />
+              {de.documents.upload}
+            </Button>
+            {guidance?.readyForBootstrapping && (
+              <Button onClick={handleStartAnalysis} disabled={analyzing}>
+                <Zap className="h-4 w-4 mr-2" />
+                {analyzing ? de.onboarding.step3.bootstrapRunning : de.onboarding.step3.startBootstrap}
+              </Button>
+            )}
+          </div>
+
+          {showUpload && (
+            <UploadZone onUploadComplete={() => {
+              setShowUpload(false);
+              fetchStep3Data();
+            }} />
+          )}
+
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <>
+              {guidance && (
+                <>
+                  <h3 className="text-sm font-semibold">{de.onboarding.step3.uploadGuidance}</h3>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {guidance.categories.map((category) => {
+                      const IconComponent = STEP3_ICON_MAP[category.icon] || FileText;
+                      const filled = Math.min(category.currentCount / Math.max(category.recommendedMin, 1), 1);
+                      return (
+                        <Card
+                          key={category.id}
+                          className={cn(
+                            "transition-shadow hover:shadow-sm cursor-pointer",
+                            category.priority === "high" && category.status !== "good" && "border-blue-200",
+                            STEP3_STATUS_BORDER[category.status]
+                          )}
+                          onClick={() => setShowUpload(true)}
+                        >
+                          <CardContent className="pt-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{category.label}</span>
+                              </div>
+                              <Badge variant={category.status === "good" ? "default" : "secondary"} className="text-xs">
+                                {category.currentCount}/{category.recommendedMin}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{category.examples.join(", ")}</p>
+                            <div className="mt-2 h-1.5 bg-muted rounded-full">
+                              <div
+                                className={cn(
+                                  "h-1.5 rounded-full transition-all",
+                                  category.status === "good" ? "bg-green-500" : filled > 0 ? "bg-blue-500" : "bg-slate-300"
+                                )}
+                                style={{ width: `${Math.round(filled * 100)}%` }}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {bootstrap && bootstrap.recommendations.length > 0 && (
+                <InfoPanel tone="info" icon={Lightbulb}>
+                  <strong>{de.onboarding.step3.missingTypesHint}</strong>
+                  {bootstrap.recommendations.map((recommendation, index) => (
+                    <p key={index} className="text-sm mt-1">{recommendation}</p>
+                  ))}
+                </InfoPanel>
+              )}
+
+              {bootstrap && bootstrap.documents.length > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold">{de.onboarding.step3.classifiedAs} ({bootstrap.summary.total})</h3>
+                      <div className="flex gap-3 text-xs text-muted-foreground">
+                        <span>{bootstrap.summary.uniqueSuppliers} Lieferanten</span>
+                        <span>{bootstrap.summary.recurringCandidates} wiederkehrend</span>
+                      </div>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Lieferant</TableHead>
+                            <TableHead>Datum</TableHead>
+                            <TableHead className="text-right">Betrag</TableHead>
+                            <TableHead>Klassifikation</TableHead>
+                            <TableHead>Konfidenz</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bootstrap.documents.slice(0, 50).map((document) => {
+                            const classification = STEP3_CLASS_BADGE[document.classification] || STEP3_CLASS_BADGE.uncertain;
+                            return (
+                              <TableRow key={document.documentId}>
+                                <TableCell className="text-sm">{document.supplierName || "\u2014"}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{document.date || "\u2014"}</TableCell>
+                                <TableCell className="text-sm text-right font-mono">
+                                  {document.amount != null ? document.amount.toFixed(2) : "\u2014"}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary" className={cn("text-xs", classification.className)}>
+                                    {classification.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "text-xs",
+                                      document.confidence === "high"
+                                        ? "bg-green-100 text-green-800"
+                                        : document.confidence === "medium"
+                                          ? "bg-amber-100 text-amber-800"
+                                          : "bg-slate-100 text-slate-700"
+                                    )}
+                                  >
+                                    {document.confidence}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {guidance && !guidance.readyForBootstrapping && guidance.totalDocuments > 0 && (
+                <InfoPanel tone="warning" icon={Upload}>
+                  {de.onboarding.step3.notReady
+                    .replace("{count}", String(Math.max(5 - guidance.totalDocuments, 0)))
+                    .replace("{categories}", "2")}
+                </InfoPanel>
+              )}
+
+              {guidance?.totalDocuments === 0 && (
+                <InfoPanel tone="info" icon={Upload}>
+                  {de.emptyStates.documents.description}
+                </InfoPanel>
+              )}
+            </>
+          )}
+
+          <div className="flex justify-end">
+            <Button onClick={() => onComplete(completionData)} disabled={saving}>
+              {de.onboardingWizard.next} <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

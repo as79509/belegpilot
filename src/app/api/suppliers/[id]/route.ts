@@ -61,7 +61,20 @@ export async function PATCH(
 
     const changes = computeChanges(supplier as any, updateData, fields);
 
-    const updated = await prisma.supplier.update({ where: { id }, data: updateData });
+    const result = await prisma.supplier.updateMany({
+      where: { id, companyId: ctx.companyId },
+      data: updateData,
+    });
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
+
+    const updated = await prisma.supplier.findFirst({
+      where: { id, companyId: ctx.companyId },
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+    }
 
     if (changes) {
       await logAudit({

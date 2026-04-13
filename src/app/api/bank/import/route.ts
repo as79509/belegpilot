@@ -4,6 +4,7 @@ import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
 import { parseCamt053 } from "@/lib/services/bank/camt053-parser";
 import { autoMatchTransactions } from "@/lib/services/bank/matching-engine";
+import { logAudit } from "@/lib/services/audit/audit-service";
 
 export async function POST(request: NextRequest) {
   const ctx = await getActiveCompany();
@@ -115,6 +116,26 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+
+    await logAudit({
+      companyId: ctx.companyId,
+      userId: ctx.session.user.id,
+      action: "bank_imported",
+      entityType: "bank_import",
+      entityId: results.map((result) => result.statementId).join(",") || file.name,
+      changes: {
+        imported: {
+          before: null,
+          after: {
+            fileName: file.name,
+            statements: results.length,
+            transactions: results.reduce((sum, result) => sum + result.transactions, 0),
+            matched: matchResult.matched,
+            unmatched: matchResult.unmatched,
+          },
+        },
+      },
+    });
 
     return NextResponse.json({ statements: results, matching: matchResult });
   } catch (error: any) {
