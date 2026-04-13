@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TablePageSkeleton } from "@/components/ds/page-skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -262,15 +263,7 @@ export default function RulesPage() {
     return `Wenn ${conds} → ${acts}`;
   }
 
-  if (loading) return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{de.rules.title}</h1>
-      <Skeleton className="h-24 w-full" /><Skeleton className="h-16 w-full" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" />
-      </div>
-    </div>
-  );
+  if (loading) return <TablePageSkeleton columns={4} rows={6} />;
 
   return (
     <div className="space-y-6">

@@ -17,6 +17,7 @@ import {
   DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DetailPageSkeleton } from "@/components/ds/page-skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Link2, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
@@ -445,20 +446,7 @@ export default function DocumentDetailPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [prevDocId, nextDocId, handleToolbarApprove, handleSkip, router]);
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-8 w-96" />
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <Skeleton className="lg:col-span-3 h-[600px]" />
-          <div className="lg:col-span-2 space-y-4">
-            <Skeleton className="h-40" /><Skeleton className="h-40" /><Skeleton className="h-40" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <DetailPageSkeleton />;
 
   if (!doc || doc.error) {
     return (

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { interact } from "@/lib/interaction-classes";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/d
 import { SupplierRowActions } from "@/components/suppliers/supplier-row-actions";
 import { useCompany } from "@/lib/contexts/company-context";
 import { typo, statusColors } from "@/lib/design-tokens";
+import { useRole } from "@/lib/hooks/use-role";
 
 export default function SuppliersPage() {
   const router = useRouter();
@@ -61,6 +63,45 @@ export default function SuppliersPage() {
   }, [page, search]);
 
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
+
+  const { isViewer } = useRole();
+
+  // Viewer: simplified read-only list
+  if (isViewer) {
+    return (
+      <div className="space-y-6">
+        <EntityHeader title={de.suppliers.title} />
+        <Card>
+          <CardContent className="pt-4">
+            {loading ? (
+              <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+            ) : suppliers.length === 0 ? (
+              <EmptyState icon={Building2} title={de.suppliers.noSuppliers} />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className={typo("tableHeader")}>{de.suppliers.name}</TableHead>
+                    <TableHead className={typo("tableHeader")}>Status</TableHead>
+                    <TableHead className={typo("tableHeader")}>{de.suppliers.documentCount}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {suppliers.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.nameNormalized}</TableCell>
+                      <TableCell><StatusBadge type="supplier" value={!!s.isVerified} /></TableCell>
+                      <TableCell>{s.documentCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -113,7 +154,7 @@ export default function SuppliersPage() {
                 {suppliers.map((s) => {
                   const trust = trustScores[s.id];
                   return (
-                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/suppliers/${s.id}`)}>
+                    <TableRow key={s.id} className={interact.tableRow} onClick={() => router.push(`/suppliers/${s.id}`)}>
                       <TableCell className="font-medium">{s.nameNormalized}</TableCell>
                       <TableCell>
                         <StatusBadge type="supplier" value={!!s.isVerified} />

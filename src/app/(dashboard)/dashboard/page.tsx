@@ -10,11 +10,13 @@ import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
   FileText, ListTodo, Upload, ChevronDown, Rocket, ScrollText, Brain, FileBarChart,
 } from "lucide-react";
+import { DashboardSkeleton } from "@/components/ds/page-skeleton";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatRelativeTime, formatConfidence, getConfidenceColor } from "@/lib/i18n/format";
 import { useCompany } from "@/lib/contexts/company-context";
 import { EntityHeader, StatusBadge, InfoPanel } from "@/components/ds";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
+import { useRole } from "@/lib/hooks/use-role";
 import { typo, spacing } from "@/lib/design-tokens";
 
 interface Alert {
@@ -168,8 +170,7 @@ export default function DashboardPage() {
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
   const [goLiveStatus, setGoLiveStatus] = useState<any>(null);
 
-  const role = activeCompany?.role || "";
-  const isViewer = role === "viewer" || role === "readonly";
+  const { isViewer, isTrustee } = useRole();
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
@@ -203,17 +204,11 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  if (loading || !data) return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-72" />
-      <Skeleton className="h-10 w-full" />
-      <div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-48" /><Skeleton className="h-48" /></div>
-    </div>
-  );
+  if (loading || !data) return <DashboardSkeleton />;
 
   const today = new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  // Viewer: simplified dashboard
+  // Viewer: focused dashboard — upload, tasks, deadlines
   if (isViewer) {
     const uploaded = data.todayStats?.uploaded ?? 0;
     const reviewed = data.todayStats?.reviewed ?? 0;
@@ -221,6 +216,53 @@ export default function DashboardPage() {
     return (
       <div className="space-y-5">
         <EntityHeader title={getGreeting()} subtitle={today} />
+
+        {/* Upload CTA */}
+        <Link href="/documents">
+          <Card className="border-blue-200 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-5 pb-5 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Upload className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-blue-900">Belege hochladen</p>
+                <p className="text-sm text-blue-700">{uploaded} Belege diesen Monat hochgeladen</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-blue-400" />
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 3 Stat-Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <ListTodo className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className={typo("stat")}>{tasksDue}</p>
+                <p className={typo("statLabel")}>Offene Aufgaben</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+              <div>
+                <p className={typo("stat")}>{reviewed}</p>
+                <p className={typo("statLabel")}>Verarbeitete Belege</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Clock className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className={typo("stat")}>{uploaded}</p>
+                <p className={typo("statLabel")}>Hochgeladen</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Setup-Widget */}
         {setupStatus && setupStatus.criticalMissing.length > 0 && (
@@ -242,40 +284,9 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Beleg-Übersicht */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="pt-4 flex items-center gap-3">
-              <Upload className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className={typo("stat")}>{uploaded}</p>
-                <p className="text-sm text-muted-foreground">Hochgeladen</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 flex items-center gap-3">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-              <div>
-                <p className={typo("stat")}>{reviewed}</p>
-                <p className="text-sm text-muted-foreground">Gepr\u00fcft</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 flex items-center gap-3">
-              <ListTodo className="h-8 w-8 text-amber-500" />
-              <div>
-                <p className={typo("stat")}>{tasksDue}</p>
-                <p className="text-sm text-muted-foreground">Offene Aufgaben</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Offene Aufgaben */}
+        {/* Aufgaben-Liste (max 5) */}
         {data.openTasks && data.openTasks.length > 0 && (
-          <OpenTasksPanel tasks={data.openTasks} />
+          <OpenTasksPanel tasks={data.openTasks.slice(0, 5)} />
         )}
       </div>
     );
@@ -286,31 +297,7 @@ export default function DashboardPage() {
       {/* Hero */}
       <EntityHeader title={getGreeting()} subtitle={today} />
 
-      {/* Bereich 1: Kritische Alerts-Leiste */}
-      <AlertsBar alerts={data.alerts} />
-
-      {/* Setup-Widget (nur wenn kritische Items fehlen) */}
-      {setupStatus && setupStatus.criticalMissing.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="pt-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
-            </h3>
-            <div className="mt-2 space-y-1.5">
-              {setupStatus.items.filter(i => i.status !== "complete").map(item => (
-                <div key={item.id} className="flex items-center gap-2 text-sm">
-                  <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-muted-foreground">{"\u2014"} {item.helpText.split(".")[0]}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Go-Live Hochlauf-Widget */}
+      {/* Go-Live Hochlauf-Widget (prominent oben) */}
       {goLiveStatus && goLiveStatus.phase && goLiveStatus.phase !== "normal" && (
         <Card className="border-blue-200 bg-blue-50">
           <CardContent className="pt-4">
@@ -352,6 +339,30 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {/* Kritische Alerts */}
+      <AlertsBar alerts={data.alerts} />
+
+      {/* Setup-Widget (nur wenn kritische Items fehlen) */}
+      {setupStatus && setupStatus.criticalMissing.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-4">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+            </h3>
+            <div className="mt-2 space-y-1.5">
+              {setupStatus.items.filter(i => i.status !== "complete").map(item => (
+                <div key={item.id} className="flex items-center gap-2 text-sm">
+                  <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-muted-foreground">{"\u2014"} {item.helpText.split(".")[0]}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Bereich 2: Mandanten-Risiko-Board (nur Multi-Company) */}

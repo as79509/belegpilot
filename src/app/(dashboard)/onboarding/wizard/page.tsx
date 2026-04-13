@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { InfoPanel } from "@/components/ds";
+import { WizardSkeleton } from "@/components/ds/page-skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -224,11 +225,7 @@ export default function OnboardingWizardPage() {
     if (state?.currentStep === 4) fetchChatQuestions();
   }, [state?.currentStep]);
 
-  if (loading) return (
-    <div className="space-y-4 max-w-3xl mx-auto">
-      <Skeleton className="h-8 w-64" /><Skeleton className="h-16 w-full" /><Skeleton className="h-64 w-full" />
-    </div>
-  );
+  if (loading) return <WizardSkeleton />;
 
   if (!state) return <p>Fehler beim Laden des Wizards</p>;
 

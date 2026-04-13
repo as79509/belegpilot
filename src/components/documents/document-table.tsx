@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { interact } from "@/lib/interaction-classes";
 import {
   Table,
   TableBody,
@@ -363,7 +364,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               documents.map((doc) => (
                 <TableRow
                   key={doc.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className={interact.tableRow}
                   onClick={() => router.push(`/documents/${doc.id}`)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>

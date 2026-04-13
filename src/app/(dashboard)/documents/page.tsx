@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
 import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
 import { typo, statusColors } from "@/lib/design-tokens";
+import { useRole } from "@/lib/hooks/use-role";
 
 const QUICK_FILTERS = [
   { key: "", label: "Alle" },
@@ -88,7 +89,32 @@ export default function DocumentsPage() {
     },
   ]);
 
+  const { isViewer } = useRole();
+
   const hasAdvancedFilters = dateFrom || dateTo || amountFrom || amountTo || supplierId || currency || exportStatus || confidence || documentType;
+
+  // Viewer: simplified view — upload + basic list
+  if (isViewer) {
+    return (
+      <div className="space-y-4">
+        <EntityHeader
+          title={de.documents.title}
+          primaryAction={{
+            label: de.documents.upload,
+            icon: Upload,
+            onClick: () => setShowUpload(!showUpload),
+          }}
+        />
+        {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
+        <DocumentTable
+          refreshKey={refreshKey}
+          initialStatus=""
+          extraParams={{}}
+          key={`viewer-${refreshKey}`}
+        />
+      </div>
+    );
+  }
 
   // Build query params for DocumentTable
   const extraParams: Record<string, string> = {};
@@ -138,6 +164,13 @@ export default function DocumentsPage() {
       />
 
       {showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
+
+      {/* Trustee info line */}
+      {(counts.needs_review ?? 0) > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {counts.needs_review} Belege zur Prüfung{counts.uploaded ? `, ${counts.uploaded} diese Woche hochgeladen` : ""}
+        </p>
+      )}
 
       {/* Summary alerts using InfoPanel */}
       {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (

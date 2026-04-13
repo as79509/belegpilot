@@ -283,4 +283,23 @@ describe("Phase 11 Wizard Architecture", () => {
   it("Breadcrumb-Komponente existiert", () => {
     expect(fs.existsSync("src/components/layout/breadcrumb.tsx")).toBe(true);
   });
+
+  // Phase 11X.3: Rollenbasierte Produktoberflächen
+  it("useRole Hook existiert", () => {
+    const c = fs.readFileSync("src/lib/hooks/use-role.ts", "utf-8");
+    expect(c).toContain("useRole");
+    expect(c).toContain("isTrustee");
+    expect(c).toContain("isViewer");
+    expect(c).toContain("isAdmin");
+  });
+
+  it("Dashboard nutzt useRole", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
+    expect(c).toContain("useRole");
+  });
+
+  it("Documents-Seite hat rollenspezifisches Layout", () => {
+    const c = fs.readFileSync("src/app/(dashboard)/documents/page.tsx", "utf-8");
+    expect(c).toContain("isViewer");
+  });
 });
