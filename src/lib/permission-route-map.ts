@@ -101,13 +101,11 @@ export const ROUTE_PERMISSION_MAP: Record<string, {
   // Nachrichten
   "messages": { POST: "documents:write" },
 
-  // Onboarding
-  "onboarding/analyze": { POST: "onboarding:execute" },
-  "onboarding/apply": { POST: "onboarding:execute" },
-  "onboarding/wizard": { POST: "onboarding:execute" },
-  "onboarding/chat": { POST: "onboarding:execute" },
-  "onboarding/bootstrap": { POST: "onboarding:execute" },
-  "onboarding/bootstrap/apply": { POST: "onboarding:execute" },
+  // Client Onboarding (Airbnb-style wizard)
+  "client-onboarding": { POST: "onboarding:execute", PATCH: "onboarding:execute", DELETE: "onboarding:execute" },
+  "client-onboarding/questions": { POST: "onboarding:execute" },
+  "client-onboarding/suggestions": { POST: "onboarding:execute", PATCH: "onboarding:execute" },
+  "client-onboarding/upload": { POST: "onboarding:execute" },
 
   // Treuhaender
   "trustee/clients": { POST: "company:write" },

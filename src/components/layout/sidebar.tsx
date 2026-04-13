@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, Building2, Download, Workflow, Mail, Home,
   Settings, ScrollText, ChevronDown, Users, ClipboardCheck, BookOpen,
-  Repeat, Landmark, Brain, FileSignature, CalendarCheck, ListTodo, BarChart3,
+  Repeat, Landmark, FileSignature, CalendarCheck, ListTodo, BarChart3,
   Zap, Activity, ClipboardList, Wallet, Receipt, FileBarChart, Plug, ArrowLeftRight, Wand2,
   Search, Command, Inbox,
 } from "lucide-react";
@@ -27,8 +27,7 @@ const trusteeGroup: NavGroup = {
     { href: "/trustee", label: de.trustee.overview, icon: Users },
     { href: "/trustee/queue", label: de.trustee.queue, icon: ClipboardCheck },
     { href: "/trustee/clients", label: de.clients.title, icon: Building2 },
-    { href: "/trustee/onboarding/analysis", label: de.onboardingAnalysis.title, icon: Brain },
-    { href: "/client-onboarding", label: de.onboardingWizard.title, icon: Wand2 },
+    { href: "/client-onboarding", label: "Neuer Mandant", icon: Wand2 },
   ],
 };
 
