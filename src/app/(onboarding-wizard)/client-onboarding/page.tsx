@@ -513,8 +513,8 @@ export default function ClientOnboardingWizard() {
             companyName: formData.name,
             legalForm: formData.legalForm,
             industry: formData.industry,
-            previousMessages: chatMessages,
           },
+          previousMessages: chatMessages.map(m => ({ role: m.role, content: m.content })),
         }),
       });
 

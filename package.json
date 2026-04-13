@@ -24,6 +24,7 @@
     "@prisma/driver-adapter-utils": "^7.6.0",
     "@supabase/supabase-js": "^2.100.1",
     "@types/archiver": "^7.0.0",
+    "ai": "^6.0.159",
     "archiver": "^7.0.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",

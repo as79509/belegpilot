@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import Anthropic from "@anthropic-ai/sdk";
+import { generateText } from "ai";
 
 /**
  * Business Questions API for Client Onboarding
+ * Uses Vercel AI Gateway for zero-config AI access
  * 
  * POST - Start conversation or respond to questions
  * 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, draftId, context, userMessage, previousMessages } = body;
+    const { action, context, userMessage, previousMessages } = body;
 
     switch (action) {
       case "start": {
@@ -55,19 +55,7 @@ async function generateInitialQuestion(context: {
   legalForm?: string;
   industry?: string;
 }): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  
-  if (!apiKey) {
-    // Return contextual fallback question
-    if (context.companyName) {
-      return `Willkommen bei ${context.companyName}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
-    }
-    return "Willkommen! Was ist die Haupttätigkeit Ihres Unternehmens?";
-  }
-
   try {
-    const client = new Anthropic({ apiKey });
-
     const systemPrompt = `Du bist ein freundlicher Schweizer Buchhaltungs-Assistent.
 Generiere eine erste Frage für ein Onboarding-Gespräch.
 Die Frage sollte:
@@ -77,22 +65,21 @@ Die Frage sollte:
 
 Antworte NUR mit der Frage, ohne JSON oder Formatierung.`;
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 200,
+    const result = await generateText({
+      model: "anthropic/claude-sonnet-4-20250514",
       system: systemPrompt,
-      messages: [{ 
-        role: "user", 
-        content: `Kontext: Firma "${context.companyName || 'unbekannt'}", Branche "${context.industry || 'unbekannt'}", Rechtsform "${context.legalForm || 'unbekannt'}"` 
-      }],
+      prompt: `Kontext: Firma "${context.companyName || 'unbekannt'}", Branche "${context.industry || 'unbekannt'}", Rechtsform "${context.legalForm || 'unbekannt'}"`,
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    return text.trim() || `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
+    return result.text.trim() || getFallbackWelcome(context);
   } catch (err) {
-    console.error("[Questions] Claude initial question failed:", err);
-    return `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
+    console.error("[Questions] AI initial question failed:", err);
+    return getFallbackWelcome(context);
   }
+}
+
+function getFallbackWelcome(context: { companyName?: string }): string {
+  return `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
 }
 
 async function processUserResponse(
@@ -109,13 +96,10 @@ async function processUserResponse(
   complete?: boolean;
   insights?: Array<{ type: string; content: string }>;
 }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  
   // Count user messages to know how far we are
   const userMessageCount = previousMessages.filter(m => m.role === "user").length + 1;
   
-  // Questions to cover (used for fallback)
-  const topicsCovered = userMessageCount;
+  // Topics to cover for fallback logic
   const topics = [
     "Haupttätigkeit und Geschäftsmodell",
     "Kundentyp (B2B/B2C)",
@@ -124,31 +108,7 @@ async function processUserResponse(
     "Besondere Anforderungen"
   ];
 
-  if (!apiKey) {
-    // Without API key, use structured fallback questions
-    if (topicsCovered >= 5) {
-      return {
-        response: "Vielen Dank! Wir haben jetzt genug Informationen, um Ihre Buchhaltung optimal einzurichten.",
-        complete: true,
-      };
-    }
-
-    const nextTopic = topics[Math.min(topicsCovered, topics.length - 1)];
-    const fallbackQuestions: Record<string, string> = {
-      "Kundentyp (B2B/B2C)": "Danke! Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
-      "Wichtige Lieferanten": "Verstanden. Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
-      "Regelmässige Kosten": "Gut zu wissen. Welche regelmässigen Ausgaben haben Sie? (z.B. Miete, Strom, Versicherungen)",
-      "Besondere Anforderungen": "Fast fertig! Gibt es Besonderheiten in Ihrem Unternehmen, die wir beachten sollten?",
-    };
-
-    return {
-      question: fallbackQuestions[nextTopic] || "Haben Sie noch weitere Informationen, die für die Buchhaltung wichtig sind?",
-    };
-  }
-
   try {
-    const client = new Anthropic({ apiKey });
-
     // Build conversation history
     const conversationSummary = previousMessages
       .map(m => `${m.role === "user" ? "Kunde" : "Assistent"}: ${m.content}`)
@@ -191,17 +151,13 @@ Regeln:
 - Nach 5 Antworten "complete: true" setzen
 - Keine Frage die bereits beantwortet wurde`;
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 500,
+    const result = await generateText({
+      model: "anthropic/claude-sonnet-4-20250514",
       system: systemPrompt,
-      messages: [{ 
-        role: "user", 
-        content: `Neue Antwort vom Kunden: ${userMessage}` 
-      }],
+      prompt: `Neue Antwort vom Kunden: ${userMessage}`,
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = result.text;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     
     if (jsonMatch) {
@@ -214,18 +170,25 @@ Regeln:
       };
     }
   } catch (err) {
-    console.error("[Questions] Claude response failed:", err);
+    console.error("[Questions] AI response failed:", err);
   }
 
-  // Fallback
-  if (topicsCovered >= 5) {
+  // Fallback logic
+  if (userMessageCount >= 5) {
     return {
       response: "Vielen Dank! Wir haben jetzt genug Informationen.",
       complete: true,
     };
   }
 
+  const fallbackQuestions: Record<number, string> = {
+    1: "Danke! Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
+    2: "Verstanden. Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
+    3: "Gut zu wissen. Welche regelmässigen Ausgaben haben Sie? (z.B. Miete, Strom, Versicherungen)",
+    4: "Fast fertig! Gibt es Besonderheiten in Ihrem Unternehmen, die wir beachten sollten?",
+  };
+
   return {
-    question: "Danke für die Information! Haben Sie noch weitere Details, die für die Buchhaltung wichtig sein könnten?",
+    question: fallbackQuestions[userMessageCount] || "Haben Sie noch weitere Informationen, die für die Buchhaltung wichtig sind?",
   };
 }
