@@ -146,6 +146,25 @@ interface DraftData {
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// UID Validation (Swiss VAT number format: CHE-XXX.XXX.XXX)
+function isValidUID(uid: string): boolean {
+  if (!uid) return true; // Optional field
+  const cleaned = uid.replace(/[\s.-]/g, "").toUpperCase();
+  return /^CHE\d{9}$/.test(cleaned);
+}
+
+function formatUID(uid: string): string {
+  const cleaned = uid.replace(/[\s.-]/g, "").toUpperCase();
+  if (cleaned.length >= 3) {
+    let formatted = cleaned.slice(0, 3);
+    if (cleaned.length >= 6) formatted += "-" + cleaned.slice(3, 6);
+    if (cleaned.length >= 9) formatted += "." + cleaned.slice(6, 9);
+    if (cleaned.length >= 12) formatted += "." + cleaned.slice(9, 12);
+    return formatted;
+  }
+  return cleaned;
+}
+
 export default function ClientOnboardingWizard() {
   const router = useRouter();
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -386,6 +405,27 @@ export default function ClientOnboardingWizard() {
         return true;
     }
   }, [step.id, formData, chatMessages.length, isLoadingSuggestions, aiSuggestions]);
+
+  // Get validation message for current step
+  const getValidationMessage = useCallback(() => {
+    switch (step.id) {
+      case "business-basics":
+        if (!formData.name.trim()) return "Bitte geben Sie den Firmennamen ein";
+        if (formData.name.trim().length < 2) return "Firmenname muss mindestens 2 Zeichen haben";
+        if (!formData.legalForm) return "Bitte wählen Sie eine Rechtsform";
+        if (!formData.industry) return "Bitte wählen Sie eine Branche";
+        return null;
+      case "business-questions":
+        if (chatMessages.length < 3) return "Bitte beantworten Sie mindestens eine Frage";
+        return null;
+      case "intelligence-review":
+        const pending = aiSuggestions.filter(s => s.status === "pending").length;
+        if (pending > 0) return `Noch ${pending} Vorschläge zu prüfen`;
+        return null;
+      default:
+        return null;
+    }
+  }, [step.id, formData, chatMessages.length, aiSuggestions]);
 
   const handleNext = useCallback(() => {
     if (currentStep < STEPS.length - 1 && canProceed()) {
@@ -1379,6 +1419,31 @@ export default function ClientOnboardingWizard() {
                       </div>
                     </div>
 
+                    {/* Accepted AI Suggestions Detail */}
+                    {aiSuggestions.filter(s => s.status === "accepted").length > 0 && (
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div className="px-5 py-4 bg-emerald-50 border-b border-emerald-100">
+                          <p className="font-semibold text-emerald-900 flex items-center gap-2">
+                            <Check className="h-4 w-4" />
+                            Akzeptierte KI-Konfiguration
+                          </p>
+                        </div>
+                        <div className="p-5 space-y-3">
+                          {aiSuggestions.filter(s => s.status === "accepted").map(s => (
+                            <div key={s.id} className="flex items-start gap-3">
+                              <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{s.category}</p>
+                                <p className="text-sm text-slate-500">{s.suggestion}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Ready banner */}
                     <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
                       <div className="flex gap-4">
@@ -1403,7 +1468,17 @@ export default function ClientOnboardingWizard() {
 
       {/* Footer with navigation */}
       <footer className="sticky bottom-0 bg-white border-t border-slate-200/80">
-        <div className="flex items-center justify-end px-4 py-4 md:px-6 max-w-xl mx-auto">
+        <div className="flex items-center justify-between px-4 py-4 md:px-6 max-w-xl mx-auto">
+          {/* Validation message */}
+          <div className="text-sm text-slate-500">
+            {!canProceed() && getValidationMessage() && (
+              <span className="flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                {getValidationMessage()}
+              </span>
+            )}
+          </div>
+          
           {currentStep === STEPS.length - 1 ? (
             <Button
               size="lg"
