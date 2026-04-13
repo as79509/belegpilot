@@ -72,23 +72,23 @@ const STEPS = [
 ];
 
 const LEGAL_FORMS = [
-  { value: "einzelfirma", label: "Einzelfirma" },
-  { value: "gmbh", label: "GmbH" },
-  { value: "ag", label: "AG" },
-  { value: "kollektiv", label: "Kollektivgesellschaft" },
-  { value: "verein", label: "Verein" },
-  { value: "stiftung", label: "Stiftung" },
+  { value: "einzelfirma", label: "Einzelfirma", description: "Einfachste Form" },
+  { value: "gmbh", label: "GmbH", description: "Beliebte Rechtsform" },
+  { value: "ag", label: "AG", description: "Aktiengesellschaft" },
+  { value: "kollektiv", label: "Kollektivgesellschaft", description: "Partnerschaft" },
+  { value: "verein", label: "Verein", description: "Non-Profit" },
+  { value: "stiftung", label: "Stiftung", description: "Gemeinnützig" },
 ];
 
 const INDUSTRIES = [
-  { value: "gastro", label: "Gastgewerbe" },
-  { value: "handel", label: "Handel" },
-  { value: "bau", label: "Baugewerbe" },
-  { value: "it", label: "IT & Tech" },
-  { value: "gesundheit", label: "Gesundheit" },
-  { value: "beratung", label: "Beratung" },
-  { value: "immobilien", label: "Immobilien" },
-  { value: "andere", label: "Andere" },
+  { value: "gastro", label: "Gastgewerbe", icon: "🍽️" },
+  { value: "handel", label: "Handel", icon: "🏪" },
+  { value: "bau", label: "Baugewerbe", icon: "🏗️" },
+  { value: "it", label: "IT & Tech", icon: "💻" },
+  { value: "gesundheit", label: "Gesundheit", icon: "⚕️" },
+  { value: "beratung", label: "Beratung", icon: "📊" },
+  { value: "immobilien", label: "Immobilien", icon: "🏢" },
+  { value: "andere", label: "Andere", icon: "📁" },
 ];
 
 const MONTHS = [
@@ -218,9 +218,9 @@ export default function ClientOnboardingWizard() {
       case "accounting-setup":
         return true;
       case "upload-documents":
-        return true; // Optional step
+        return true;
       case "business-questions":
-        return chatMessages.length >= 3; // At least one Q&A exchange
+        return chatMessages.length >= 3;
       case "intelligence-review":
         return !isAnalyzing && aiSuggestions.every((s) => s.status !== "pending");
       case "final-review":
@@ -295,7 +295,6 @@ export default function ClientOnboardingWizard() {
     setChatInput("");
     setIsTyping(true);
 
-    // Simulate AI response
     setTimeout(() => {
       const responses = [
         "Verstanden! Wie viele Mitarbeiter hat Ihr Unternehmen ungefähr?",
@@ -375,7 +374,7 @@ export default function ClientOnboardingWizard() {
 
   const slideVariants = {
     enter: (direction: number) => ({
-      x: direction > 0 ? 80 : -80,
+      x: direction > 0 ? 60 : -60,
       opacity: 0,
     }),
     center: {
@@ -383,49 +382,86 @@ export default function ClientOnboardingWizard() {
       opacity: 1,
     },
     exit: (direction: number) => ({
-      x: direction < 0 ? 80 : -80,
+      x: direction < 0 ? 60 : -60,
       opacity: 0,
     }),
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header with progress */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3 md:px-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className={cn(
-              "text-muted-foreground hover:text-foreground",
-              currentStep === 0 && "invisible"
-            )}
-          >
-            <ChevronLeft className="h-5 w-5" />
-            <span className="ml-1 hidden sm:inline">Zurück</span>
-          </Button>
+    <div className="min-h-screen flex flex-col">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/80">
+        <div className="max-w-5xl mx-auto">
+          {/* Top bar with logo and exit */}
+          <div className="flex items-center justify-between px-4 py-3 md:px-6">
+            <div className="flex items-center gap-3">
+              {currentStep > 0 && (
+                <button
+                  onClick={handleBack}
+                  className="p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5 text-slate-600" />
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">B</span>
+                </div>
+                <span className="font-semibold text-slate-900 hidden sm:block">BelegPilot</span>
+              </div>
+            </div>
 
-          <div className="flex-1 max-w-md mx-4">
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-foreground rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-              />
+            <button
+              onClick={handleExit}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <span className="hidden sm:inline">Speichern & Beenden</span>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Progress bar */}
+          <div className="px-4 pb-3 md:px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-slate-900 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                />
+              </div>
+              <span className="text-xs font-medium text-slate-500 tabular-nums">
+                {currentStep + 1}/{STEPS.length}
+              </span>
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleExit}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-            <span className="ml-1 hidden sm:inline">Speichern & Beenden</span>
-          </Button>
+          {/* Step indicators */}
+          <div className="px-4 pb-4 md:px-6">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+              {STEPS.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                    i === currentStep
+                      ? "bg-slate-900 text-white"
+                      : i < currentStep
+                      ? "bg-slate-100 text-slate-600"
+                      : "text-slate-400"
+                  )}
+                >
+                  {i < currentStep ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <span className="w-4 text-center">{i + 1}</span>
+                  )}
+                  <span className="hidden md:inline">{s.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </header>
 
@@ -439,23 +475,23 @@ export default function ClientOnboardingWizard() {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
             className="flex-1 flex flex-col"
           >
             {/* Step header */}
-            <div className="px-4 py-8 md:py-12 text-center">
+            <div className="px-4 pt-8 pb-6 md:pt-12 md:pb-8 text-center max-w-2xl mx-auto w-full">
               <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
+                initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.1 }}
-                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-muted mb-4"
+                className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-200/80 mb-4"
               >
-                <step.icon className="h-7 w-7 text-foreground" />
+                <step.icon className="h-6 w-6 text-slate-700" />
               </motion.div>
-              <h1 className="text-2xl md:text-4xl font-semibold tracking-tight text-balance">
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 text-balance">
                 {step.title}
               </h1>
-              <p className="text-muted-foreground text-base md:text-lg mt-2 max-w-md mx-auto">
+              <p className="text-slate-500 text-base mt-2 max-w-md mx-auto">
                 {step.subtitle}
               </p>
             </div>
@@ -465,9 +501,10 @@ export default function ClientOnboardingWizard() {
               <div className="max-w-xl mx-auto">
                 {/* Step 1: Business Basics */}
                 {step.id === "business-basics" && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-medium">
+                  <div className="space-y-8">
+                    {/* Company name input */}
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                      <Label htmlFor="name" className="text-sm font-medium text-slate-700 mb-2 block">
                         Firmenname
                       </Label>
                       <Input
@@ -475,50 +512,68 @@ export default function ClientOnboardingWizard() {
                         value={formData.name}
                         onChange={(e) => updateField("name", e.target.value)}
                         placeholder="z.B. Muster GmbH"
-                        className="h-14 text-lg rounded-xl"
+                        className="h-12 text-base rounded-xl border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         autoFocus
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Rechtsform</Label>
-                      <div className="grid grid-cols-2 gap-3">
+                    {/* Legal form selection */}
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                        Rechtsform
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {LEGAL_FORMS.map((form) => (
                           <button
                             key={form.value}
                             type="button"
                             onClick={() => updateField("legalForm", form.value)}
                             className={cn(
-                              "p-4 rounded-xl border-2 text-left transition-all",
-                              "hover:border-foreground/30 hover:shadow-sm",
+                              "relative p-4 rounded-xl text-left transition-all",
+                              "bg-white border shadow-sm hover:shadow-md",
                               formData.legalForm === form.value
-                                ? "border-foreground bg-muted shadow-sm"
-                                : "border-border bg-background"
+                                ? "border-slate-900 ring-1 ring-slate-900"
+                                : "border-slate-200/80 hover:border-slate-300"
                             )}
                           >
-                            <span className="font-medium">{form.label}</span>
+                            {formData.legalForm === form.value && (
+                              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center">
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                            <span className="font-medium text-slate-900 block">{form.label}</span>
+                            <span className="text-xs text-slate-500 mt-0.5 block">{form.description}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Branche</Label>
-                      <div className="grid grid-cols-2 gap-3">
+                    {/* Industry selection */}
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                        Branche
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {INDUSTRIES.map((ind) => (
                           <button
                             key={ind.value}
                             type="button"
                             onClick={() => updateField("industry", ind.value)}
                             className={cn(
-                              "p-4 rounded-xl border-2 text-left transition-all",
-                              "hover:border-foreground/30 hover:shadow-sm",
+                              "relative p-4 rounded-xl text-left transition-all",
+                              "bg-white border shadow-sm hover:shadow-md",
                               formData.industry === ind.value
-                                ? "border-foreground bg-muted shadow-sm"
-                                : "border-border bg-background"
+                                ? "border-slate-900 ring-1 ring-slate-900"
+                                : "border-slate-200/80 hover:border-slate-300"
                             )}
                           >
-                            <span className="font-medium">{ind.label}</span>
+                            {formData.industry === ind.value && (
+                              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center">
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                            <span className="text-lg mb-1 block">{ind.icon}</span>
+                            <span className="font-medium text-slate-900 text-sm">{ind.label}</span>
                           </button>
                         ))}
                       </div>
@@ -528,9 +583,10 @@ export default function ClientOnboardingWizard() {
 
                 {/* Step 2: Accounting Setup */}
                 {step.id === "accounting-setup" && (
-                  <div className="space-y-8">
-                    <div className="space-y-2">
-                      <Label htmlFor="vatNumber" className="text-sm font-medium">
+                  <div className="space-y-6">
+                    {/* VAT number */}
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                      <Label htmlFor="vatNumber" className="text-sm font-medium text-slate-700 mb-2 block">
                         UID / MwSt-Nummer
                       </Label>
                       <Input
@@ -538,20 +594,21 @@ export default function ClientOnboardingWizard() {
                         value={formData.vatNumber}
                         onChange={(e) => updateField("vatNumber", e.target.value)}
                         placeholder="CHE-xxx.xxx.xxx"
-                        className="h-14 text-lg rounded-xl"
+                        className="h-12 text-base rounded-xl border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                       />
                     </div>
 
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-4 p-4 rounded-xl border-2 border-border cursor-pointer hover:border-foreground/30 transition-colors">
+                    {/* VAT liable toggle */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                      <label className="flex items-center gap-4 p-5 cursor-pointer hover:bg-slate-50 transition-colors">
                         <Checkbox
                           checked={formData.vatLiable}
                           onCheckedChange={(c) => updateField("vatLiable", !!c)}
-                          className="h-5 w-5"
+                          className="h-5 w-5 rounded border-slate-300"
                         />
-                        <div>
-                          <span className="font-medium">Mehrwertsteuerpflichtig</span>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex-1">
+                          <span className="font-medium text-slate-900 block">Mehrwertsteuerpflichtig</span>
+                          <p className="text-sm text-slate-500 mt-0.5">
                             Das Unternehmen ist bei der ESTV registriert
                           </p>
                         </div>
@@ -561,35 +618,39 @@ export default function ClientOnboardingWizard() {
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
-                          className="space-y-4 pl-4 border-l-2 border-muted"
+                          className="border-t border-slate-100 p-5 space-y-5 bg-slate-50/50"
                         >
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Abrechnungsmethode</Label>
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                              Abrechnungsmethode
+                            </Label>
                             <div className="grid grid-cols-2 gap-3">
                               {[
-                                { value: "effektiv", label: "Effektiv" },
-                                { value: "saldo", label: "Saldosteuersatz" },
+                                { value: "effektiv", label: "Effektiv", desc: "Voller Vorsteuerabzug" },
+                                { value: "saldo", label: "Saldosteuersatz", desc: "Vereinfacht" },
                               ].map((method) => (
                                 <button
                                   key={method.value}
                                   type="button"
                                   onClick={() => updateField("vatMethod", method.value)}
                                   className={cn(
-                                    "p-3 rounded-xl border-2 text-center transition-all",
-                                    "hover:border-foreground/30",
+                                    "p-3 rounded-xl text-left transition-all bg-white border",
                                     formData.vatMethod === method.value
-                                      ? "border-foreground bg-muted"
-                                      : "border-border"
+                                      ? "border-slate-900 ring-1 ring-slate-900"
+                                      : "border-slate-200 hover:border-slate-300"
                                   )}
                                 >
-                                  {method.label}
+                                  <span className="font-medium text-slate-900 text-sm block">{method.label}</span>
+                                  <span className="text-xs text-slate-500">{method.desc}</span>
                                 </button>
                               ))}
                             </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Abrechnungsperiode</Label>
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                              Abrechnungsperiode
+                            </Label>
                             <div className="grid grid-cols-3 gap-3">
                               {[
                                 { value: "quarterly", label: "Quartal" },
@@ -601,11 +662,10 @@ export default function ClientOnboardingWizard() {
                                   type="button"
                                   onClick={() => updateField("vatInterval", interval.value)}
                                   className={cn(
-                                    "p-3 rounded-xl border-2 text-center transition-all",
-                                    "hover:border-foreground/30",
+                                    "p-3 rounded-xl text-center text-sm font-medium transition-all bg-white border",
                                     formData.vatInterval === interval.value
-                                      ? "border-foreground bg-muted"
-                                      : "border-border"
+                                      ? "border-slate-900 ring-1 ring-slate-900 text-slate-900"
+                                      : "border-slate-200 hover:border-slate-300 text-slate-600"
                                   )}
                                 >
                                   {interval.label}
@@ -617,8 +677,11 @@ export default function ClientOnboardingWizard() {
                       )}
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Geschäftsjahr beginnt im</Label>
+                    {/* Fiscal year */}
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                        Geschäftsjahr beginnt im
+                      </Label>
                       <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
                         {MONTHS.map((month, i) => (
                           <button
@@ -626,11 +689,11 @@ export default function ClientOnboardingWizard() {
                             type="button"
                             onClick={() => updateField("fiscalYearStart", i + 1)}
                             className={cn(
-                              "p-3 rounded-xl border-2 text-center text-sm transition-all",
-                              "hover:border-foreground/30",
+                              "p-3 rounded-xl text-center text-sm font-medium transition-all",
+                              "bg-white border shadow-sm",
                               formData.fiscalYearStart === i + 1
-                                ? "border-foreground bg-muted"
-                                : "border-border"
+                                ? "border-slate-900 ring-1 ring-slate-900 text-slate-900"
+                                : "border-slate-200/80 hover:border-slate-300 text-slate-600"
                             )}
                           >
                             {month}
@@ -650,10 +713,10 @@ export default function ClientOnboardingWizard() {
                       onDrop={handleDrop}
                       onClick={() => fileInputRef.current?.click()}
                       className={cn(
-                        "border-2 border-dashed rounded-2xl p-8 md:p-12 text-center cursor-pointer transition-all",
+                        "bg-white border-2 border-dashed rounded-2xl p-10 md:p-14 text-center cursor-pointer transition-all shadow-sm",
                         isDragging
-                          ? "border-foreground bg-muted"
-                          : "border-border hover:border-foreground/30 hover:bg-muted/50"
+                          ? "border-slate-400 bg-slate-50"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                       )}
                     >
                       <input
@@ -664,38 +727,47 @@ export default function ClientOnboardingWizard() {
                         className="hidden"
                         onChange={(e) => handleFileSelect(e.target.files)}
                       />
-                      <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
-                      <p className="font-medium text-lg">
+                      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                        <Upload className="h-7 w-7 text-slate-500" />
+                      </div>
+                      <p className="font-medium text-slate-900 text-lg">
                         Belege hierher ziehen
                       </p>
-                      <p className="text-muted-foreground mt-1">
+                      <p className="text-slate-500 mt-1">
                         oder klicken zum Auswählen
                       </p>
-                      <p className="text-xs text-muted-foreground mt-4">
+                      <p className="text-xs text-slate-400 mt-4">
                         PDF, JPG, PNG - max. 10MB pro Datei
                       </p>
                     </div>
 
                     {uploadedFiles.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {uploadedFiles.length} Datei{uploadedFiles.length > 1 ? "en" : ""} hochgeladen
-                        </p>
-                        <div className="space-y-2">
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                          <p className="text-sm font-medium text-slate-700">
+                            {uploadedFiles.length} Datei{uploadedFiles.length > 1 ? "en" : ""} hochgeladen
+                          </p>
+                        </div>
+                        <div className="divide-y divide-slate-100">
                           {uploadedFiles.map((file) => {
                             const FileIcon = getFileIcon(file.type);
                             return (
                               <div
                                 key={file.id}
-                                className="flex items-center gap-3 p-3 rounded-xl bg-muted"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
                               >
-                                <FileIcon className="h-5 w-5 text-muted-foreground shrink-0" />
-                                <span className="flex-1 truncate text-sm">{file.name}</span>
+                                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                                  <FileIcon className="h-4 w-4 text-slate-500" />
+                                </div>
+                                <span className="flex-1 truncate text-sm text-slate-700">{file.name}</span>
                                 <button
-                                  onClick={() => removeFile(file.id)}
-                                  className="p-1 hover:bg-background rounded-lg transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeFile(file.id);
+                                  }}
+                                  className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
                                 >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                  <Trash2 className="h-4 w-4 text-slate-400" />
                                 </button>
                               </div>
                             );
@@ -704,7 +776,7 @@ export default function ClientOnboardingWizard() {
                       </div>
                     )}
 
-                    <p className="text-sm text-muted-foreground text-center">
+                    <p className="text-sm text-slate-500 text-center">
                       Sie können diesen Schritt überspringen und später Belege hochladen
                     </p>
                   </div>
@@ -712,85 +784,91 @@ export default function ClientOnboardingWizard() {
 
                 {/* Step 4: Business Questions (Chat) */}
                 {step.id === "business-questions" && (
-                  <div className="flex flex-col h-[400px] md:h-[450px]">
-                    <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-                      {chatMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "flex",
-                            message.role === "user" ? "justify-end" : "justify-start"
-                          )}
-                        >
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div className="flex flex-col h-[420px] md:h-[480px]">
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {chatMessages.map((message) => (
                           <div
+                            key={message.id}
                             className={cn(
-                              "max-w-[85%] p-4 rounded-2xl",
-                              message.role === "user"
-                                ? "bg-foreground text-background rounded-br-md"
-                                : "bg-muted rounded-bl-md"
+                              "flex",
+                              message.role === "user" ? "justify-end" : "justify-start"
                             )}
                           >
-                            <p className="text-sm md:text-base">{message.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {isTyping && (
-                        <div className="flex justify-start">
-                          <div className="bg-muted p-4 rounded-2xl rounded-bl-md">
-                            <div className="flex gap-1">
-                              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                            <div
+                              className={cn(
+                                "max-w-[85%] px-4 py-3 rounded-2xl",
+                                message.role === "user"
+                                  ? "bg-slate-900 text-white rounded-br-md"
+                                  : "bg-slate-100 text-slate-700 rounded-bl-md"
+                              )}
+                            >
+                              <p className="text-sm leading-relaxed">{message.content}</p>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      <div ref={chatEndRef} />
-                    </div>
+                        ))}
+                        {isTyping && (
+                          <div className="flex justify-start">
+                            <div className="bg-slate-100 px-4 py-3 rounded-2xl rounded-bl-md">
+                              <div className="flex gap-1">
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
 
-                    <div className="flex gap-2">
-                      <Input
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                        placeholder="Ihre Antwort..."
-                        className="h-12 rounded-xl"
-                        disabled={isTyping}
-                      />
-                      <Button
-                        onClick={sendMessage}
-                        disabled={!chatInput.trim() || isTyping}
-                        size="lg"
-                        className="h-12 px-4 rounded-xl"
-                      >
-                        <Send className="h-5 w-5" />
-                      </Button>
+                      <div className="border-t border-slate-100 p-4 bg-slate-50">
+                        <div className="flex gap-2">
+                          <Input
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                            placeholder="Ihre Antwort..."
+                            className="h-11 rounded-xl border-slate-200 bg-white focus:border-slate-400 focus:ring-slate-400"
+                            disabled={isTyping}
+                          />
+                          <Button
+                            onClick={sendMessage}
+                            disabled={!chatInput.trim() || isTyping}
+                            size="lg"
+                            className="h-11 px-4 rounded-xl bg-slate-900 hover:bg-slate-800"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {/* Step 5: Intelligence Review */}
                 {step.id === "intelligence-review" && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {isAnalyzing ? (
-                      <div className="text-center py-12">
-                        <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin text-muted-foreground" />
-                        <p className="text-lg font-medium">Analysiere Ihre Daten...</p>
-                        <p className="text-muted-foreground mt-1">
+                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                          <Loader2 className="h-7 w-7 text-slate-500 animate-spin" />
+                        </div>
+                        <p className="text-lg font-medium text-slate-900">Analysiere Ihre Daten...</p>
+                        <p className="text-slate-500 mt-1">
                           Die KI erstellt Vorschläge basierend auf Ihren Angaben
                         </p>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between px-1">
+                          <p className="text-sm text-slate-500">
                             {aiSuggestions.filter((s) => s.status !== "pending").length} von {aiSuggestions.length} bewertet
                           </p>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={resetSuggestions}
-                            className="text-muted-foreground"
+                            className="text-slate-500 hover:text-slate-700"
                           >
                             <RotateCcw className="h-4 w-4 mr-1" />
                             Zurücksetzen
@@ -802,47 +880,44 @@ export default function ClientOnboardingWizard() {
                             <div
                               key={suggestion.id}
                               className={cn(
-                                "p-4 rounded-xl border-2 transition-all",
-                                suggestion.status === "accepted" && "border-green-500/50 bg-green-50/50 dark:bg-green-950/20",
-                                suggestion.status === "rejected" && "border-red-500/50 bg-red-50/50 dark:bg-red-950/20",
-                                suggestion.status === "pending" && "border-border"
+                                "bg-white p-5 rounded-2xl shadow-sm border transition-all",
+                                suggestion.status === "accepted" && "border-emerald-300 bg-emerald-50/50",
+                                suggestion.status === "rejected" && "border-red-300 bg-red-50/50",
+                                suggestion.status === "pending" && "border-slate-200/80"
                               )}
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs font-medium px-2 py-0.5 bg-muted rounded-full">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
                                       {suggestion.category}
                                     </span>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs text-slate-400">
                                       {Math.round(suggestion.confidence * 100)}% Konfidenz
                                     </span>
                                   </div>
-                                  <p className="font-medium">{suggestion.suggestion}</p>
+                                  <p className="font-medium text-slate-900">{suggestion.suggestion}</p>
                                 </div>
 
                                 {suggestion.status === "pending" ? (
                                   <div className="flex gap-2 shrink-0">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
+                                    <button
                                       onClick={() => updateSuggestion(suggestion.id, "rejected")}
-                                      className="h-9 w-9 p-0 rounded-xl"
+                                      className="h-10 w-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors"
                                     >
-                                      <ThumbsDown className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
+                                      <ThumbsDown className="h-4 w-4 text-slate-500" />
+                                    </button>
+                                    <button
                                       onClick={() => updateSuggestion(suggestion.id, "accepted")}
-                                      className="h-9 w-9 p-0 rounded-xl"
+                                      className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800 transition-colors"
                                     >
                                       <ThumbsUp className="h-4 w-4" />
-                                    </Button>
+                                    </button>
                                   </div>
                                 ) : (
                                   <div className={cn(
-                                    "flex items-center justify-center h-9 w-9 rounded-xl shrink-0",
-                                    suggestion.status === "accepted" ? "bg-green-500" : "bg-red-500"
+                                    "flex items-center justify-center h-10 w-10 rounded-xl shrink-0",
+                                    suggestion.status === "accepted" ? "bg-emerald-500" : "bg-red-500"
                                   )}>
                                     {suggestion.status === "accepted" ? (
                                       <ThumbsUp className="h-4 w-4 text-white" />
@@ -863,11 +938,11 @@ export default function ClientOnboardingWizard() {
                 {/* Step 6: Final Review */}
                 {step.id === "final-review" && (
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-border overflow-hidden">
-                      <div className="px-4 py-3 bg-muted border-b border-border">
-                        <p className="font-medium">Zusammenfassung</p>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                      <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                        <p className="font-semibold text-slate-900">Zusammenfassung</p>
                       </div>
-                      <div className="divide-y divide-border">
+                      <div className="divide-y divide-slate-100">
                         <SummaryRow
                           label="Firmenname"
                           value={formData.name}
@@ -927,12 +1002,15 @@ export default function ClientOnboardingWizard() {
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-muted/50 border border-border">
-                      <div className="flex gap-3">
-                        <Sparkles className="h-5 w-5 text-foreground shrink-0 mt-0.5" />
+                    {/* Ready banner */}
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
                         <div>
-                          <p className="font-medium">Bereit zum Start</p>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="font-semibold">Bereit zum Start</p>
+                          <p className="text-sm text-slate-300 mt-1">
                             Nach der Erstellung können Sie sofort Belege hochladen und die KI wird automatisch mit der Kategorisierung beginnen.
                           </p>
                         </div>
@@ -947,14 +1025,14 @@ export default function ClientOnboardingWizard() {
       </main>
 
       {/* Footer with navigation */}
-      <footer className="sticky bottom-0 bg-background border-t border-border">
+      <footer className="sticky bottom-0 bg-white border-t border-slate-200/80">
         <div className="flex items-center justify-end px-4 py-4 md:px-6 max-w-xl mx-auto">
           {currentStep === STEPS.length - 1 ? (
             <Button
               size="lg"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-8 h-12 rounded-xl text-base"
+              className="px-8 h-12 rounded-xl text-base bg-slate-900 hover:bg-slate-800"
             >
               {isSubmitting ? (
                 <>
@@ -973,7 +1051,7 @@ export default function ClientOnboardingWizard() {
               size="lg"
               onClick={handleNext}
               disabled={!canProceed()}
-              className="px-8 h-12 rounded-xl text-base"
+              className="px-8 h-12 rounded-xl text-base bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
             >
               Weiter
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -995,14 +1073,17 @@ function SummaryRow({
   onEdit: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors">
       <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
+        <p className="text-sm text-slate-500">{label}</p>
+        <p className="font-medium text-slate-900">{value}</p>
       </div>
-      <Button variant="ghost" size="sm" onClick={onEdit} className="text-muted-foreground">
+      <button
+        onClick={onEdit}
+        className="text-sm text-slate-500 hover:text-slate-700 px-3 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+      >
         Bearbeiten
-      </Button>
+      </button>
     </div>
   );
 }
