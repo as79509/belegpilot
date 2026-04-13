@@ -259,7 +259,7 @@ export default function ClientOnboardingWizard() {
         }
       }
     } catch (err) {
-      console.error("[v0] Failed to save draft:", err);
+      // Silently fail draft saves - non-blocking
     } finally {
       setIsSaving(false);
     }
@@ -293,7 +293,7 @@ export default function ClientOnboardingWizard() {
         content: data.question || "Willkommen! Was ist die Haupttätigkeit Ihres Unternehmens?",
       }]);
     } catch (err) {
-      console.error("[v0] Failed to load initial question:", err);
+      // Fallback to default question
       setChatError("Fehler beim Laden der Fragen. Bitte versuchen Sie es erneut.");
       // Fallback question
       setChatMessages([{
@@ -327,7 +327,7 @@ export default function ClientOnboardingWizard() {
       const data = await res.json();
       setAiSuggestions(data.suggestions || []);
     } catch (err) {
-      console.error("[v0] Failed to load AI suggestions:", err);
+      // Use fallback suggestions
       setSuggestionsError("Fehler beim Laden der KI-Vorschläge");
       // Provide default suggestions as fallback
       setAiSuggestions([
@@ -443,7 +443,7 @@ export default function ClientOnboardingWizard() {
           )
         );
       } catch (err) {
-        console.error("[v0] File upload failed:", err);
+        // Toast already shows error
         setUploadedFiles((prev) =>
           prev.map((f) =>
             f.id === fileEntry.id ? { ...f, status: "error" as const } : f
@@ -530,7 +530,7 @@ export default function ClientOnboardingWizard() {
 
       setChatMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
-      console.error("[v0] Chat error:", err);
+      // Fallback response provided
       setChatError("Fehler bei der Kommunikation. Bitte versuchen Sie es erneut.");
       // Fallback response
       const fallbackMessage: ChatMessage = {
@@ -562,7 +562,7 @@ export default function ClientOnboardingWizard() {
         }),
       });
     } catch (err) {
-      console.error("[v0] Failed to save suggestion decision:", err);
+      // Non-blocking - local state already updated
     }
   };
 

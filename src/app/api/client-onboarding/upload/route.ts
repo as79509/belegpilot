@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { randomUUID } from "crypto";
+
+/**
+ * Onboarding Document Upload API
+ * 
+ * Uploads files to Supabase Storage for the onboarding wizard.
+ * Files are stored under onboarding/{userId}/{draftId}/ path.
+ * 
+ * The frontend is responsible for updating the draft data with file info
+ * via the main /api/client-onboarding endpoint.
+ */
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -44,6 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename
+    const fileId = randomUUID();
     const timestamp = Date.now();
     const ext = file.name.split(".").pop() || "pdf";
     const sanitizedName = file.name
@@ -54,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Upload to Supabase Storage
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("documents")
       .upload(storagePath, buffer, {
         contentType: file.type,
@@ -64,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (uploadError) {
       console.error("[Onboarding Upload] Storage error:", uploadError);
       return NextResponse.json(
-        { error: "Fehler beim Hochladen" },
+        { error: "Fehler beim Hochladen: " + uploadError.message },
         { status: 500 }
       );
     }
@@ -74,63 +86,14 @@ export async function POST(request: NextRequest) {
       .from("documents")
       .getPublicUrl(storagePath);
 
-    // Store reference in onboarding draft if draftId provided
-    if (draftId) {
-      // Update the draft's data to include this file
-      const { data: draft, error: draftError } = await supabase
-        .from("onboarding_drafts")
-        .select("data")
-        .eq("id", draftId)
-        .eq("user_id", user.id)
-        .single();
-
-      if (!draftError && draft) {
-        const currentData = (draft.data as Record<string, unknown>) || {};
-        const existingFiles = (currentData.uploadedFiles as Array<{
-          id: string;
-          name: string;
-          type: string;
-          size: number;
-          path: string;
-          url: string;
-        }>) || [];
-        
-        const newFile = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          path: storagePath,
-          url: urlData.publicUrl,
-        };
-
-        await supabase
-          .from("onboarding_drafts")
-          .update({
-            data: {
-              ...currentData,
-              uploadedFiles: [...existingFiles, newFile],
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", draftId)
-          .eq("user_id", user.id);
-
-        return NextResponse.json({
-          id: newFile.id,
-          url: urlData.publicUrl,
-          path: storagePath,
-          fileName: file.name,
-          status: "uploaded",
-        });
-      }
-    }
-
+    // Return file info - the frontend will save this to the draft
     return NextResponse.json({
-      id: crypto.randomUUID(),
+      id: fileId,
       url: urlData.publicUrl,
       path: storagePath,
       fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
       status: "uploaded",
     });
   } catch (error: unknown) {
