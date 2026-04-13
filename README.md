@@ -7,6 +7,9 @@ Phase 8 (Autopilot + Intelligence + Governance) — KOMPLETT
 Phase 9/9X (Bank, MwSt, E-Mail, Assets, Contracts, Consolidation) — KOMPLETT
 Phase 10/10X (Banana, Evaluation, Drift, Trust, Calibration, Audit) — KOMPLETT
 Phase 11 (Onboarding Wizard, Business Chat, Bootstrapping, Go-Live) — KOMPLETT
+Phase 11X (UX Polish, Navigation, Rollen, Skeletons, Trust Layer) — KOMPLETT
+
+**Stats:** 42 Prisma-Models, 154 API-Routes, 39 Seiten, 34 Test-Dateien (370+ Tests), 432 Source-Dateien, 2628 i18n-Zeilen, 15 DS-Komponenten.
 
 ## Stack
 
@@ -139,6 +142,17 @@ src/
 - 11.10 Failure Modes mit konservativen Fallbacks
 - 11.11 Onboarding-Telemetrie (15+ KPIs)
 
+### Phase 11X: UX Polish & Produktreife
+- 11X.1 Design-Token-System (Farben, Typografie, Spacing, Status-Mappings)
+- 11X.2 Rollenbasierte Navigation (Viewer 6, Trustee 14, Admin 24+ Einträge)
+- 11X.3 Rollenbasierte Produktoberflächen (useRole Hook)
+- 11X.4 Page-Flow (Skeleton-Layouts, SaveIndicator, Interaction-Classes)
+- 11X.5 Review-Effizienz (Keyboard-Shortcuts, Queue-Navigation, Heute-Widget)
+- 11X.6 Text-Konsistenz (Begriffe, Fehlertexte, Fachsprache)
+- 11X.7 Empty States & Erste-Nutzung-Hinweise (12 Seiten)
+- 11X.8 Trust Layer (TrustSignal, ProtectionBadge)
+- 11X.9 Finaler Polish (Optimistic Updates, Produktabnahme)
+
 ## Setup
 
 ### Voraussetzungen
@@ -242,7 +256,7 @@ npm run test:watch  # Watch-Modus
 npx tsc --noEmit    # TypeScript-Prüfung
 ```
 
-350+ Tests in 34 Suiten: Multi-Tenant Security, Rollen-Matrix, Permission Enforcement, Period Guard, Pipeline Regression, Validation Engine, Rules + Konflikterkennung, Telemetrie, Evaluation, Flow Integration, Dead-End Audit, Smoke Matrix, Drift/Trust Code Audit, API Contract Audit, i18n-Vollständigkeit, Audit-Coverage, Onboarding Wizard Architecture.
+370+ Tests in 34 Suiten: Multi-Tenant Security, Rollen-Matrix, Permission Enforcement, Period Guard, Pipeline Regression, Validation Engine, Rules + Konflikterkennung, Telemetrie, Evaluation, Flow Integration, Dead-End Audit, Smoke Matrix, Drift/Trust Code Audit, API Contract Audit, i18n-Vollständigkeit, Audit-Coverage, Onboarding Wizard Architecture.
 
 ## Lizenz
 
