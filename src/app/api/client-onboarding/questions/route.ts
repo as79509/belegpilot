@@ -2,52 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Anthropic from "@anthropic-ai/sdk";
-import { randomUUID } from "crypto";
 
 /**
  * Business Questions API for Client Onboarding
  * 
- * GET - Get dynamically generated questions based on the draft data
- * POST - Submit an answer and get AI insights + follow-up question
+ * POST - Start conversation or respond to questions
  * 
- * This provides a real conversational flow, not hardcoded responses.
+ * Actions:
+ * - "start": Get initial question based on context
+ * - "respond": Submit answer and get follow-up question
  */
-
-interface Question {
-  id: string;
-  question: string;
-  category: string;
-  priority: "high" | "medium" | "low";
-}
-
-export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-  }
-
-  try {
-    // Get the current draft to understand what we know
-    const draft = await prisma.onboardingDraft.findFirst({
-      where: { userId: session.user.id, status: "in_progress" },
-    });
-
-    const draftData = (draft?.data as any) || {};
-    const answeredIds = draftData.answeredQuestionIds || [];
-
-    // Generate questions based on what's missing
-    const questions = generateQuestionsForDraft(draftData, answeredIds);
-
-    return NextResponse.json({
-      questions,
-      answeredCount: answeredIds.length,
-      totalExpected: answeredIds.length + questions.length,
-    });
-  } catch (error: any) {
-    console.error("[ClientOnboarding/Questions] GET error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -57,181 +21,183 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { questionId, answer, draftData } = body;
+    const { action, draftId, context, userMessage, previousMessages } = body;
 
-    if (!questionId || !answer?.trim()) {
-      return NextResponse.json({ error: "Frage-ID und Antwort erforderlich" }, { status: 400 });
+    switch (action) {
+      case "start": {
+        // Generate initial question based on company context
+        const question = await generateInitialQuestion(context);
+        return NextResponse.json({ question });
+      }
+
+      case "respond": {
+        // Process user's answer and generate follow-up
+        const response = await processUserResponse(
+          userMessage,
+          context,
+          previousMessages || []
+        );
+        return NextResponse.json(response);
+      }
+
+      default:
+        return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });
     }
-
-    // Find the question that was answered
-    const allQuestions = generateQuestionsForDraft(draftData || {}, []);
-    const question = allQuestions.find(q => q.id === questionId);
-
-    if (!question) {
-      return NextResponse.json({ error: "Frage nicht gefunden" }, { status: 404 });
-    }
-
-    // Use Claude to extract insights from the answer
-    const result = await extractInsightsFromAnswer(
-      question.question,
-      answer,
-      draftData || {}
-    );
-
-    return NextResponse.json({
-      success: true,
-      insights: result.insights,
-      followUpQuestion: result.followUpQuestion,
-      suggestedRules: result.suggestedRules,
-    });
-  } catch (error: any) {
-    console.error("[ClientOnboarding/Questions] POST error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+    console.error("[ClientOnboarding/Questions] POST error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-function generateQuestionsForDraft(
-  draftData: any,
-  answeredIds: string[]
-): Question[] {
-  const questions: Question[] = [];
-
-  // Q1: Business model (if not known)
-  if (!answeredIds.includes("q-business-model")) {
-    questions.push({
-      id: "q-business-model",
-      question: "Was ist die Haupttätigkeit Ihres Unternehmens? Beschreiben Sie kurz, wie Sie Geld verdienen.",
-      category: "business",
-      priority: "high",
-    });
+async function generateInitialQuestion(context: {
+  companyName?: string;
+  legalForm?: string;
+  industry?: string;
+}): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  
+  if (!apiKey) {
+    // Return contextual fallback question
+    if (context.companyName) {
+      return `Willkommen bei ${context.companyName}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
+    }
+    return "Willkommen! Was ist die Haupttätigkeit Ihres Unternehmens?";
   }
 
-  // Q2: Customer type
-  if (!answeredIds.includes("q-customers")) {
-    questions.push({
-      id: "q-customers",
-      question: "Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
-      category: "business",
-      priority: "high",
-    });
-  }
+  try {
+    const client = new Anthropic({ apiKey });
 
-  // Q3: Employees
-  if (!answeredIds.includes("q-employees")) {
-    questions.push({
-      id: "q-employees",
-      question: "Wie viele Mitarbeiter hat Ihr Unternehmen? Gibt es Besonderheiten bei der Lohnbuchhaltung?",
-      category: "operations",
-      priority: "medium",
-    });
-  }
+    const systemPrompt = `Du bist ein freundlicher Schweizer Buchhaltungs-Assistent.
+Generiere eine erste Frage für ein Onboarding-Gespräch.
+Die Frage sollte:
+- Kurz und freundlich sein (max 2 Sätze)
+- Das Geschäftsmodell verstehen helfen
+- Den Firmennamen verwenden falls bekannt
 
-  // Q4: Key suppliers
-  if (!answeredIds.includes("q-suppliers")) {
-    questions.push({
-      id: "q-suppliers",
-      question: "Welche Lieferanten sind für Ihr Unternehmen besonders wichtig? Nennen Sie die 3-5 wichtigsten.",
-      category: "suppliers",
-      priority: "high",
-    });
-  }
+Antworte NUR mit der Frage, ohne JSON oder Formatierung.`;
 
-  // Q5: Recurring costs
-  if (!answeredIds.includes("q-recurring")) {
-    questions.push({
-      id: "q-recurring",
-      question: "Welche regelmässigen Rechnungen erhalten Sie? (z.B. Miete, Strom, Telefon, Versicherung)",
-      category: "costs",
-      priority: "high",
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 200,
+      system: systemPrompt,
+      messages: [{ 
+        role: "user", 
+        content: `Kontext: Firma "${context.companyName || 'unbekannt'}", Branche "${context.industry || 'unbekannt'}", Rechtsform "${context.legalForm || 'unbekannt'}"` 
+      }],
     });
-  }
 
-  // Q6: Special cases (if in specific industries)
-  const industry = (draftData.industry || "").toLowerCase();
-  if (!answeredIds.includes("q-special") && (
-    industry.includes("gastro") || 
-    industry.includes("bau") || 
-    industry.includes("handel")
-  )) {
-    questions.push({
-      id: "q-special",
-      question: "Gibt es Besonderheiten in Ihrer Branche, die wir beachten sollten? (z.B. Bargeldverkehr, Provisionen, Saisongeschäft)",
-      category: "special",
-      priority: "medium",
-    });
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    return text.trim() || `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
+  } catch (err) {
+    console.error("[Questions] Claude initial question failed:", err);
+    return `Willkommen${context.companyName ? ` bei ${context.companyName}` : ""}! Was ist die Haupttätigkeit Ihres Unternehmens?`;
   }
-
-  // Q7: Software/platforms
-  if (!answeredIds.includes("q-software")) {
-    questions.push({
-      id: "q-software",
-      question: "Nutzen Sie andere Buchhaltungs- oder Business-Software? (z.B. Bexio, Abacus, Kassensystem)",
-      category: "integrations",
-      priority: "low",
-    });
-  }
-
-  // Return prioritized questions (max 5)
-  return questions
-    .filter(q => !answeredIds.includes(q.id))
-    .slice(0, 5);
 }
 
-async function extractInsightsFromAnswer(
-  question: string,
-  answer: string,
-  draftData: any
+async function processUserResponse(
+  userMessage: string,
+  context: {
+    companyName?: string;
+    legalForm?: string;
+    industry?: string;
+  },
+  previousMessages: Array<{ role: string; content: string }>
 ): Promise<{
-  insights: Array<{ type: string; content: string; confidence: string }>;
-  followUpQuestion: string | null;
-  suggestedRules: Array<{ type: string; description: string }>;
+  question?: string;
+  response?: string;
+  complete?: boolean;
+  insights?: Array<{ type: string; content: string }>;
 }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   
-  // If no API key, return a structured response without AI
+  // Count user messages to know how far we are
+  const userMessageCount = previousMessages.filter(m => m.role === "user").length + 1;
+  
+  // Questions to cover (used for fallback)
+  const topicsCovered = userMessageCount;
+  const topics = [
+    "Haupttätigkeit und Geschäftsmodell",
+    "Kundentyp (B2B/B2C)",
+    "Wichtige Lieferanten",
+    "Regelmässige Kosten",
+    "Besondere Anforderungen"
+  ];
+
   if (!apiKey) {
-    console.warn("[ClientOnboarding] No ANTHROPIC_API_KEY set - returning mock insights");
+    // Without API key, use structured fallback questions
+    if (topicsCovered >= 5) {
+      return {
+        response: "Vielen Dank! Wir haben jetzt genug Informationen, um Ihre Buchhaltung optimal einzurichten.",
+        complete: true,
+      };
+    }
+
+    const nextTopic = topics[Math.min(topicsCovered, topics.length - 1)];
+    const fallbackQuestions: Record<string, string> = {
+      "Kundentyp (B2B/B2C)": "Danke! Arbeiten Sie hauptsächlich mit Geschäftskunden (B2B) oder Privatkunden (B2C)?",
+      "Wichtige Lieferanten": "Verstanden. Welche Lieferanten sind für Ihr Unternehmen besonders wichtig?",
+      "Regelmässige Kosten": "Gut zu wissen. Welche regelmässigen Ausgaben haben Sie? (z.B. Miete, Strom, Versicherungen)",
+      "Besondere Anforderungen": "Fast fertig! Gibt es Besonderheiten in Ihrem Unternehmen, die wir beachten sollten?",
+    };
+
     return {
-      insights: [{ 
-        type: "info", 
-        content: `Antwort erfasst: "${answer.substring(0, 100)}..."`, 
-        confidence: "high" 
-      }],
-      followUpQuestion: null,
-      suggestedRules: [],
+      question: fallbackQuestions[nextTopic] || "Haben Sie noch weitere Informationen, die für die Buchhaltung wichtig sind?",
     };
   }
 
   try {
     const client = new Anthropic({ apiKey });
 
-    const systemPrompt = `Du bist ein Schweizer Buchhaltungs-Experte. Analysiere die Antwort des Unternehmers und extrahiere nützliche Informationen für die Buchhaltungs-Einrichtung.
+    // Build conversation history
+    const conversationSummary = previousMessages
+      .map(m => `${m.role === "user" ? "Kunde" : "Assistent"}: ${m.content}`)
+      .join("\n");
 
-Bekannte Informationen über das Unternehmen:
-- Firmenname: ${draftData.name || "noch nicht bekannt"}
-- Branche: ${draftData.industry || "noch nicht bekannt"}
-- Rechtsform: ${draftData.legalForm || "noch nicht bekannt"}
-- MwSt-Methode: ${draftData.vatMethod || "noch nicht bekannt"}
+    const systemPrompt = `Du bist ein freundlicher Schweizer Buchhaltungs-Assistent im Onboarding-Gespräch.
 
-Antworte NUR im JSON-Format:
+Bekannte Informationen:
+- Firmenname: ${context.companyName || "noch nicht bekannt"}
+- Branche: ${context.industry || "noch nicht bekannt"}
+- Rechtsform: ${context.legalForm || "noch nicht bekannt"}
+
+Bisheriges Gespräch:
+${conversationSummary}
+
+Anzahl bisheriger Antworten: ${userMessageCount}
+
+Deine Aufgaben:
+1. Die neue Antwort verarbeiten
+2. Eine passende Folgefrage stellen (WENN noch nicht alle wichtigen Themen abgedeckt sind)
+3. Nach ca. 4-5 Antworten das Gespräch abschliessen
+
+Wichtige Themen für die Buchhaltung:
+- Geschäftsmodell/Haupttätigkeit
+- Kundentyp (B2B/B2C)
+- Wichtige Lieferanten
+- Regelmässige Kosten/Ausgaben
+- Besonderheiten der Branche
+
+Antworte im JSON-Format:
 {
-  "insights": [{"type": "revenue|cost|supplier|special_case|platform|risk", "content": "...", "confidence": "high|medium|low"}],
-  "followUpQuestion": "Eine Folgefrage falls nötig, sonst null",
-  "suggestedRules": [{"type": "account_mapping|vat_default|supplier_default", "description": "..."}]
+  "question": "Nächste Frage falls noch Themen offen" | null,
+  "complete": true | false,
+  "insights": [{"type": "revenue|cost|supplier|customer|special", "content": "..."}]
 }
 
 Regeln:
-- Extrahiere nur Informationen die DIREKT aus der Antwort ableitbar sind
-- Folgefrage nur wenn wirklich wichtige Details fehlen
-- Maximal 3 Insights pro Antwort`;
+- Fragen kurz halten (1-2 Sätze)
+- Natürlich und freundlich klingen
+- Nach 5 Antworten "complete: true" setzen
+- Keine Frage die bereits beantwortet wurde`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
+      max_tokens: 500,
       system: systemPrompt,
       messages: [{ 
         role: "user", 
-        content: `Frage: ${question}\nAntwort: ${answer}` 
+        content: `Neue Antwort vom Kunden: ${userMessage}` 
       }],
     });
 
@@ -239,20 +205,27 @@ Regeln:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        question: parsed.question || undefined,
+        response: parsed.complete ? "Vielen Dank! Wir haben jetzt genug Informationen, um Ihre Buchhaltung optimal einzurichten." : undefined,
+        complete: parsed.complete || false,
+        insights: parsed.insights || [],
+      };
     }
   } catch (err) {
-    console.error("[ClientOnboarding] Claude extraction failed:", err);
+    console.error("[Questions] Claude response failed:", err);
   }
 
-  // Fallback if AI fails
+  // Fallback
+  if (topicsCovered >= 5) {
+    return {
+      response: "Vielen Dank! Wir haben jetzt genug Informationen.",
+      complete: true,
+    };
+  }
+
   return {
-    insights: [{ 
-      type: "info", 
-      content: `Information erfasst`, 
-      confidence: "medium" 
-    }],
-    followUpQuestion: null,
-    suggestedRules: [],
+    question: "Danke für die Information! Haben Sie noch weitere Details, die für die Buchhaltung wichtig sein könnten?",
   };
 }
