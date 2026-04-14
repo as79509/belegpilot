@@ -227,7 +227,7 @@ export default function JournalPage() {
                   <TableHead>{de.journal.debitAccount}</TableHead>
                   <TableHead>{de.journal.creditAccount}</TableHead>
                   <TableHead className="text-right">{de.journal.amount}</TableHead>
-                  <TableHead>MwSt</TableHead>
+                  <TableHead>{de.journal.vatLabel}</TableHead>
                   <TableHead>{de.journalDeep.source}</TableHead>
                   <TableHead>{de.journalDeep.documentRef}</TableHead>
                   <TableHead>{de.journalDeep.createdAt}</TableHead>
@@ -257,7 +257,7 @@ export default function JournalPage() {
                         <TableCell className="font-mono text-xs">{e.creditAccount}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap text-right">{formatCurrency(e.amount, e.currency || "CHF")}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">
-                          {e.vatAmount != null ? formatCurrency(e.vatAmount, e.currency || "CHF") : "—"}
+                          {e.vatAmount != null ? formatCurrency(e.vatAmount, e.currency || "CHF") : de.common.noData}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={`text-xs ${SOURCE_COLORS[source] || ""}`}>
@@ -271,7 +271,7 @@ export default function JournalPage() {
                               className="text-blue-600 hover:underline font-mono"
                               onClick={(ev) => ev.stopPropagation()}
                             >
-                              {e.document?.documentNumber || "BP-" + String(e.documentId).slice(0, 8)}
+                              {e.document?.documentNumber || de.journal.documentFallback.replace("{id}", String(e.documentId).slice(0, 8))}
                             </Link>
                           ) : source === "recurring" ? (
                             <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
@@ -295,7 +295,7 @@ export default function JournalPage() {
                           <TableCell colSpan={9} className="text-xs space-y-2 py-3">
                             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
                               <span>
-                                {de.journalDeep.createdBy}: <strong>{e.user?.name || "—"}</strong>
+                                {de.journalDeep.createdBy}: <strong>{e.user?.name || de.common.noData}</strong>
                               </span>
                               <span>
                                 {de.journalDeep.createdAt}: <strong>{formatDate(e.createdAt)}</strong>
@@ -323,7 +323,7 @@ export default function JournalPage() {
                                     <li key={h.id} className="text-xs text-muted-foreground">
                                       <span className="font-mono">{formatDate(h.createdAt)}</span>
                                       {" — "}
-                                      <span>{h.user?.name || "—"}</span>
+                                      <span>{h.user?.name || de.common.noData}</span>
                                       {" — "}
                                       <span>
                                         {de.auditLog.actions[h.action] || h.action}
@@ -368,7 +368,7 @@ export default function JournalPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">{de.journal.amount}</Label><Input type="number" step="0.01" value={form.amount} onChange={(e) => set("amount", e.target.value)} /></div>
-              <div><Label className="text-xs">MwSt</Label><Input type="number" step="0.01" value={form.vatAmount} onChange={(e) => set("vatAmount", e.target.value)} /></div>
+              <div><Label className="text-xs">{de.journal.vatLabel}</Label><Input type="number" step="0.01" value={form.vatAmount} onChange={(e) => set("vatAmount", e.target.value)} /></div>
             </div>
             <div><Label className="text-xs">{de.journal.description}</Label><Input value={form.description} onChange={(e) => set("description", e.target.value)} /></div>
             <div><Label className="text-xs">{de.journal.reference}</Label><Input value={form.reference} onChange={(e) => set("reference", e.target.value)} /></div>

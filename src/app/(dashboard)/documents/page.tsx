@@ -17,7 +17,7 @@ import { useRole } from "@/lib/hooks/use-role";
 import { hasPermission } from "@/lib/permissions";
 
 const QUICK_FILTERS = [
-  { key: "", label: "Alle" },
+  { key: "", label: de.common.all },
   { key: "needs_review", label: de.status.needs_review, color: `${statusColors.warning.bg} ${statusColors.warning.text}` },
   { key: "ready", label: de.status.ready, color: `${statusColors.success.bg} ${statusColors.success.text}` },
   { key: "failed", label: de.status.failed, color: `${statusColors.error.bg} ${statusColors.error.text}` },
@@ -150,12 +150,12 @@ export default function DocumentsPage() {
         } : undefined}
         secondaryActions={[
           {
-            label: "Filter",
+            label: de.documents.filterButton,
             icon: Filter,
             onClick: () => setShowFilters(!showFilters),
           },
           {
-            label: "Aktualisieren",
+            label: de.documents.refreshButton,
             icon: RefreshCw,
             variant: "ghost",
             onClick: () => setRefreshKey((k) => k + 1),
@@ -168,7 +168,11 @@ export default function DocumentsPage() {
       {/* Trustee info line */}
       {(counts.needs_review ?? 0) > 0 && (
         <p className="text-sm text-muted-foreground">
-          {counts.needs_review} Belege zur Prüfung{counts.uploaded ? `, ${counts.uploaded} diese Woche hochgeladen` : ""}
+          {(counts.uploaded
+            ? de.documents.reviewSummaryWithUploaded
+            : de.documents.reviewSummary)
+            .replace("{count}", String(counts.needs_review))
+            .replace("{uploaded}", String(counts.uploaded ?? 0))}
         </p>
       )}
 
@@ -229,42 +233,42 @@ export default function DocumentsPage() {
             <div>
               <label className="text-xs text-muted-foreground">{de.documents.supplier}</label>
               <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-                <option value="">Alle</option>
+                <option value="">{de.common.all}</option>
                 {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.nameNormalized}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Währung</label>
+              <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.currency}</label>
               <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="">Alle</option>
+                <option value="">{de.common.all}</option>
                 <option value="CHF">CHF</option>
                 <option value="EUR">EUR</option>
                 <option value="USD">USD</option>
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Export-Status</label>
+              <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.exportStatus}</label>
               <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={exportStatus} onChange={(e) => setExportStatus(e.target.value)}>
-                <option value="">Alle</option>
-                <option value="exported">Exportiert</option>
-                <option value="not_exported">Nicht exportiert</option>
+                <option value="">{de.common.all}</option>
+                <option value="exported">{de.documents.filtersExtended.exportDone}</option>
+                <option value="not_exported">{de.documents.filtersExtended.exportPending}</option>
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Konfidenz</label>
+              <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.confidence}</label>
               <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={confidence} onChange={(e) => setConfidence(e.target.value)}>
-                <option value="">Alle</option>
-                <option value="high">Hoch (&gt;80%)</option>
-                <option value="medium">Mittel (50-80%)</option>
-                <option value="low">Niedrig (&lt;50%)</option>
+                <option value="">{de.common.all}</option>
+                <option value="high">{de.documents.filtersExtended.confidenceHigh}</option>
+                <option value="medium">{de.documents.filtersExtended.confidenceMedium}</option>
+                <option value="low">{de.documents.filtersExtended.confidenceLow}</option>
               </select>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div>
-              <label className="text-xs text-muted-foreground">Belegtyp</label>
+              <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.documentType}</label>
               <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-                <option value="">Alle</option>
+                <option value="">{de.common.all}</option>
                 {Object.entries(de.documentType).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>

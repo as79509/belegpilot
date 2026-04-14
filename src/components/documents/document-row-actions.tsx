@@ -33,7 +33,7 @@ export function DocumentRowActions({ doc, canMutate, onChanged }: Props) {
     if (!confirm(de.quickActions.confirmApprove)) return;
     const res = await fetch(`/api/documents/${doc.id}/approve`, { method: "POST" });
     if (res.ok) {
-      toast.success(de.quickActions.approve + " ✓");
+      toast.success(de.quickActions.approve);
       onChanged?.();
     } else {
       const err = await res.json().catch(() => null);
@@ -50,7 +50,7 @@ export function DocumentRowActions({ doc, canMutate, onChanged }: Props) {
       body: JSON.stringify({ reason }),
     });
     if (res.ok) {
-      toast.success(de.quickActions.reject + " ✓");
+      toast.success(de.quickActions.reject);
       onChanged?.();
     } else {
       const err = await res.json().catch(() => null);
@@ -65,7 +65,7 @@ export function DocumentRowActions({ doc, canMutate, onChanged }: Props) {
       body: JSON.stringify({ action: "accepted" }),
     });
     if (res.ok) {
-      toast.success(de.quickActions.acceptSuggestion + " ✓");
+      toast.success(de.quickActions.acceptSuggestion);
       onChanged?.();
     } else {
       const err = await res.json().catch(() => null);
@@ -76,7 +76,7 @@ export function DocumentRowActions({ doc, canMutate, onChanged }: Props) {
   async function reprocess() {
     const res = await fetch(`/api/documents/${doc.id}/reprocess`, { method: "POST" });
     if (res.ok) {
-      toast.success(de.quickActions.reprocess + " ✓");
+      toast.success(de.quickActions.reprocess);
       onChanged?.();
     } else {
       const err = await res.json().catch(() => null);
@@ -88,7 +88,7 @@ export function DocumentRowActions({ doc, canMutate, onChanged }: Props) {
     if (doc.supplierId) {
       router.push(`/suppliers/${doc.supplierId}`);
     } else {
-      toast.error("Kein Lieferant verknüpft");
+      toast.error(de.quickActions.supplierMissing);
     }
   }
 

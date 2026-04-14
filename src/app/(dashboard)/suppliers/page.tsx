@@ -135,7 +135,7 @@ export default function SuppliersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className={typo("tableHeader")}>{de.suppliers.name}</TableHead>
-                    <TableHead className={typo("tableHeader")}>Status</TableHead>
+                    <TableHead className={typo("tableHeader")}>{de.documents.status}</TableHead>
                     <TableHead className={typo("tableHeader")}>{de.suppliers.documentCount}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -177,8 +177,8 @@ export default function SuppliersPage() {
         <CardContent className="pt-4">
           {loading ? (
             <Table><TableHeader><TableRow>
-              <TableHead>{de.suppliers.name}</TableHead><TableHead>Status</TableHead>
-              <TableHead>{de.detail.vatNumber}</TableHead><TableHead>IBAN</TableHead>
+              <TableHead>{de.suppliers.name}</TableHead><TableHead>{de.documents.status}</TableHead>
+              <TableHead>{de.detail.vatNumber}</TableHead><TableHead>{de.detail.iban}</TableHead>
               <TableHead>{de.suppliers.documentCount}</TableHead><TableHead>{de.suppliers.defaultCategory}</TableHead>
               <TableHead>{de.supplierTrust.trustScore}</TableHead>
             </TableRow></TableHeader><TableBody>
@@ -208,9 +208,9 @@ export default function SuppliersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className={typo("tableHeader")}>{de.suppliers.name}</TableHead>
-                  <TableHead className={typo("tableHeader")}>Status</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.documents.status}</TableHead>
                   <TableHead className={typo("tableHeader")}>{de.detail.vatNumber}</TableHead>
-                  <TableHead className={typo("tableHeader")}>IBAN</TableHead>
+                  <TableHead className={typo("tableHeader")}>{de.detail.iban}</TableHead>
                   <TableHead className={typo("tableHeader")}>{de.suppliers.documentCount}</TableHead>
                   <TableHead className={typo("tableHeader")}>{de.suppliers.defaultCategory}</TableHead>
                   <TableHead className={typo("tableHeader")}>{de.supplierTrust.trustScore}</TableHead>

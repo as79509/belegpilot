@@ -326,16 +326,19 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <Rocket className="h-4 w-4 text-blue-600" />
                 <span className="font-medium text-blue-800">
-                  Hochlaufphase: {
-                    { go_live_started: "Go-Live gestartet", first_week: "Erste Woche", first_30_days: "Erste 30 Tage", stabilized: "Stabilisiert" }[goLiveStatus.phase as string] || goLiveStatus.phase
+                  {de.dashboard.phaseTitle}: {
+                    de.dashboard.phases[goLiveStatus.phase as keyof typeof de.dashboard.phases] || goLiveStatus.phase
                   }
                 </span>
               </div>
-              <Badge variant="secondary">Tag {goLiveStatus.daysActive}</Badge>
+              <Badge variant="secondary">
+                {de.dashboard.dayLabel.replace("{days}", String(goLiveStatus.daysActive))}
+              </Badge>
             </div>
             <p className="text-xs text-blue-700 mt-1">
-              Autopilot: {goLiveStatus.config.autopilotMode} • Review: {goLiveStatus.config.reviewLevel}
-              {goLiveStatus.config.restrictedModules?.length > 0 && ` • ${goLiveStatus.config.restrictedModules.length} Module eingeschränkt`}
+              {de.dashboard.autopilotLabel}: {goLiveStatus.config.autopilotMode} {" · "}
+              {de.dashboard.reviewLabel}: {goLiveStatus.config.reviewLevel}
+              {goLiveStatus.config.restrictedModules?.length > 0 && ` · ${de.dashboard.restrictedModules.replace("{count}", String(goLiveStatus.config.restrictedModules.length))}`}
             </p>
           </CardContent>
         </Card>
@@ -345,10 +348,10 @@ export default function DashboardPage() {
       {canUseWorkQueues && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
-            { label: "Korrekturen", href: "/corrections", icon: AlertTriangle },
-            { label: "Audit-Log", href: "/audit-log", icon: ScrollText },
-            { label: "AI-Konfiguration", href: "/settings/ai", icon: Brain },
-            { label: "Monatsbericht", href: "/reports/monthly-summary", icon: FileBarChart },
+            { label: de.dashboard.quickLinks.corrections, href: "/corrections", icon: AlertTriangle },
+            { label: de.dashboard.quickLinks.auditLog, href: "/audit-log", icon: ScrollText },
+            { label: de.dashboard.quickLinks.aiConfig, href: "/settings/ai", icon: Brain },
+            { label: de.dashboard.quickLinks.monthlyReport, href: "/reports/monthly-summary", icon: FileBarChart },
           ].map(link => (
             <Link key={link.href} href={link.href}>
               <Card className="p-3 hover:shadow-sm transition-shadow cursor-pointer">
@@ -366,13 +369,13 @@ export default function DashboardPage() {
       {canUseWorkQueues && (
         <Card>
           <CardContent className="pt-4">
-            <h3 className="text-sm font-semibold mb-3">Heute erledigen</h3>
+            <h3 className="text-sm font-semibold mb-3">{de.dashboard.todayHeading}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
-                { label: "Zur Prüfung", value: data.statusCounts?.needs_review ?? 0, href: "/documents?status=needs_review", color: (data.statusCounts?.needs_review ?? 0) > 0 ? "text-amber-600" : "text-muted-foreground" },
-                { label: "Offene Aufgaben", value: data.todayStats?.tasksDue ?? 0, href: "/tasks", color: (data.todayStats?.tasksDue ?? 0) > 0 ? "text-blue-600" : "text-muted-foreground" },
-                { label: "Hochgeladen", value: data.todayStats?.uploaded ?? 0, href: "/documents", color: "text-muted-foreground" },
-                { label: "Zu exportieren", value: data.statusCounts?.ready ?? 0, href: "/exports", color: "text-muted-foreground" },
+                { label: de.dashboard.todayCards.needsReview, value: data.statusCounts?.needs_review ?? 0, href: "/documents?status=needs_review", color: (data.statusCounts?.needs_review ?? 0) > 0 ? "text-amber-600" : "text-muted-foreground" },
+                { label: de.dashboard.todayCards.openTasks, value: data.todayStats?.tasksDue ?? 0, href: "/tasks", color: (data.todayStats?.tasksDue ?? 0) > 0 ? "text-blue-600" : "text-muted-foreground" },
+                { label: de.dashboard.todayCards.uploaded, value: data.todayStats?.uploaded ?? 0, href: "/documents", color: "text-muted-foreground" },
+                { label: de.dashboard.todayCards.exportReady, value: data.statusCounts?.ready ?? 0, href: "/exports", color: "text-muted-foreground" },
               ].map(item => (
                 <Link key={item.href} href={item.href}>
                   <div className="p-3 rounded-md border hover:shadow-sm transition-shadow cursor-pointer text-center">
@@ -454,7 +457,7 @@ export default function DashboardPage() {
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronDown className={`h-4 w-4 transition-transform ${showSystemDetails ? "" : "-rotate-90"}`} />
-            System-Details
+            {de.dashboard.systemDetails}
           </button>
           {showSystemDetails && (
             <div className="mt-3 space-y-4">
@@ -502,7 +505,7 @@ function ClientRiskBoard({ clients, onSwitch }: { clients: ClientRisk[]; onSwitc
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 text-sm">
-        <span className="font-medium text-[var(--text-secondary)]">Mandanten</span>
+        <span className="font-medium text-[var(--text-secondary)]">{de.clients.title}</span>
         {critical > 0 && <Badge variant="destructive" className="text-xs">{critical} {de.cockpit.criticalClients}</Badge>}
         <Badge variant="secondary" className="text-xs">{ok} {de.cockpit.clientsOk}</Badge>
       </div>
@@ -522,8 +525,8 @@ function ClientRiskBoard({ clients, onSwitch }: { clients: ClientRisk[]; onSwitc
             </div>
             <div className={`h-1 rounded-full mb-2 ${riskColor(c.riskScore)}`} />
             <div className="flex gap-2 text-xs text-[var(--text-muted)]">
-              {c.needsReview > 0 && <span className="text-orange-600">{c.needsReview} Belege</span>}
-              {c.overdueTasks > 0 && <span className="text-red-600">{c.overdueTasks} Tasks</span>}
+              {c.needsReview > 0 && <span className="text-orange-600">{c.needsReview} {de.documentList.totalDocs}</span>}
+              {c.overdueTasks > 0 && <span className="text-red-600">{c.overdueTasks} {de.dashboard.todayCards.openTasks}</span>}
               <StatusBadge type="period" value={c.periodStatus} icon={false} className="px-1 py-0" />
             </div>
           </button>
@@ -546,9 +549,9 @@ function TodayPanel({
   const apLabel = !autopilotStats
     ? null
     : autopilotStats.config.killSwitchActive
-    ? "GESTOPPT"
+    ? de.autopilot.killSwitchActive
     : !autopilotStats.config.enabled
-    ? "AUS"
+    ? de.autopilot.disabled
     : `${de.autopilot.mode[autopilotStats.config.mode as "shadow" | "prefill" | "auto_ready"]} (${autopilotStats.eligibleRate}% ${de.autopilot.eligible.toLowerCase()})`;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-lg bg-[var(--surface-secondary)] text-sm">
@@ -690,7 +693,11 @@ function RecentItemsPanel({
               className="w-full flex items-center gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-secondary)] transition-colors text-left"
             >
               <span className="text-xs text-muted-foreground uppercase tracking-wide w-16 shrink-0">
-                {item.type === "document" ? "Beleg" : item.type === "supplier" ? "Lieferant" : item.type}
+                {item.type === "document"
+                  ? de.dashboard.recentItemTypes.document
+                  : item.type === "supplier"
+                  ? de.dashboard.recentItemTypes.supplier
+                  : item.type}
               </span>
               <span className="text-xs flex-1 min-w-0 truncate">{item.title}</span>
               <ArrowRight className="h-3 w-3 text-blue-600" />
@@ -827,7 +834,7 @@ function PeriodCard({ label, period }: { label: string; period: PeriodInfo | nul
       <Card>
         <CardContent className="py-3">
           <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Keine Periode angelegt</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">{de.dashboard.noPeriod}</p>
         </CardContent>
       </Card>
     );
@@ -853,7 +860,7 @@ function PeriodCard({ label, period }: { label: string; period: PeriodInfo | nul
         <div className="flex items-center gap-1">
           <span className={`h-2 w-2 rounded-full ${period.checklistComplete ? "bg-green-500" : "bg-amber-400"}`} />
           <span className="text-xs text-[var(--text-muted)]">
-            {period.checklistComplete ? "Checkliste komplett" : "Checkliste offen"}
+            {period.checklistComplete ? de.dashboard.checklistComplete : de.dashboard.checklistOpen}
           </span>
         </div>
 

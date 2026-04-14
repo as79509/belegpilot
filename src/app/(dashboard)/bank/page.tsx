@@ -179,7 +179,10 @@ export default function BankReconciliationPage() {
       }
       const data = await res.json();
       toast.success(
-        `${de.bank.importSuccess}: ${data.statements.length} Auszüge, ${data.matching.matched} zugeordnet, ${data.matching.unmatched} offen`
+        de.bank.importSummary
+          .replace("{statements}", String(data.statements.length))
+          .replace("{matched}", String(data.matching.matched))
+          .replace("{unmatched}", String(data.matching.unmatched))
       );
       setImportOpen(false);
       await Promise.all([loadUnmatched(), loadMatched(), loadStatements(), loadAccounts()]);
@@ -397,9 +400,9 @@ export default function BankReconciliationPage() {
                       <TableCell className={`text-right whitespace-nowrap font-mono ${tx.isCredit ? "text-green-700" : "text-red-700"}`}>
                         {tx.isCredit ? "+" : "-"}{formatCurrency(tx.amount, tx.currency)}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate">{tx.counterpartyName || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{tx.counterpartyName || de.common.noData}</TableCell>
                       <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground">
-                        {tx.paymentReference || tx.remittanceInfo || "—"}
+                        {tx.paymentReference || tx.remittanceInfo || de.common.noData}
                       </TableCell>
                       <TableCell>
                         <SuggestedDocCell txId={tx.id} />
@@ -458,19 +461,19 @@ export default function BankReconciliationPage() {
                       <TableCell className={`text-right whitespace-nowrap font-mono ${tx.isCredit ? "text-green-700" : "text-red-700"}`}>
                         {tx.isCredit ? "+" : "-"}{formatCurrency(tx.amount, tx.currency)}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate">{tx.counterpartyName || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{tx.counterpartyName || de.common.noData}</TableCell>
                       <TableCell>
                         {tx.matchedDoc ? (
                           <Link href={`/documents/${tx.matchedDoc.id}`} className="text-blue-600 hover:underline text-sm">
-                            {tx.matchedDoc.documentNumber || tx.matchedDoc.supplierNameNormalized || "Beleg"}
+                            {tx.matchedDoc.documentNumber || tx.matchedDoc.supplierNameNormalized || de.bank.matchedDoc}
                           </Link>
-                        ) : "—"}
+                        ) : de.common.noData}
                       </TableCell>
                       <TableCell>
                         {tx.matchMethod && <StatusBadge type="matchMethod" value={tx.matchMethod} size="sm" />}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {tx.matchedAt ? formatDate(tx.matchedAt) : "—"}
+                        {tx.matchedAt ? formatDate(tx.matchedAt) : de.common.noData}
                       </TableCell>
                     </TableRow>
                   ))
@@ -513,7 +516,7 @@ export default function BankReconciliationPage() {
                 ) : (
                   statements.map((stmt) => (
                     <TableRow key={stmt.id}>
-                      <TableCell className="text-sm">{stmt.fileName || "—"}</TableCell>
+                      <TableCell className="text-sm">{stmt.fileName || de.common.noData}</TableCell>
                       <TableCell className="font-mono text-xs">{stmt.bankAccount.iban}</TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
                         {formatDate(stmt.fromDate)} – {formatDate(stmt.toDate)}
@@ -583,7 +586,7 @@ export default function BankReconciliationPage() {
                     >
                       <TableCell className="font-mono text-xs">{acc.iban}</TableCell>
                       <TableCell>{acc.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{acc.bankName || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{acc.bankName || de.common.noData}</TableCell>
                       <TableCell>{acc.currency}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={acc.isActive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>
@@ -643,7 +646,7 @@ export default function BankReconciliationPage() {
           </DialogHeader>
           {matchingTx && (
             <div className="text-sm text-muted-foreground mb-2">
-              {formatDate(matchingTx.bookingDate)} · {formatCurrency(matchingTx.amount, matchingTx.currency)} · {matchingTx.counterpartyName || "—"}
+              {formatDate(matchingTx.bookingDate)} · {formatCurrency(matchingTx.amount, matchingTx.currency)} · {matchingTx.counterpartyName || de.common.noData}
             </div>
           )}
           <div className="space-y-4">
@@ -675,10 +678,10 @@ export default function BankReconciliationPage() {
                     >
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">
-                          {c.documentNumber || c.invoiceNumber || "Beleg"} · {c.supplierName || "—"}
+                          {c.documentNumber || c.invoiceNumber || de.bank.matchedDoc} · {c.supplierName || de.common.noData}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {c.invoiceDate ? formatDate(c.invoiceDate) : "—"} · {c.grossAmount != null ? formatCurrency(c.grossAmount, c.currency || "CHF") : "—"}
+                          {c.invoiceDate ? formatDate(c.invoiceDate) : de.common.noData} · {c.grossAmount != null ? formatCurrency(c.grossAmount, c.currency || "CHF") : de.common.noData}
                         </div>
                       </div>
                       {c.confidence > 0 && (
@@ -751,7 +754,7 @@ function SuggestedDocCell({ txId }: { txId: string }) {
   const best = candidates[0];
   return (
     <Link href={`/documents/${best.documentId}`} className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1">
-      {best.documentNumber || best.supplierName || "Beleg"}
+                        {best.documentNumber || best.supplierName || de.bank.matchedDoc}
       <ConfidenceBadge level={best.confidence >= 0.8 ? "high" : "medium"} compact />
     </Link>
   );

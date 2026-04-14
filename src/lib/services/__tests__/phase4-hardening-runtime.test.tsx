@@ -9,6 +9,8 @@ const mockUseParams = vi.fn(() => ({ id: "supplier-1" }));
 const mockUseRouter = vi.fn(() => ({ push: vi.fn() }));
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const toastWarning = vi.fn();
+const toastInfo = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useParams: () => mockUseParams(),
@@ -27,6 +29,8 @@ vi.mock("sonner", () => ({
   toast: {
     success: (...args: any[]) => toastSuccess(...args),
     error: (...args: any[]) => toastError(...args),
+    warning: (...args: any[]) => toastWarning(...args),
+    info: (...args: any[]) => toastInfo(...args),
   },
 }));
 
@@ -204,5 +208,77 @@ describe("Phase 4 Hardening Runtime", () => {
       expect(toastError).toHaveBeenCalledWith("Integration ist nicht aktiviert");
     });
     expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("akzeptiert HEIC im Ordner-Upload und meldet ehrliche Erfolgszähler", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            documentId: "doc-1",
+            fileName: "scan.heic",
+            status: "created",
+          },
+        ],
+      }),
+    })) as any;
+    global.fetch = fetchMock;
+
+    const { UploadZone } = await import("@/components/documents/upload-zone");
+    const onUploadComplete = vi.fn();
+    const { container } = render(<UploadZone onUploadComplete={onUploadComplete} />);
+
+    const folderInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    const heicFile = new File(["heic"], "scan.heic", { type: "image/heic" });
+    fireEvent.change(folderInput, { target: { files: [heicFile] } });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/documents/upload",
+        expect.objectContaining({ method: "POST" })
+      );
+      expect(toastSuccess).toHaveBeenCalledWith("1 Beleg hochgeladen");
+    });
+
+    expect(toastWarning).not.toHaveBeenCalled();
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(onUploadComplete).toHaveBeenCalled();
+  });
+
+  it("kommuniziert im E-Mail-Import weiterhin klar den Webhook-only Umfang", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/email/inboxes")) {
+        return {
+          ok: true,
+          json: async () => ({
+            inboxes: [
+              {
+                id: "inbox-1",
+                inboxAddress: "eingang@belegpilot.test",
+                label: null,
+                isActive: true,
+                autoProcess: false,
+                allowedSenders: null,
+                processedCount: 3,
+                lastReceivedAt: null,
+                createdAt: "2026-04-14T10:00:00.000Z",
+              },
+            ],
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => ({}) } as any;
+    });
+    global.fetch = fetchMock as any;
+
+    const { default: EmailImportPage } = await import("@/app/(dashboard)/email/page");
+    render(<EmailImportPage />);
+
+    await screen.findByText(de.emailImport.webhookOnlyInfo);
+    expect(screen.getByText(de.emailImport.attachmentTruth)).toBeTruthy();
+    expect(screen.getByText(de.emailImport.disabledShort)).toBeTruthy();
+    expect(screen.getByText(de.emailImport.allSenders)).toBeTruthy();
   });
 });

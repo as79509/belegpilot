@@ -216,7 +216,8 @@ describe("Phase 11 Wizard Architecture", () => {
 
   it("Dashboard hat Go-Live Widget", () => {
     const content = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
-    expect(content).toContain("Hochlaufphase");
+    expect(content).toContain("de.dashboard.phaseTitle");
+    expect(content).toContain("de.dashboard.phases");
   });
 
   // Phase 11.9: Rollenlogik
@@ -359,7 +360,8 @@ describe("Phase 11 Wizard Architecture", () => {
 
   it("Dashboard hat Heute-erledigen Widget", () => {
     const c = fs.readFileSync("src/app/(dashboard)/dashboard/page.tsx", "utf-8");
-    expect(c).toContain("Heute erledigen");
+    expect(c).toContain("de.dashboard.todayHeading");
+    expect(c).toContain("de.dashboard.todayCards");
   });
 
   // Phase 11X.6+11X.7: Text-Konsistenz, Empty States, Erste-Nutzung

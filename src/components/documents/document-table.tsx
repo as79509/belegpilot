@@ -206,7 +206,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       toast.success(`${count || selected.size} ${de.bulk.export}`);
     } else {
       const err = await res.json().catch(() => null);
-      toast.error(err?.error || "Export fehlgeschlagen");
+      toast.error(err?.error || de.documents.table.exportFailed);
     }
   }
 
@@ -222,13 +222,13 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
         toast.success(`${r.submitted} ${de.bulk.reprocessSubmitted}`);
       }
       if (r.failed > 0) {
-        toast.error(`${r.failed} Verarbeitung konnte nicht gestartet werden`);
+        toast.error(`${r.failed} ${de.documents.table.processingStartFailed}`);
       }
       setSelected(new Set());
       fetchDocuments();
     } else {
       const err = await res.json().catch(() => null);
-      toast.error(err?.error || "Erneute Verarbeitung fehlgeschlagen");
+      toast.error(err?.error || de.documents.table.reprocessFailed);
     }
   }
 
@@ -317,7 +317,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   }}
                 />
               </TableHead>
-              <TableHead className="whitespace-nowrap">Belegnr.</TableHead>
+              <TableHead className="whitespace-nowrap">{de.documents.table.documentNumber}</TableHead>
               <SortHeader column="status">{de.documents.status}</SortHeader>
               <SortHeader column="supplierNameRaw">
                 {de.documents.supplier}
@@ -335,7 +335,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
               <SortHeader column="confidenceScore">
                 {de.documents.confidence}
               </SortHeader>
-              <TableHead className="whitespace-nowrap">Export</TableHead>
+              <TableHead className="whitespace-nowrap">{de.documents.table.export}</TableHead>
               <TableHead className="whitespace-nowrap">{de.payment.column}</TableHead>
               <TableHead className="whitespace-nowrap">{de.suggestions.title}</TableHead>
               <SortHeader column="createdAt">
@@ -372,7 +372,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   <EmptyState
                     icon={FileText}
                     title={de.documents.noDocuments}
-                    description="Laden Sie Belege hoch oder passen Sie die Filter an"
+                    description={de.documents.table.emptyDescription}
                   />
                 </TableCell>
               </TableRow>
@@ -444,23 +444,23 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                     ) : doc.exportStatus === "export_failed" ? (
                       <span className="text-red-600">✗</span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">{de.common.noData}</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {doc.paymentStatus ? (
                       <StatusBadge type="payment" value={doc.paymentStatus} size="sm" />
                     ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
+                      <span className="text-muted-foreground text-xs">{de.common.noData}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-xs">
                     {(() => {
                       const s = doc.bookingSuggestions?.[0];
-                      if (!s) return <span className="text-muted-foreground">—</span>;
+                      if (!s) return <span className="text-muted-foreground">{de.common.noData}</span>;
                       if (s.status !== "pending") return <span className="text-green-600">✓</span>;
                       return (
-                        <span title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || "—"} (${Math.round(s.confidenceScore * 100)}%)`}>
+                        <span title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || de.common.noData} (${Math.round(s.confidenceScore * 100)}%)`}>
                           <ConfidenceBadge level={s.confidenceLevel as "high" | "medium" | "low"} compact />
                         </span>
                       );

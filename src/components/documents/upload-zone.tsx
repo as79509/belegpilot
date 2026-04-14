@@ -8,7 +8,7 @@ import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 import Link from "next/link";
 
-const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".heic"];
 
 interface UploadResult {
   documentId: string;
@@ -76,9 +76,17 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       const created = prev.filter((p) => p.status === "done").length;
       const dups = prev.filter((p) => p.status === "duplicate").length;
       const errs = prev.filter((p) => p.status === "error").length;
-      if (created > 0) toast.success(`${created} ${created === 1 ? "Beleg" : "Belege"} hochgeladen`);
-      if (dups > 0) toast.warning(`${dups} ${dups === 1 ? "Duplikat" : "Duplikate"} erkannt`);
-      if (errs > 0) toast.error(`${errs} fehlgeschlagen`);
+      if (created > 0) toast.success(
+        (created === 1 ? de.documents.uploadZone.uploadedSingle : de.documents.uploadZone.uploadedMultiple)
+          .replace("{count}", String(created))
+      );
+      if (dups > 0) toast.warning(
+        (dups === 1 ? de.documents.uploadZone.duplicateSingle : de.documents.uploadZone.duplicateMultiple)
+          .replace("{count}", String(dups))
+      );
+      if (errs > 0) toast.error(
+        de.documents.uploadZone.failedCount.replace("{count}", String(errs))
+      );
       return prev;
     });
 
@@ -99,6 +107,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       "application/pdf": [".pdf"],
       "image/jpeg": [".jpg", ".jpeg"],
       "image/png": [".png"],
+      "image/heic": [".heic"],
     },
     maxSize: 20 * 1024 * 1024,
     disabled: uploading,
@@ -113,13 +122,15 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
     const unsupported = allFiles.length - supported.length;
 
     if (unsupported > 0) {
-      toast.info(`${supported.length} Dateien gefunden (${unsupported} nicht unterstützt)`);
+      toast.info(de.documents.uploadZone.folderUnsupportedFound
+        .replace("{supported}", String(supported.length))
+        .replace("{unsupported}", String(unsupported)));
     }
 
     if (supported.length > 0) {
       uploadFiles(supported);
     } else {
-      toast.warning("Keine unterstützten Dateien im Ordner gefunden");
+      toast.warning(de.documents.uploadZone.folderNoSupported);
     }
 
     // Reset input so same folder can be selected again
@@ -163,7 +174,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             className="h-full px-6"
           >
             <FolderOpen className="h-5 w-5 mr-2" />
-            Ordner hochladen
+            {de.documents.uploadZone.folderUpload}
           </Button>
         </div>
       </div>
@@ -171,7 +182,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       {/* Upload progress */}
       {uploadStats && (
         <div className="text-sm font-medium text-blue-700">
-          {uploadStats.done} von {uploadStats.total} Dateien hochgeladen
+          {de.documents.uploadZone.progress
+            .replace("{done}", String(uploadStats.done))
+            .replace("{total}", String(uploadStats.total))}
           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
             <div
               className="bg-blue-600 h-1.5 rounded-full transition-all"
@@ -187,14 +200,14 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             <div key={i} className="flex items-center gap-2 text-sm p-1.5 rounded border bg-white">
               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="truncate flex-1 text-xs">{item.name}</span>
-              {item.status === "waiting" && <span className="text-gray-400 text-xs">⏳</span>}
+              {item.status === "waiting" && <span className="text-gray-400 text-xs">{de.documents.uploadZone.waitingShort}</span>}
               {item.status === "uploading" && <Loader2 className="h-3 w-3 text-amber-600 animate-spin" />}
               {item.status === "done" && <span className="text-green-600 text-xs">✓</span>}
               {item.status === "duplicate" && (
-                <span className="text-amber-600 text-xs">⚠ Duplikat</span>
+                <span className="text-amber-600 text-xs">{de.documents.uploadZone.duplicateBadge}</span>
               )}
               {item.status === "error" && (
-                <span className="text-red-600 text-xs">✗ {item.message?.slice(0, 30)}</span>
+                <span className="text-red-600 text-xs">{de.documents.uploadZone.errorShort} {item.message?.slice(0, 30)}</span>
               )}
             </div>
           ))}

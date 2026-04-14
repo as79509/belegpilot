@@ -114,7 +114,7 @@ export default function EmailImportPage() {
       await load();
     } else {
       const data = await res.json().catch(() => null);
-      toast.error(data?.error || "E-Mail-Eingang konnte nicht gespeichert werden");
+      toast.error(data?.error || de.common.error);
     }
   }
 
@@ -225,13 +225,13 @@ export default function EmailImportPage() {
                   <TableCell className="text-sm">{inbox.label || de.common.noData}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={inbox.autoProcess ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>
-                      {inbox.autoProcess ? "An" : "Aus"}
+                      {inbox.autoProcess ? de.emailImport.enabledShort : de.emailImport.disabledShort}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
                     {inbox.allowedSenders && inbox.allowedSenders.length > 0
                       ? inbox.allowedSenders.join(", ")
-                      : "Alle"}
+                      : de.emailImport.allSenders}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{inbox.processedCount}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -259,19 +259,19 @@ export default function EmailImportPage() {
             <div>
               <Label>{de.emailImport.label}</Label>
               <Input
-                placeholder="z. B. Haupteingang Rechnungen"
+                placeholder={de.emailImport.labelPlaceholder}
                 value={createLabel}
                 onChange={(e) => setCreateLabel(e.target.value)}
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Eine eindeutige Empfangsadresse wird automatisch generiert.
+              {de.emailImport.labelHint}
             </p>
           </div>
           <DialogFooter>
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Erstelle..." : de.emailImport.addInbox}
+              {creating ? de.emailImport.creating : de.emailImport.addInbox}
             </Button>
           </DialogFooter>
         </DialogContent>

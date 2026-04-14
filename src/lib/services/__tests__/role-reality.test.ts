@@ -47,7 +47,9 @@ describe("Role Reality Audit", () => {
     });
 
     it("zeigt Viewer ein vereinfachtes Dashboard", () => {
-      expect(dashboard).toContain("Hochgeladen");
+      expect(dashboard).toContain("de.dashboard.uploadReadOnlyTitle");
+      expect(dashboard).toContain("de.dashboard.tasksOpen");
+      expect(dashboard).toContain("de.dashboard.processedDocuments");
     });
   });
 
