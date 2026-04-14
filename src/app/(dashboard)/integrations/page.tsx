@@ -49,7 +49,11 @@ export default function IntegrationsPage() {
       if (!res.ok) {
         toast.error(data.error || data.result?.errors?.[0]?.message || t.importFailed);
       } else if (data.result?.success !== false) {
-        toast.success((data.result?.imported || 0) + " importiert" + (data.result?.skipped ? ", " + data.result.skipped + " \u00fcbersprungen" : ""));
+        const successMessage = t.csvImport.success.replace("{count}", String(data.result?.imported || 0));
+        const skippedMessage = data.result?.skipped
+          ? `, ${t.csvImport.skipped.replace("{count}", String(data.result.skipped))}`
+          : "";
+        toast.success(successMessage + skippedMessage);
       } else {
         toast.error(`${t.importFailed}: ${data.result?.errors?.[0]?.message || de.common.error}`);
       }
@@ -113,9 +117,7 @@ export default function IntegrationsPage() {
                     )}
                   </div>
                   {!p.isConfigured || !p.isEnabled ? (
-                    <p className="text-xs text-muted-foreground">
-                      Import erst nach aktivierter Integration verfÃ¼gbar.
-                    </p>
+                    <p className="text-xs text-muted-foreground">{t.activationRequired}</p>
                   ) : null}
                 </CardContent>
               </Card>

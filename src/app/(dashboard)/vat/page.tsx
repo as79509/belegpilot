@@ -219,7 +219,7 @@ export default function VatPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{de.vatReturn.period}</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{de.vatReturn.listStatus}</TableHead>
                   <TableHead className="text-right">{de.vatReturn.payable}</TableHead>
                   <TableHead className="text-right">{de.vatReturn.documents}</TableHead>
                 </TableRow>
@@ -294,7 +294,7 @@ export default function VatPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16">Ziffer</TableHead>
-                      <TableHead>Bezeichnung</TableHead>
+                      <TableHead>{de.vatReturn.listName}</TableHead>
                       <TableHead className="text-right w-40">{de.vatReturn.amount}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -322,7 +322,7 @@ export default function VatPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16">Ziffer</TableHead>
-                      <TableHead>Bezeichnung</TableHead>
+                      <TableHead>{de.vatReturn.listName}</TableHead>
                       <TableHead className="text-right w-36">{de.vatReturn.revenue}</TableHead>
                       <TableHead className="text-right w-36">{de.vatReturn.tax}</TableHead>
                     </TableRow>
@@ -349,7 +349,7 @@ export default function VatPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16">Ziffer</TableHead>
-                      <TableHead>Bezeichnung</TableHead>
+                      <TableHead>{de.vatReturn.listName}</TableHead>
                       <TableHead className="text-right w-40">{de.vatReturn.amount}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -398,7 +398,7 @@ export default function VatPage() {
                         <Download className="h-4 w-4 mr-1.5" />{de.vatReturn.downloadPdf}
                       </Button>
                     </a>
-                    <span title="eCH-0217 in Vorbereitung">
+                    <span title={de.vatReturn.xmlUnavailableHint}>
                       <Button variant="outline" disabled>
                         <FileCode className="h-4 w-4 mr-1.5" />{de.vatReturn.exportXml}
                       </Button>
@@ -439,15 +439,15 @@ export default function VatPage() {
               >
                 {vatInterval === "semi_annual" ? (
                   <>
-                    <option value={1}>H1 (Jan–Jun)</option>
-                    <option value={2}>H2 (Jul–Dez)</option>
+                    <option value={1}>{de.vatReturn.halfYearOption1}</option>
+                    <option value={2}>{de.vatReturn.halfYearOption2}</option>
                   </>
                 ) : (
                   <>
-                    <option value={1}>Q1 (Jan–Mär)</option>
-                    <option value={2}>Q2 (Apr–Jun)</option>
-                    <option value={3}>Q3 (Jul–Sep)</option>
-                    <option value={4}>Q4 (Okt–Dez)</option>
+                    <option value={1}>{de.vatReturn.quarterOption1}</option>
+                    <option value={2}>{de.vatReturn.quarterOption2}</option>
+                    <option value={3}>{de.vatReturn.quarterOption3}</option>
+                    <option value={4}>{de.vatReturn.quarterOption4}</option>
                   </>
                 )}
               </select>
@@ -456,7 +456,7 @@ export default function VatPage() {
           <DialogFooter>
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
             <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Erstelle…" : de.vatReturn.createNew}
+              {creating ? de.vatReturn.createLoading : de.vatReturn.createNew}
             </Button>
           </DialogFooter>
         </DialogContent>

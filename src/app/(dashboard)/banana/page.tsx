@@ -374,8 +374,8 @@ export default function BananaPage() {
 
       <FirstUseHint
         id="banana-intro"
-        title="Tipp: Banana-Export"
-        description="Banana-Export erstellt Buchungsdateien im Banana-Format. Stellen Sie sicher dass der Kontenplan gemappt ist."
+        title={de.banana.introTitle}
+        description={de.banana.introDescription}
       />
 
       {loading ? (
@@ -563,12 +563,12 @@ export default function BananaPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Konto</TableHead>
-                    <TableHead>Bezeichnung</TableHead>
+                    <TableHead>{de.banana.accountLabel}</TableHead>
+                    <TableHead>{de.banana.nameLabel}</TableHead>
                     <TableHead>{de.banana.bananaAccountNumber}</TableHead>
                     <TableHead>{de.banana.bananaDescription}</TableHead>
-                    <TableHead>Status</TableHead>
-                    {canMutate && <TableHead>Aktion</TableHead>}
+                    <TableHead>{de.banana.statusLabel}</TableHead>
+                    {canMutate && <TableHead>{de.banana.actionLabel}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -602,7 +602,7 @@ export default function BananaPage() {
                               <div className="flex gap-1.5">
                                 <Button size="sm" variant="default" onClick={() => saveAccountMapping(acc.id, "mapped")}>{de.banana.setMapping}</Button>
                                 <Button size="sm" variant="outline" onClick={() => saveAccountMapping(acc.id, "uncertain")}>{de.banana.markUncertain}</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingAccountId(null)}>Abbrechen</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingAccountId(null)}>{de.common.cancel}</Button>
                               </div>
                             ) : (
                               <Button size="sm" variant="ghost" onClick={() => startEditAccount(acc)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -632,11 +632,11 @@ export default function BananaPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{de.banana.internalRate}</TableHead>
-                    <TableHead>Bezeichnung</TableHead>
+                    <TableHead>{de.banana.nameLabel}</TableHead>
                     <TableHead>{de.banana.bananaVatCode}</TableHead>
                     <TableHead>{de.banana.bananaVatLabel}</TableHead>
-                    <TableHead>Status</TableHead>
-                    {canMutate && <TableHead>Aktion</TableHead>}
+                    <TableHead>{de.banana.statusLabel}</TableHead>
+                    {canMutate && <TableHead>{de.banana.actionLabel}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -669,7 +669,7 @@ export default function BananaPage() {
                             {isEditing ? (
                               <div className="flex gap-1.5">
                                 <Button size="sm" variant="default" onClick={() => saveVatMapping(vat.id)}>{de.banana.setMapping}</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingVatId(null)}>Abbrechen</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingVatId(null)}>{de.common.cancel}</Button>
                               </div>
                             ) : (
                               <Button size="sm" variant="ghost" onClick={() => startEditVat(vat)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -785,12 +785,12 @@ export default function BananaPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Datum</TableHead>
-                            <TableHead>Beschreibung</TableHead>
-                            <TableHead>Soll</TableHead>
-                            <TableHead>Haben</TableHead>
-                            <TableHead className="text-right">Betrag</TableHead>
-                            <TableHead>Grund</TableHead>
+                            <TableHead>{de.banana.dateLabel}</TableHead>
+                            <TableHead>{de.banana.nameLabel}</TableHead>
+                            <TableHead>{de.banana.debitLabel}</TableHead>
+                            <TableHead>{de.banana.creditLabel}</TableHead>
+                            <TableHead className="text-right">{de.vatReturn.amount}</TableHead>
+                            <TableHead>{de.banana.reasonLabel}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -812,7 +812,7 @@ export default function BananaPage() {
                       </Table>
                     </div>
                     {readiness.issues.length > 50 && (
-                      <p className="text-xs text-muted-foreground mt-2">+ {readiness.issues.length - 50} weitere...</p>
+                      <p className="text-xs text-muted-foreground mt-2">{de.banana.moreIssues.replace("{count}", String(readiness.issues.length - 50))}</p>
                     )}
                   </CardContent>
                 </Card>
@@ -826,7 +826,7 @@ export default function BananaPage() {
                 <div className="flex justify-end">
                   <Button onClick={handleExport} size="lg">
                     <Download className="h-4 w-4 mr-2" />
-                    {exporting ? "Exportiere..." : de.banana.export.generate}
+                    {exporting ? de.banana.exporting : de.banana.export.generate}
                   </Button>
                 </div>
               )}
@@ -890,8 +890,11 @@ export default function BananaPage() {
 
           <Card><CardContent className="pt-4">
             <h3 className="text-sm font-semibold mb-3">{de.banana.roundTrip.importHistory}</h3>
+            <InfoPanel tone="info" icon={RefreshCw}>
+              {de.banana.roundTrip.importHistoryHint}
+            </InfoPanel>
             {rtLoadingBatches ? <Skeleton className="h-20 w-full" /> : rtBatches.length === 0 ? <EmptyState icon={RefreshCw} title={de.banana.roundTrip.noImports} /> : (
-              <Table><TableHeader><TableRow><TableHead>{de.banana.roundTrip.batch}</TableHead><TableHead>Datum</TableHead><TableHead>{de.banana.roundTrip.rows}</TableHead><TableHead>Zugeordnet</TableHead><TableHead>Ge\u00e4ndert</TableHead><TableHead>Ungekl\u00e4rt</TableHead></TableRow></TableHeader>
+              <Table><TableHeader><TableRow><TableHead>{de.banana.roundTrip.batch}</TableHead><TableHead>{de.banana.dateLabel}</TableHead><TableHead>{de.banana.roundTrip.rows}</TableHead><TableHead>{de.banana.roundTrip.matched.replace("{count}", "").trim()}</TableHead><TableHead>{de.banana.roundTrip.modified.replace("{count}", "").trim()}</TableHead><TableHead>{de.banana.roundTrip.unmatched.replace("{count}", "").trim()}</TableHead></TableRow></TableHeader>
                 <TableBody>{rtBatches.map((batch) => (
                   <TableRow key={batch.importBatchId}>
                     <TableCell className="font-mono text-xs">{batch.importBatchId.slice(0, 8)}\u2026</TableCell>

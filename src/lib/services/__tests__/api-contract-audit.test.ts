@@ -126,15 +126,15 @@ describe("API Contract Audit — Response-Format", () => {
 
   // ─── VAT XML is marked as placeholder ───
 
-  it("VAT XML Route hat X-Implementation-Status: placeholder Header", () => {
+  it("VAT XML Route markiert den Export ehrlich als nicht verfÃ¼gbar", () => {
     const content = readFile("src/app/api/vat/[id]/xml/route.ts");
-    expect(content).toContain("placeholder");
+    expect(content).toContain("not_available");
   });
 
-  it("VAT XML Button ist in der UI als disabled markiert", () => {
+  it("VAT XML Button bleibt in der UI sichtbar deaktiviert", () => {
     const content = readFile("src/app/(dashboard)/vat/page.tsx");
-    // The XML export button should be disabled
-    expect(content).toMatch(/eCH-0217 in Vorbereitung/);
+    expect(content).toContain("xmlUnavailableHint");
+    expect(content).toMatch(/<Button variant=\"outline\" disabled>/);
   });
 
   // ─── Coverage: every dashboard page with fetch has matching API route ───

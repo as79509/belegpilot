@@ -162,7 +162,7 @@ export default function EmailImportPage() {
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">{de.emailImport.lastReceived}</p>
               <p className="text-lg font-semibold mt-1">
-                {lastReceived ? formatRelativeTime(lastReceived) : "—"}
+                {lastReceived ? formatRelativeTime(lastReceived) : de.common.noData}
               </p>
             </CardContent>
           </Card>
@@ -171,12 +171,8 @@ export default function EmailImportPage() {
 
       <InfoPanel tone="info" icon={Mail}>
         <strong>{de.emailImport.title}</strong>
-        <p className="text-sm mt-1">
-          Der Import ist derzeit webhook-basiert. BelegPilot verbindet sich nicht direkt mit Gmail, Outlook, IMAP oder POP3.
-        </p>
-        <p className="text-sm mt-1">
-          AnhÃ¤nge werden als Belege angelegt. Eine fachliche Rechnungserkennung vor dem Anlegen gibt es aktuell nicht.
-        </p>
+        <p className="text-sm mt-1">{de.emailImport.webhookOnlyInfo}</p>
+        <p className="text-sm mt-1">{de.emailImport.attachmentTruth}</p>
       </InfoPanel>
 
       {/* Inbox Table */}
@@ -208,9 +204,7 @@ export default function EmailImportPage() {
                   <div className="py-6 px-4">
                     <InfoPanel tone="info" icon={Mail}>
                       <strong>{de.emailImport.title}</strong>
-                      <p className="text-sm mt-1">
-                        Erstelle eine Inbox und leite E-Mails aus deinem Mail-System an die erzeugte Adresse oder den vorgeschalteten Webhook weiter.
-                      </p>
+                      <p className="text-sm mt-1">{de.emailImport.emptyHint}</p>
                     </InfoPanel>
                   </div>
                 </TableCell>
@@ -228,7 +222,7 @@ export default function EmailImportPage() {
                       <CopyButton text={inbox.inboxAddress} />
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{inbox.label || "—"}</TableCell>
+                  <TableCell className="text-sm">{inbox.label || de.common.noData}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={inbox.autoProcess ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>
                       {inbox.autoProcess ? "An" : "Aus"}
@@ -241,7 +235,7 @@ export default function EmailImportPage() {
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{inbox.processedCount}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {inbox.lastReceivedAt ? formatRelativeTime(inbox.lastReceivedAt) : "—"}
+                    {inbox.lastReceivedAt ? formatRelativeTime(inbox.lastReceivedAt) : de.common.noData}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={inbox.isActive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>
@@ -355,7 +349,7 @@ function CopyButton({ text }: { text: string }) {
   }
 
   return (
-    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground p-0.5" title="Adresse kopieren">
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground p-0.5" title={de.emailImport.copyAddress}>
       {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
