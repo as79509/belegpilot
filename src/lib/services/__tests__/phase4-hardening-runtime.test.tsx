@@ -238,7 +238,9 @@ describe("Phase 4 Hardening Runtime", () => {
         "/api/documents/upload",
         expect.objectContaining({ method: "POST" })
       );
-      expect(toastSuccess).toHaveBeenCalledWith("1 Beleg hochgeladen");
+      expect(toastSuccess).toHaveBeenCalledWith(
+        de.documents.uploadZone.uploadedSingle.replace("{count}", "1")
+      );
     });
 
     expect(toastWarning).not.toHaveBeenCalled();

@@ -124,8 +124,6 @@ const priorityColors: Record<string, string> = {
   low: "bg-slate-100 text-slate-600",
 };
 
-const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return de.greeting.morning;
@@ -840,7 +838,9 @@ function PeriodCard({ label, period }: { label: string; period: PeriodInfo | nul
     );
   }
 
-  const monthName = monthNames[period.month - 1] || `Monat ${period.month}`;
+  const monthName =
+    de.dashboard.monthNames[period.month - 1] ||
+    de.dashboard.monthFallback.replace("{month}", String(period.month));
   const progress = period.documentsExpected > 0
     ? Math.round((period.documentsReceived / period.documentsExpected) * 100)
     : 0;

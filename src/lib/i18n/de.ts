@@ -509,6 +509,8 @@ export const de = {
     noPeriod: "Keine Periode angelegt",
     checklistComplete: "Checkliste komplett",
     checklistOpen: "Checkliste offen",
+    monthNames: ["Januar", "Februar", "M\u00e4rz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+    monthFallback: "Monat {month}",
   },
 
   // Documents
@@ -967,8 +969,12 @@ export const de = {
     reprocess: "Erneut verarbeiten",
     reprocessSubmitted: "zur Verarbeitung eingereicht",
     export: "Exportieren",
+    exportSubmitted: "exportiert",
     approve: "Alle genehmigen",
     approveSubmitted: "genehmigt",
+    approveFailed: "Bulk-Genehmigung fehlgeschlagen",
+    rejectSubmitted: "abgelehnt",
+    rejectFailed: "Bulk-Ablehnung fehlgeschlagen",
     approveSkipped: "übersprungen",
     createTask: "Task erstellen",
     reset: "Zurücksetzen",

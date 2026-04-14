@@ -136,7 +136,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         setDocuments(previous);
-        throw new Error(err?.error || "Speichern fehlgeschlagen");
+        throw new Error(err?.error || de.inlineEdit.error);
       }
     } catch (e: any) {
       toast.error(e.message || de.inlineEdit.error);
@@ -159,7 +159,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       fetchDocuments();
     } else {
       const err = await res.json().catch(() => null);
-      toast.error(err?.error || "Fehler bei Bulk-Genehmigung");
+      toast.error(err?.error || de.bulk.approveFailed);
     }
   }
 
@@ -175,13 +175,13 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
     if (res.ok) {
       const r = await res.json();
       toast.success(
-        `${r.rejected} ${de.reviewStatus.rejected}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`
+        `${r.rejected} ${de.bulk.rejectSubmitted}${r.skipped ? `, ${r.skipped} ${de.bulk.approveSkipped}` : ""}`
       );
       setSelected(new Set());
       fetchDocuments();
     } else {
       const err = await res.json().catch(() => null);
-      toast.error(err?.error || de.inlineEdit.error);
+      toast.error(err?.error || de.bulk.rejectFailed);
     }
   }
 
@@ -203,7 +203,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       a.remove();
       URL.revokeObjectURL(url);
       const count = res.headers.get("X-Export-Count");
-      toast.success(`${count || selected.size} ${de.bulk.export}`);
+      toast.success(`${count || selected.size} ${de.bulk.exportSubmitted}`);
     } else {
       const err = await res.json().catch(() => null);
       toast.error(err?.error || de.documents.table.exportFailed);

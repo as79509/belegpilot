@@ -2,11 +2,10 @@
 
 import { useCallback, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, X, FileText, AlertTriangle, FolderOpen, Loader2 } from "lucide-react";
+import { Upload, FileText, FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
-import Link from "next/link";
 
 const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".heic"];
 
@@ -52,7 +51,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         try {
           const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Fehler");
+          if (!res.ok) throw new Error(data.error || de.common.error);
 
           const result: UploadResult = data.results[0];
           const status = result.status === "created" ? "done" : result.status === "duplicate" ? "duplicate" : "error";
