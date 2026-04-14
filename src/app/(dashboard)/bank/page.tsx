@@ -20,6 +20,7 @@ import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
 import { Upload, Plus, Landmark, Search, FileText, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/lib/contexts/company-context";
 
 // ── Types ──
 
@@ -84,6 +85,7 @@ interface MatchCandidate {
 // ── Page ──
 
 export default function BankReconciliationPage() {
+  const { capabilities } = useCompany();
   const [tab, setTab] = useState("unmatched");
   const [unmatchedTxs, setUnmatchedTxs] = useState<BankTransaction[]>([]);
   const [matchedTxs, setMatchedTxs] = useState<BankTransaction[]>([]);
@@ -108,6 +110,7 @@ export default function BankReconciliationPage() {
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [accountForm, setAccountForm] = useState({ name: "", iban: "", bankName: "", currency: "CHF" });
+  const canMutateBank = capabilities?.canMutate?.bank ?? false;
 
   // ── Data Loading ──
 
@@ -155,6 +158,10 @@ export default function BankReconciliationPage() {
 
   async function handleImport(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canMutateBank) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     const form = e.currentTarget;
     const fileInput = form.elements.namedItem("file") as HTMLInputElement;
     const file = fileInput?.files?.[0];
@@ -226,10 +233,17 @@ export default function BankReconciliationPage() {
       toast.success(de.bank.assign);
       setMatchDialogOpen(false);
       await Promise.all([loadUnmatched(), loadMatched()]);
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.common.error);
     }
   }
 
   async function setNoMatch(txId: string) {
+    if (!canMutateBank) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     const res = await fetch(`/api/bank/transactions/${txId}/match`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -238,6 +252,9 @@ export default function BankReconciliationPage() {
     if (res.ok) {
       toast.success(de.bank.noMatch);
       await loadUnmatched();
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.common.error);
     }
   }
 
@@ -255,6 +272,10 @@ export default function BankReconciliationPage() {
   }
 
   async function saveAccount() {
+    if (!canMutateBank) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     if (!accountForm.name || !accountForm.iban) return;
     if (editingAccount) {
       const res = await fetch(`/api/bank/accounts/${editingAccount.id}`, {
@@ -266,6 +287,9 @@ export default function BankReconciliationPage() {
         toast.success(de.bank.bankAccounts.saveSuccess);
         setAccountDialogOpen(false);
         await loadAccounts();
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || de.common.error);
       }
     } else {
       const res = await fetch("/api/bank/accounts", {
@@ -277,6 +301,9 @@ export default function BankReconciliationPage() {
         toast.success(de.bank.bankAccounts.saveSuccess);
         setAccountDialogOpen(false);
         await loadAccounts();
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || de.common.error);
       }
     }
   }
@@ -294,24 +321,30 @@ export default function BankReconciliationPage() {
             </Badge>
           ) : undefined
         }
-        primaryAction={{
+        primaryAction={canMutateBank ? {
           label: de.bank.importCamt,
           icon: Upload,
           onClick: () => setImportOpen(true),
-        }}
-        secondaryActions={[{
+        } : undefined}
+        secondaryActions={canMutateBank ? [{
           label: de.bank.addAccount,
           icon: Plus,
           onClick: () => openAccountDialog(),
           variant: "outline",
-        }]}
+        }] : undefined}
       />
 
       <FirstUseHint
         id="bank-intro"
-        title="Tipp: Bankabstimmung"
-        description="Verbinden Sie Ihr Bankkonto um automatischen Beleg-Abgleich zu nutzen."
+        title={de.bank.setupHintTitle}
+        description={de.bank.setupHintDescription}
       />
+
+      {!canMutateBank && (
+        <InfoPanel tone="info" icon={Landmark}>
+          <p className="text-sm">{de.bank.readOnlyDescription}</p>
+        </InfoPanel>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -373,10 +406,10 @@ export default function BankReconciliationPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="outline" onClick={() => openMatchDialog(tx)}>
+                          <Button size="sm" variant="outline" onClick={() => openMatchDialog(tx)} disabled={!canMutateBank}>
                             {de.bank.assign}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setNoMatch(tx.id)}>
+                          <Button size="sm" variant="ghost" onClick={() => setNoMatch(tx.id)} disabled={!canMutateBank}>
                             {de.bank.noMatch}
                           </Button>
                         </div>
@@ -533,7 +566,7 @@ export default function BankReconciliationPage() {
                         <InfoPanel tone="info" icon={Landmark}>
                           <strong>{de.bank.title}</strong>
                           <p className="text-sm mt-1">
-                            Erstelle ein Bankkonto und importiere dann camt.053-Ausz\u00fcge deiner Bank.
+                            {de.bank.setupHintDescription}
                           </p>
                         </InfoPanel>
                       </div>
@@ -541,18 +574,32 @@ export default function BankReconciliationPage() {
                   </TableRow>
                 ) : (
                   accounts.map((acc) => (
-                    <TableRow key={acc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openAccountDialog(acc)}>
+                    <TableRow
+                      key={acc.id}
+                      className={canMutateBank ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => {
+                        if (canMutateBank) openAccountDialog(acc);
+                      }}
+                    >
                       <TableCell className="font-mono text-xs">{acc.iban}</TableCell>
                       <TableCell>{acc.name}</TableCell>
                       <TableCell className="text-muted-foreground">{acc.bankName || "—"}</TableCell>
                       <TableCell>{acc.currency}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={acc.isActive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>
-                          {acc.isActive ? "Aktiv" : "Inaktiv"}
+                          {acc.isActive ? de.bank.bankAccounts.active : de.bank.bankAccounts.inactive}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openAccountDialog(acc); }}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={!canMutateBank}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (canMutateBank) openAccountDialog(acc);
+                          }}
+                        >
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -574,14 +621,14 @@ export default function BankReconciliationPage() {
           <form onSubmit={handleImport}>
             <div className="space-y-4 py-2">
               <div>
-                <Label htmlFor="file">camt.053 XML</Label>
+                <Label htmlFor="file">{de.bank.importDialogLabel}</Label>
                 <Input id="file" name="file" type="file" accept=".xml,.XML" required />
               </div>
             </div>
             <DialogFooter>
               <DialogClose><Button type="button" variant="outline">{de.common.cancel}</Button></DialogClose>
               <Button type="submit" disabled={importing}>
-                {importing ? "Importiere…" : de.bank.importCamt}
+                {importing ? de.bank.importing : de.bank.importCamt}
               </Button>
             </DialogFooter>
           </form>

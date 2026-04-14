@@ -26,11 +26,14 @@ import { toast } from "sonner";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
 import { SectionCard } from "@/components/ds/section-card";
 import { AuditPanel } from "@/components/ds/audit-panel";
+import { InfoPanel } from "@/components/ds";
+import { useCompany } from "@/lib/contexts/company-context";
 
 export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { addRecent } = useRecentItems();
+  const { capabilities } = useCompany();
   const [supplier, setSupplier] = useState<any>(null);
   const [form, setForm] = useState<Record<string, any>>({
     nameNormalized: "", vatNumber: "", iban: "", country: "",
@@ -41,11 +44,14 @@ export default function SupplierDetailPage() {
     defaultCostCenter: "", defaultVatCode: "", notes: "",
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [patternData, setPatternData] = useState<any>(null);
   const [intelligence, setIntelligence] = useState<any>(null);
   const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
   const [acceptAccount, setAcceptAccount] = useState(true);
   const [acceptCategory, setAcceptCategory] = useState(true);
+  const canEditSupplier = capabilities?.canMutate?.suppliers ?? false;
+  const canVerifySupplier = capabilities?.canMutate?.suppliersVerify ?? false;
 
   useEffect(() => {
     fetch(`/api/suppliers/${params.id}/suggest-defaults`)
@@ -59,8 +65,15 @@ export default function SupplierDetailPage() {
       .catch(() => {});
 
     fetch(`/api/suppliers/${params.id}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          const error = await r.json().catch(() => null);
+          throw new Error(error?.error || de.errors.serverError);
+        }
+        return r.json();
+      })
       .then((data) => {
+        setLoadError(null);
         setSupplier(data);
         setForm({
           nameNormalized: data.nameNormalized || "",
@@ -84,7 +97,10 @@ export default function SupplierDetailPage() {
           notes: data.notes || "",
         });
       })
-      .catch((err) => console.error("[SupplierDetail] Fetch error:", err))
+      .catch((err) => {
+        console.error("[SupplierDetail] Fetch error:", err);
+        setLoadError(err instanceof Error ? err.message : de.errors.serverError);
+      })
       .finally(() => setLoading(false));
   }, [params.id]);
 
@@ -105,6 +121,10 @@ export default function SupplierDetailPage() {
   }
 
   async function handleSave() {
+    if (!canEditSupplier) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     const payload = { ...form };
     if (payload.paymentTermDays === "") payload.paymentTermDays = null;
     else payload.paymentTermDays = parseInt(payload.paymentTermDays);
@@ -117,18 +137,32 @@ export default function SupplierDetailPage() {
     if (res.ok) {
       setSupplier(await res.json());
       toast.success(de.suppliers.saveSuccess);
-    } else toast.error(de.common.error);
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.common.error);
+    }
   }
 
   async function handleVerify() {
+    if (!canVerifySupplier) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     const res = await fetch(`/api/suppliers/${params.id}/verify`, { method: "POST" });
     if (res.ok) {
       setSupplier(await res.json());
       toast.success(de.suppliers.verifySuccess);
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || de.common.error);
     }
   }
 
   async function handleAcceptDefaults() {
+    if (!canEditSupplier) {
+      toast.error(de.errors.forbidden);
+      return;
+    }
     const res = await fetch(`/api/suppliers/${params.id}/suggest-defaults`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,7 +200,7 @@ export default function SupplierDetailPage() {
       </div>
     </div>
   );
-  if (!supplier) return <p className="py-20 text-center text-muted-foreground">{de.errors.notFound}</p>;
+  if (!supplier) return <p className="py-20 text-center text-muted-foreground">{loadError || de.errors.notFound}</p>;
 
   return (
     <div className="space-y-4">
@@ -183,7 +217,9 @@ export default function SupplierDetailPage() {
             <Badge variant="secondary" className="bg-amber-100 text-amber-800">
               <AlertTriangle className="h-3 w-3 mr-1" />{de.suppliers.unverified}
             </Badge>
-            <Button variant="outline" size="sm" onClick={handleVerify}>{de.suppliers.verify}</Button>
+            {canVerifySupplier ? (
+              <Button variant="outline" size="sm" onClick={handleVerify}>{de.suppliers.verify}</Button>
+            ) : null}
           </>
         )}
         <Badge variant="secondary" className="bg-slate-100 text-slate-700">
@@ -220,17 +256,24 @@ export default function SupplierDetailPage() {
         )}
       </div>
 
+      {!canEditSupplier && (
+        <InfoPanel tone="info" title={de.suppliers.readOnlyTitle}>
+          <p className="text-sm">{de.suppliers.readOnlyDescription}</p>
+        </InfoPanel>
+      )}
+
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="details">{de.suppliers.detailTabs.details}</TabsTrigger>
           <TabsTrigger value="analysis">{de.supplierIntelligence.analysis}</TabsTrigger>
           <TabsTrigger value="documents">{de.suppliers.documentCount} ({supplier.documentCount})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-4 space-y-4">
+          <fieldset disabled={!canEditSupplier} className="space-y-4">
           {/* Stammdaten */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Stammdaten</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.detailSections.masterData}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><Label className="text-xs">{de.suppliers.name}</Label>
                 <Input value={form.nameNormalized} onChange={(e) => set("nameNormalized", e.target.value)} /></div>
@@ -243,15 +286,15 @@ export default function SupplierDetailPage() {
 
           {/* Kontakt */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Kontakt</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.detailSections.contact}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><Label className="text-xs">E-Mail</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.email}</Label>
                 <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></div>
-              <div><Label className="text-xs">Telefon</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.phone}</Label>
                 <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} /></div>
-              <div><Label className="text-xs">Webseite</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.website}</Label>
                 <Input value={form.website} onChange={(e) => set("website", e.target.value)} /></div>
-              <div><Label className="text-xs">Ansprechpartner</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.contactPerson}</Label>
                 <Input value={form.contactPerson} onChange={(e) => set("contactPerson", e.target.value)} /></div>
             </CardContent>
           </Card>
@@ -260,24 +303,24 @@ export default function SupplierDetailPage() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.address}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-3"><Label className="text-xs">Strasse</Label>
+              <div className="md:col-span-3"><Label className="text-xs">{de.suppliers.fields.street}</Label>
                 <Input value={form.street} onChange={(e) => set("street", e.target.value)} /></div>
-              <div><Label className="text-xs">PLZ</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.zip}</Label>
                 <Input value={form.zip} onChange={(e) => set("zip", e.target.value)} /></div>
-              <div className="md:col-span-2"><Label className="text-xs">Ort</Label>
+              <div className="md:col-span-2"><Label className="text-xs">{de.suppliers.fields.city}</Label>
                 <Input value={form.city} onChange={(e) => set("city", e.target.value)} /></div>
             </CardContent>
           </Card>
 
           {/* Bankverbindung */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Bankverbindung</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.detailSections.bankDetails}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><Label className="text-xs">IBAN</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.iban}</Label>
                 <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} /></div>
-              <div><Label className="text-xs">BIC</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.bic}</Label>
                 <Input value={form.bic} onChange={(e) => set("bic", e.target.value)} /></div>
-              <div><Label className="text-xs">Bank</Label>
+              <div><Label className="text-xs">{de.suppliers.fields.bankName}</Label>
                 <Input value={form.bankName} onChange={(e) => set("bankName", e.target.value)} /></div>
               <div><Label className="text-xs">Zahlungsfrist (Tage)</Label>
                 <Input type="number" value={form.paymentTermDays} onChange={(e) => set("paymentTermDays", e.target.value)} /></div>
@@ -286,7 +329,7 @@ export default function SupplierDetailPage() {
 
           {/* Standardwerte */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Standardwerte für Belege</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.detailSections.documentDefaults}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><Label className="text-xs">{de.suppliers.defaultCategory}</Label>
                 <Input value={form.defaultCategory} onChange={(e) => set("defaultCategory", e.target.value)} /></div>
@@ -304,7 +347,7 @@ export default function SupplierDetailPage() {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm">{de.supplierPatterns.title}</CardTitle>
-                {patternData.eligible && (
+                {canEditSupplier && patternData.eligible && (
                   <Button variant="outline" size="sm" onClick={() => setDefaultsDialogOpen(true)}>
                     <Sparkles className="h-3.5 w-3.5 mr-1" />{de.supplierPatterns.suggestDefaults}
                   </Button>
@@ -389,7 +432,7 @@ export default function SupplierDetailPage() {
                   <div className="flex items-start gap-2">
                     <Checkbox checked={acceptCategory} onCheckedChange={(c) => setAcceptCategory(!!c)} />
                     <div className="text-sm">
-                      <div>Kategorie: <strong>{patternData.suggestions.defaultCategory}</strong></div>
+                      <div>{de.suppliers.fields.category}: <strong>{patternData.suggestions.defaultCategory}</strong></div>
                       <p className="text-xs text-muted-foreground">{de.supplierPatterns.setAsDefault}</p>
                     </div>
                   </div>
@@ -406,13 +449,16 @@ export default function SupplierDetailPage() {
 
           {/* Notizen */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Notizen</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{de.suppliers.detailSections.notes}</CardTitle></CardHeader>
             <CardContent>
-              <Textarea rows={4} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Interne Anmerkungen..." />
+              <Textarea rows={4} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder={de.suppliers.notesPlaceholder} />
             </CardContent>
           </Card>
 
-          <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />{de.suppliers.save}</Button>
+          {canEditSupplier ? (
+            <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />{de.suppliers.save}</Button>
+          ) : null}
+          </fieldset>
         </TabsContent>
 
         <TabsContent value="analysis" className="mt-4 space-y-4">
@@ -473,10 +519,10 @@ export default function SupplierDetailPage() {
                     }
                   >
                     {patternData.pattern.accountStability >= 0.8 && patternData.pattern.vatStability >= 0.8 && patternData.pattern.isAmountStable
-                      ? "Hoch"
+                      ? de.onboardingAnalysis.confidence.high
                       : patternData.pattern.accountStability >= 0.6
-                        ? "Mittel"
-                        : "Niedrig"}
+                        ? de.onboardingAnalysis.confidence.medium
+                        : de.onboardingAnalysis.confidence.low}
                   </Badge>
                 </div>
               </div>
@@ -636,7 +682,7 @@ export default function SupplierDetailPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">Keine Belege</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{de.suppliers.detailSections.documentsEmpty}</p>
               )}
             </CardContent>
           </Card>

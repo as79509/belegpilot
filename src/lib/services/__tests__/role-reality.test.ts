@@ -59,18 +59,15 @@ describe("Role Reality Audit", () => {
     });
 
     it("erlaubt Trustee-Rolle Mutationen", () => {
-      // The canMutate line should include trustee
-      const canMutateLine = docTable.split("\n").find(l => l.includes("canMutate") && l.includes("="));
-      expect(canMutateLine).toBeDefined();
-      expect(canMutateLine).toContain("trustee");
+      expect(docTable).toContain('hasPermission(role, "documents:write")');
+      expect(docTable).toContain("const canEdit");
+      expect(docTable).toContain("canMutate={canEdit}");
     });
 
     it("Viewer hat keine Mutations-Berechtigung", () => {
-      const canMutateLine = docTable.split("\n").find(l => l.includes("canMutate") && l.includes("="));
-      expect(canMutateLine).toBeDefined();
-      // "viewer" standalone (not as substring of "reviewer")
-      expect(canMutateLine).not.toMatch(/"viewer"/);
-      expect(canMutateLine).not.toMatch(/"readonly"/);
+      expect(docTable).toContain('const canEdit = hasPermission(role, "documents:write")');
+      expect(docTable).not.toContain('role === "viewer"');
+      expect(docTable).not.toContain('role === "readonly"');
     });
   });
 });

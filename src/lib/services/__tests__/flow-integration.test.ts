@@ -74,7 +74,8 @@ describe("Flow Integration Audit", () => {
   it("Email Parser erstellt Document + triggert Inngest", () => {
     const content = fs.readFileSync("src/lib/services/email/email-parser.ts", "utf-8");
     expect(content).toMatch(/prisma\.document\.create/);
-    expect(content).toMatch(/inngest\.send\(/);
+    expect(content).toContain("dispatchDocumentProcessing");
+    expect(content).toContain('source: "email"');
   });
 
   // ── Flow 6: Autopilot-Lernkreislauf ──

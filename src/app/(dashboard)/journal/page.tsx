@@ -375,7 +375,7 @@ export default function JournalPage() {
           </div>
           <DialogFooter>
             <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
-            <Button onClick={handleSave} disabled={saving || !form.debitAccount || !form.amount}>
+            <Button onClick={handleSave} disabled={saving || !form.debitAccount || !form.creditAccount || !form.description || !form.amount}>
               {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{de.common.save}
             </Button>
           </DialogFooter>

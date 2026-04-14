@@ -45,11 +45,13 @@ export default function IntegrationsPage() {
     formData.set("action", importDialog.action);
     try {
       const res = await fetch("/api/integrations/" + importDialog.providerId + "/import", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.result?.success !== false) {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || data.result?.errors?.[0]?.message || t.importFailed);
+      } else if (data.result?.success !== false) {
         toast.success((data.result?.imported || 0) + " importiert" + (data.result?.skipped ? ", " + data.result.skipped + " \u00fcbersprungen" : ""));
       } else {
-        toast.error("Import fehlgeschlagen: " + (data.result?.errors?.[0]?.message || "Unbekannter Fehler"));
+        toast.error(`${t.importFailed}: ${data.result?.errors?.[0]?.message || de.common.error}`);
       }
       setImportDialog(null);
     } catch (err: any) { toast.error(err.message); }
@@ -107,7 +109,7 @@ export default function IntegrationsPage() {
                       </Button>
                     ))}
                     {p.id === "bexio" && (
-                      <Button variant="outline" size="sm" onClick={() => { window.location.href = "/settings?tab=integrations"; }}>Konfigurieren</Button>
+                      <Button variant="outline" size="sm" onClick={() => { window.location.href = "/settings?tab=integrations"; }}>{t.configure}</Button>
                     )}
                   </div>
                   {!p.isConfigured || !p.isEnabled ? (
@@ -129,16 +131,16 @@ export default function IntegrationsPage() {
             <CardContent>
               <form onSubmit={handleImport} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Import-Typ</label>
+                  <label className="text-sm font-medium">{t.importType}</label>
                   <p className="text-sm text-muted-foreground">{actionLabels[importDialog.action]}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">{t.csvImport.selectFile}</label>
-                  <input type="file" name="file" accept=".csv,.txt,.tsv" required className="mt-1 block w-full text-sm" />
+                  <label htmlFor="integration-import-file" className="text-sm font-medium">{t.csvImport.selectFile}</label>
+                  <input id="integration-import-file" type="file" name="file" accept=".csv,.txt,.tsv" required className="mt-1 block w-full text-sm" />
                   <p className="text-xs text-muted-foreground mt-1">{t.csvImport.formatHint}</p>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setImportDialog(null)}>Abbrechen</Button>
+                  <Button type="button" variant="outline" onClick={() => setImportDialog(null)}>{de.common.cancel}</Button>
                   <Button type="submit" disabled={importing}>
                     {importing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                     {importing ? t.csvImport.importing : t.csvImport.import}

@@ -161,7 +161,7 @@ interface AutopilotHealth {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { switchCompany, isMultiCompany, activeCompany } = useCompany();
+  const { switchCompany, isMultiCompany, activeCompany, capabilities } = useCompany();
   const { items: recentItems } = useRecentItems();
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,6 +172,7 @@ export default function DashboardPage() {
 
   const { isViewer, isReviewer, isTrustee } = useRole();
   const canUseWorkQueues = isReviewer || isTrustee;
+  const canUploadDocuments = capabilities?.canMutate?.documents ?? !isViewer;
 
   useEffect(() => {
     fetch("/api/dashboard/cockpit")
@@ -208,6 +209,9 @@ export default function DashboardPage() {
   if (loading || !data) return <DashboardSkeleton />;
 
   const today = new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const setupItems = Array.isArray(setupStatus?.items) ? setupStatus.items : [];
+  const criticalMissingItems = Array.isArray(setupStatus?.criticalMissing) ? setupStatus.criticalMissing : [];
+  const hasCriticalSetupItems = criticalMissingItems.length > 0;
 
   // Viewer: focused dashboard — upload, tasks, deadlines
   if (isViewer) {
@@ -219,20 +223,36 @@ export default function DashboardPage() {
         <EntityHeader title={getGreeting()} subtitle={today} />
 
         {/* Upload CTA */}
-        <Link href="/documents">
-          <Card className="border-blue-200 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
+        {canUploadDocuments ? (
+          <Link href="/documents">
+            <Card className="border-blue-200 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="pt-5 pb-5 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-blue-900">{de.dashboard.uploadCtaTitle}</p>
+                  <p className="text-sm text-blue-700">
+                    {de.dashboard.uploadCtaSubtitle.replace("{count}", String(uploaded))}
+                  </p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-blue-400" />
+              </CardContent>
+            </Card>
+          </Link>
+        ) : (
+          <Card className="border-slate-200 bg-slate-50">
             <CardContent className="pt-5 pb-5 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <Upload className="h-6 w-6 text-blue-600" />
+              <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-slate-600" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-blue-900">Belege hochladen</p>
-                <p className="text-sm text-blue-700">{uploaded} Belege diesen Monat hochgeladen</p>
+                <p className="font-semibold text-slate-900">{de.dashboard.uploadReadOnlyTitle}</p>
+                <p className="text-sm text-slate-700">{de.dashboard.uploadReadOnlySubtitle}</p>
               </div>
-              <ArrowRight className="h-5 w-5 text-blue-400" />
             </CardContent>
           </Card>
-        </Link>
+        )}
 
         {/* 3 Stat-Cards */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -241,7 +261,7 @@ export default function DashboardPage() {
               <ListTodo className="h-8 w-8 text-amber-500" />
               <div>
                 <p className={typo("stat")}>{tasksDue}</p>
-                <p className={typo("statLabel")}>Offene Aufgaben</p>
+                <p className={typo("statLabel")}>{de.dashboard.tasksOpen}</p>
               </div>
             </CardContent>
           </Card>
@@ -250,7 +270,7 @@ export default function DashboardPage() {
               <CheckCircle2 className="h-8 w-8 text-green-500" />
               <div>
                 <p className={typo("stat")}>{reviewed}</p>
-                <p className={typo("statLabel")}>Verarbeitete Belege</p>
+                <p className={typo("statLabel")}>{de.dashboard.processedDocuments}</p>
               </div>
             </CardContent>
           </Card>
@@ -259,22 +279,22 @@ export default function DashboardPage() {
               <Clock className="h-8 w-8 text-blue-500" />
               <div>
                 <p className={typo("stat")}>{uploaded}</p>
-                <p className={typo("statLabel")}>Hochgeladen</p>
+                <p className={typo("statLabel")}>{de.dashboard.uploadedCount}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Setup-Widget */}
-        {setupStatus && setupStatus.criticalMissing.length > 0 && (
+        {setupStatus && hasCriticalSetupItems && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="pt-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <Settings className="h-4 w-4" />
-                {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+                {de.setup.finishSetup} ({setupItems.filter(i => i.status === "complete").length}/{setupItems.length})
               </h3>
               <div className="mt-2 space-y-1.5">
-                {setupStatus.items.filter(i => i.status !== "complete").map(item => (
+                {setupItems.filter(i => i.status !== "complete").map(item => (
                   <div key={item.id} className="flex items-center gap-2 text-sm">
                     <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
                     <span className="font-medium">{item.label}</span>
@@ -370,15 +390,15 @@ export default function DashboardPage() {
       <AlertsBar alerts={data.alerts} />
 
       {/* Setup-Widget (nur wenn kritische Items fehlen) */}
-      {setupStatus && setupStatus.criticalMissing.length > 0 && (
+      {setupStatus && hasCriticalSetupItems && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              {de.setup.finishSetup} ({setupStatus.items.filter(i => i.status === "complete").length}/{setupStatus.items.length})
+              {de.setup.finishSetup} ({setupItems.filter(i => i.status === "complete").length}/{setupItems.length})
             </h3>
             <div className="mt-2 space-y-1.5">
-              {setupStatus.items.filter(i => i.status !== "complete").map(item => (
+              {setupItems.filter(i => i.status !== "complete").map(item => (
                 <div key={item.id} className="flex items-center gap-2 text-sm">
                   <XCircle className="h-4 w-4 text-amber-600 shrink-0" />
                   <span className="font-medium">{item.label}</span>
