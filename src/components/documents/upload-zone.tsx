@@ -39,10 +39,63 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const [progress, setProgress] = useState<FileProgress[]>([]);
   const [uploadStats, setUploadStats] = useState<{ done: number; total: number } | null>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const progressResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeWatchersRef = useRef(0);
+
+  function clearProgressLater(delay = 8000) {
+    if (progressResetRef.current) {
+      clearTimeout(progressResetRef.current);
+    }
+    progressResetRef.current = setTimeout(() => setProgress([]), delay);
+  }
+
+  async function watchDocumentStatus(globalIdx: number, documentId: string) {
+    activeWatchersRef.current += 1;
+    let keepVisible = false;
+    try {
+      for (let attempt = 0; attempt < 36; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        try {
+          const response = await fetch(`/api/documents/${documentId}`, { cache: "no-store" });
+          if (!response.ok) continue;
+
+          const document = await response.json();
+          if (document?.status === "failed") {
+            keepVisible = true;
+            setProgress((prev) => prev.map((p, j) => (
+              j === globalIdx
+                ? { ...p, status: "error", message: de.documents.uploadZone.processingFailed }
+                : p
+            )));
+            toast.error(de.documents.uploadZone.processingFailed);
+            onUploadComplete?.();
+            return;
+          }
+
+          if (document?.status && !["uploaded", "processing"].includes(document.status)) {
+            onUploadComplete?.();
+            return;
+          }
+        } catch {
+          // Keep the current visible state and let the next refresh attempt pick it up.
+        }
+      }
+    } finally {
+      activeWatchersRef.current = Math.max(0, activeWatchersRef.current - 1);
+      if (activeWatchersRef.current === 0 && !keepVisible) {
+        clearProgressLater();
+      }
+    }
+  }
 
   // Upload files in batches of 3
   async function uploadFiles(files: File[]) {
     if (!files.length) return;
+    if (progressResetRef.current) {
+      clearTimeout(progressResetRef.current);
+    }
+    activeWatchersRef.current = 0;
     setUploading(true);
     setProgress(files.map((f) => ({ name: f.name, status: "waiting" })));
     setUploadStats({ done: 0, total: files.length });
@@ -76,6 +129,10 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             status,
             message: result.status === "duplicate" ? result.existingDocumentId : result.error,
           } : p));
+
+          if (result.status === "created" && result.documentId) {
+            void watchDocumentStatus(globalIdx, result.documentId);
+          }
         } catch (err: any) {
           setProgress((prev) => prev.map((p, j) => j === globalIdx ? { ...p, status: "error", message: err.message } : p));
         }
@@ -113,7 +170,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
     setUploading(false);
     setUploadStats(null);
     onUploadComplete?.();
-    setTimeout(() => setProgress([]), 8000);
+    if (activeWatchersRef.current === 0) {
+      clearProgressLater();
+    }
   }
 
   const onDrop = useCallback(

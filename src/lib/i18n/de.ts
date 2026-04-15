@@ -585,6 +585,7 @@ export const de = {
       duplicateSingle: "{count} Duplikat erkannt",
       duplicateMultiple: "{count} Duplikate erkannt",
       failedCount: "{count} fehlgeschlagen",
+      processingFailed: "Verarbeitung fehlgeschlagen. Bitte Beleg prüfen oder erneut hochladen.",
       duplicateBadge: "Duplikat",
       doneShort: "Erfasst",
       waitingShort: "Wartet",

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveCompany } from "@/lib/get-active-company";
 import { hasPermission } from "@/lib/permissions";
@@ -16,6 +16,39 @@ const ALLOWED_TYPES = [
   "image/heic",
 ];
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+
+function getUploadErrorMessage(error: unknown) {
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("fetch failed")) {
+    return "Verarbeitung konnte lokal nicht gestartet werden. Bitte prüfen Sie den Verarbeitungsdienst.";
+  }
+
+  if (
+    normalized.includes("document_number") ||
+    normalized.includes("unique constraint") ||
+    normalized.includes("p2002")
+  ) {
+    return "Beleg konnte lokal nicht gespeichert werden. Bitte erneut versuchen.";
+  }
+
+  if (
+    normalized.includes("storage") ||
+    normalized.includes("bucket") ||
+    normalized.includes("invalid key") ||
+    normalized.includes("invalid path")
+  ) {
+    return "Datei konnte lokal nicht gespeichert werden. Bitte prüfen Sie den Speicherpfad.";
+  }
+
+  return "Upload fehlgeschlagen. Bitte erneut versuchen.";
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,7 +85,6 @@ export async function POST(request: NextRequest) {
 
     for (const file of files) {
       try {
-        // Validate type
         if (!ALLOWED_TYPES.includes(file.type)) {
           results.push({
             documentId: "",
@@ -63,7 +95,6 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Validate size
         if (file.size > MAX_SIZE) {
           results.push({
             documentId: "",
@@ -75,11 +106,8 @@ export async function POST(request: NextRequest) {
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-
-        // Compute SHA-256 hash
         const fileHash = createHash("sha256").update(buffer).digest("hex");
 
-        // Check for duplicate
         const existing = await prisma.documentFile.findFirst({
           where: { fileHash },
           include: { document: { select: { id: true, companyId: true } } },
@@ -95,7 +123,6 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Upload to Supabase Storage
         const storagePath = await storage.store(
           file.name,
           buffer,
@@ -104,7 +131,6 @@ export async function POST(request: NextRequest) {
         );
         const now = new Date();
 
-        // Create Document + DocumentFile
         const documentNumber = await generateDocumentNumber(companyId);
         const document = await prisma.document.create({
           data: {
@@ -126,7 +152,6 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Log processing step
         await prisma.processingStep.create({
           data: {
             documentId: document.id,
@@ -138,21 +163,21 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Trigger Inngest processing (non-blocking — don't fail upload if Inngest is down)
-          const dispatchResult = await dispatchDocumentProcessing({
-            companyId,
+        const dispatchResult = await dispatchDocumentProcessing({
+          companyId,
+          documentId: document.id,
+          source: "upload",
+        });
+        if (!dispatchResult.ok) {
+          results.push({
             documentId: document.id,
-            source: "upload",
+            fileName: file.name,
+            status: "error",
+            error: getUploadErrorMessage(dispatchResult.error),
           });
-          if (!dispatchResult.ok) {
-            results.push({
-              documentId: document.id,
-              fileName: file.name,
-              status: "error",
-              error: dispatchResult.error,
-            });
-            continue;
-          }
+          continue;
+        }
+
         results.push({
           documentId: document.id,
           fileName: file.name,
@@ -164,7 +189,7 @@ export async function POST(request: NextRequest) {
           documentId: "",
           fileName: file.name,
           status: "error",
-          error: fileError.message || "Unbekannter Fehler",
+          error: getUploadErrorMessage(fileError),
         });
       }
     }
@@ -173,7 +198,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("[Upload] Route error:", error);
     return NextResponse.json(
-      { error: error.message || "Upload fehlgeschlagen" },
+      { error: getUploadErrorMessage(error) },
       { status: 500 }
     );
   }
