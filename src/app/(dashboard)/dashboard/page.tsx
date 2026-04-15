@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle2, XCircle, ArrowRight, Clock, Zap, Gauge, Sparkles, Settings,
   FileText, ListTodo, Upload, ChevronDown, Rocket, ScrollText, Brain, FileBarChart,
@@ -17,7 +16,7 @@ import { useCompany } from "@/lib/contexts/company-context";
 import { EntityHeader, StatusBadge, InfoPanel } from "@/components/ds";
 import { useRecentItems } from "@/lib/hooks/use-recent-items";
 import { useRole } from "@/lib/hooks/use-role";
-import { typo, spacing } from "@/lib/design-tokens";
+import { typo } from "@/lib/design-tokens";
 
 interface Alert {
   type: "error" | "warning";
@@ -129,6 +128,16 @@ function getGreeting(): string {
   if (h < 12) return de.greeting.morning;
   if (h < 18) return de.greeting.afternoon;
   return de.greeting.evening;
+}
+
+function getGoLiveAutopilotLabel(mode: string | null | undefined): string {
+  if (!mode) return de.common.noData;
+  return de.autopilot.mode[mode as keyof typeof de.autopilot.mode] || mode;
+}
+
+function getGoLiveReviewLabel(level: string | null | undefined): string {
+  if (!level) return de.common.noData;
+  return de.dashboard.reviewLevels[level] || level;
 }
 
 function riskColor(score: number) {
@@ -334,8 +343,8 @@ export default function DashboardPage() {
               </Badge>
             </div>
             <p className="text-xs text-blue-700 mt-1">
-              {de.dashboard.autopilotLabel}: {goLiveStatus.config.autopilotMode} {" · "}
-              {de.dashboard.reviewLabel}: {goLiveStatus.config.reviewLevel}
+              {de.dashboard.autopilotLabel}: {getGoLiveAutopilotLabel(goLiveStatus.config.autopilotMode)} {" · "}
+              {de.dashboard.reviewLabel}: {getGoLiveReviewLabel(goLiveStatus.config.reviewLevel)}
               {goLiveStatus.config.restrictedModules?.length > 0 && ` · ${de.dashboard.restrictedModules.replace("{count}", String(goLiveStatus.config.restrictedModules.length))}`}
             </p>
           </CardContent>

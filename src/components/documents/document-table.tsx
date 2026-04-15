@@ -11,9 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, ConfidenceBadge, EmptyState, ActionBar } from "@/components/ds";
+import { StatusBadge, ConfidenceBadge, EmptyState, ActionBar, FilterBar } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import {
   formatCurrency,
@@ -57,9 +56,10 @@ interface DocumentTableProps {
   refreshKey?: number;
   initialStatus?: string;
   extraParams?: Record<string, string>;
+  showStatusFilter?: boolean;
 }
 
-export function DocumentTable({ refreshKey, initialStatus, extraParams }: DocumentTableProps) {
+export function DocumentTable({ refreshKey, initialStatus, extraParams, showStatusFilter = true }: DocumentTableProps) {
   const router = useRouter();
   const { activeCompany } = useCompany();
   const role = activeCompany?.role || "";
@@ -252,34 +252,42 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
 
   return (
     <div className="space-y-3">
-      {/* Filters */}
-      <div className="flex gap-3">
-        <Input
-          data-search-input
-          placeholder={de.documents.search}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-xs"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-          className="border rounded-md px-3 py-1.5 text-sm bg-white"
-        >
-          <option value="">{de.documents.allStatuses}</option>
-          {Object.entries(de.status).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        searchPlaceholder={de.documents.search}
+        searchInputProps={{ "data-search-input": "true" }}
+        filters={
+          showStatusFilter
+            ? [
+                {
+                  key: "status",
+                  label: de.documents.allStatuses,
+                  value: statusFilter,
+                  onChange: (value) => {
+                    setStatusFilter(value);
+                    setPage(1);
+                  },
+                  options: Object.entries(de.status).map(([value, label]) => ({ value, label })),
+                },
+              ]
+            : []
+        }
+        onClear={
+          search || (showStatusFilter && statusFilter)
+            ? () => {
+                setSearch("");
+                if (showStatusFilter) {
+                  setStatusFilter(initialStatus || "");
+                }
+                setPage(1);
+              }
+            : undefined
+        }
+      />
 
       {/* Bulk action bar */}
       <ActionBar
@@ -304,7 +312,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       />
 
       {/* Table */}
-      <div className="border rounded-md bg-white">
+      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -440,9 +448,9 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                   </TableCell>
                   <TableCell className="text-xs">
                     {doc.exportStatus === "exported" ? (
-                      <span className="text-green-600">✓</span>
+                      <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : doc.exportStatus === "export_failed" ? (
-                      <span className="text-red-600">✗</span>
+                      <XCircle className="h-4 w-4 text-red-600" />
                     ) : (
                       <span className="text-muted-foreground">{de.common.noData}</span>
                     )}
@@ -458,7 +466,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
                     {(() => {
                       const s = doc.bookingSuggestions?.[0];
                       if (!s) return <span className="text-muted-foreground">{de.common.noData}</span>;
-                      if (s.status !== "pending") return <span className="text-green-600">✓</span>;
+                      if (s.status !== "pending") return <CheckCircle className="h-4 w-4 text-green-600" />;
                       return (
                         <span title={`${de.suggestions.title}: ${de.suggestions.panel.account} ${s.suggestedAccount || de.common.noData} (${Math.round(s.confidenceScore * 100)}%)`}>
                           <ConfidenceBadge level={s.confidenceLevel as "high" | "medium" | "low"} compact />
@@ -487,7 +495,7 @@ export function DocumentTable({ refreshKey, initialStatus, extraParams }: Docume
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            {de.documents.showing} {(page - 1) * 20 + 1}–
+            {de.documents.showing} {(page - 1) * 20 + 1}-
             {Math.min(page * 20, total)} {de.documents.of} {total}{" "}
             {de.documents.entries}
           </span>

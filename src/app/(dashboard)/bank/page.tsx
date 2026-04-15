@@ -14,11 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EntityHeader, StatusBadge, EmptyState, ConfidenceBadge, InfoPanel } from "@/components/ds";
+import { EntityHeader, StatusBadge, EmptyState, ConfidenceBadge, InfoPanel, SectionCard } from "@/components/ds";
 import { FirstUseHint } from "@/components/ds/first-use-hint";
 import { de } from "@/lib/i18n/de";
 import { formatCurrency, formatDate } from "@/lib/i18n/format";
-import { Upload, Plus, Landmark, Search, FileText, ArrowRight } from "lucide-react";
+import { Upload, Plus, Landmark, Search, FileText, ArrowRight, CheckCircle2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/lib/contexts/company-context";
 
@@ -111,6 +111,7 @@ export default function BankReconciliationPage() {
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [accountForm, setAccountForm] = useState({ name: "", iban: "", bankName: "", currency: "CHF" });
   const canMutateBank = capabilities?.canMutate?.bank ?? false;
+  const activeAccountsCount = accounts.filter((account) => account.isActive).length;
 
   // ── Data Loading ──
 
@@ -347,6 +348,54 @@ export default function BankReconciliationPage() {
         <InfoPanel tone="info" icon={Landmark}>
           <p className="text-sm">{de.bank.readOnlyDescription}</p>
         </InfoPanel>
+      )}
+
+      {!loading && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SectionCard bodyClassName="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {de.bank.tabs.unmatched}
+              </p>
+              <Landmark className="h-4 w-4 text-amber-600" />
+            </div>
+            <p className="text-3xl font-semibold tracking-tight">{unmatchedCount}</p>
+            <p className="text-sm text-muted-foreground">{de.bank.openTransactions}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {de.bank.tabs.matched}
+              </p>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            </div>
+            <p className="text-3xl font-semibold tracking-tight">{matchedTxs.length}</p>
+            <p className="text-sm text-muted-foreground">{de.bank.matchedDoc}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {de.bank.tabs.statements}
+              </p>
+              <FileText className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-3xl font-semibold tracking-tight">{statements.length}</p>
+            <p className="text-sm text-muted-foreground">{de.bank.importCamt}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {de.bank.tabs.accounts}
+              </p>
+              <Wallet className="h-4 w-4 text-violet-600" />
+            </div>
+            <p className="text-3xl font-semibold tracking-tight">{activeAccountsCount}</p>
+            <p className="text-sm text-muted-foreground">{de.bank.bankAccounts.active}</p>
+          </SectionCard>
+        </div>
       )}
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -709,7 +758,11 @@ export default function BankReconciliationPage() {
             </div>
             <div>
               <Label>{de.bank.bankAccounts.iban}</Label>
-              <Input value={accountForm.iban} onChange={(e) => setAccountForm({ ...accountForm, iban: e.target.value })} placeholder="CH93 0076 2011 6238 5295 7" />
+              <Input
+                value={accountForm.iban}
+                onChange={(e) => setAccountForm({ ...accountForm, iban: e.target.value })}
+                placeholder={de.bank.bankAccounts.ibanPlaceholder}
+              />
             </div>
             <div>
               <Label>{de.bank.bankAccounts.bankName}</Label>

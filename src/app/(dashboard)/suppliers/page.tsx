@@ -20,9 +20,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, ChevronLeft, ChevronRight, Plus, ShieldCheck } from "lucide-react";
 import { de } from "@/lib/i18n/de";
-import { EntityHeader, FilterBar, StatusBadge, EmptyState } from "@/components/ds";
+import { EntityHeader, FilterBar, StatusBadge, EmptyState, SectionCard } from "@/components/ds";
 import { SupplierRowActions } from "@/components/suppliers/supplier-row-actions";
 import { useCompany } from "@/lib/contexts/company-context";
 import { typo, statusColors } from "@/lib/design-tokens";
@@ -85,6 +85,10 @@ export default function SuppliersPage() {
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
 
   const { isViewer } = useRole();
+  const totalSuppliers = suppliers.length;
+  const verifiedSuppliers = suppliers.filter((supplier) => supplier.isVerified).length;
+  const unverifiedSuppliers = totalSuppliers - verifiedSuppliers;
+  const suppliersWithTrustScore = suppliers.filter((supplier) => Boolean(trustScores[supplier.id])).length;
 
   async function handleCreateSupplier() {
     setCreating(true);
@@ -172,6 +176,61 @@ export default function SuppliersPage() {
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
         searchPlaceholder={de.documents.search}
       />
+
+      {loading ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : suppliers.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className={typo("label")}>{de.suppliers.title}</div>
+                <div className="text-2xl font-semibold text-slate-900">{totalSuppliers}</div>
+              </div>
+              <div className={`rounded-2xl border p-3 ${statusColors.neutral.bg} ${statusColors.neutral.border}`}>
+                <Building2 className={`h-5 w-5 ${statusColors.neutral.text}`} />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className={typo("label")}>{de.suppliers.verified}</div>
+                <div className="text-2xl font-semibold text-slate-900">{verifiedSuppliers}</div>
+              </div>
+              <div className={`rounded-2xl border p-3 ${statusColors.success.bg} ${statusColors.success.border}`}>
+                <CheckCircle2 className={`h-5 w-5 ${statusColors.success.text}`} />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className={typo("label")}>{de.suppliers.unverified}</div>
+                <div className="text-2xl font-semibold text-slate-900">{unverifiedSuppliers}</div>
+              </div>
+              <div className={`rounded-2xl border p-3 ${statusColors.warning.bg} ${statusColors.warning.border}`}>
+                <AlertTriangle className={`h-5 w-5 ${statusColors.warning.text}`} />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className={typo("label")}>{de.supplierTrust.trustScore}</div>
+                <div className="text-2xl font-semibold text-slate-900">{suppliersWithTrustScore}</div>
+              </div>
+              <div className={`rounded-2xl border p-3 ${statusColors.info.bg} ${statusColors.info.border}`}>
+                <ShieldCheck className={`h-5 w-5 ${statusColors.info.text}`} />
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      ) : null}
 
       <Card>
         <CardContent className="pt-4">

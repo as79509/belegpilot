@@ -2,12 +2,23 @@
 
 import { useCallback, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileText, FolderOpen, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Upload,
+} from "lucide-react";
+import { InfoPanel } from "@/components/ds/info-panel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
 const SUPPORTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".heic"];
+const SUPPORTED_TYPE_BADGES = ["PDF", "JPG", "PNG", "HEIC"];
 
 interface UploadResult {
   documentId: string;
@@ -54,10 +65,15 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
           if (!res.ok) throw new Error(data.error || de.common.error);
 
           const result: UploadResult = data.results[0];
-          const status = result.status === "created" ? "done" : result.status === "duplicate" ? "duplicate" : "error";
+          const status: FileProgress["status"] =
+            result.status === "created"
+              ? "done"
+              : result.status === "duplicate"
+                ? "duplicate"
+                : "error";
           setProgress((prev) => prev.map((p, j) => j === globalIdx ? {
             ...p,
-            status: status as any,
+            status,
             message: result.status === "duplicate" ? result.existingDocumentId : result.error,
           } : p));
         } catch (err: any) {
@@ -137,25 +153,66 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-3">
-        {/* Drag-drop zone */}
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.9fr)]">
         <div
           {...getRootProps()}
-          className={`flex-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-            ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"}
-            ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+          className={`relative cursor-pointer overflow-hidden rounded-xl border-2 border-dashed p-6 transition-colors
+            ${isDragActive ? "border-blue-500 bg-blue-50/80" : "border-slate-300 bg-slate-50/60 hover:border-slate-400 hover:bg-slate-50"}
+            ${uploading ? "pointer-events-none opacity-50" : ""}`}
         >
           <input {...getInputProps()} />
-          <Upload className="h-7 w-7 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm font-medium">
-            {uploading ? de.documents.uploading : de.documents.uploadZoneDescription}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">{de.documents.uploadZoneFormats}</p>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_55%)]" />
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-3 text-left">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 shadow-sm ring-1 ring-slate-200">
+                  <Upload className="h-5 w-5 text-slate-700" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {uploading
+                      ? de.documents.uploading
+                      : isDragActive
+                        ? de.documents.uploadZone.dropActive
+                        : de.documents.uploadZoneDescription}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {isDragActive ? de.documents.uploadZone.dropHint : de.documents.uploadZoneFormats}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SUPPORTED_TYPE_BADGES.map((type) => (
+                  <Badge
+                    key={type}
+                    variant="outline"
+                    className="rounded-full border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-slate-700"
+                  >
+                    {type}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200/80 pt-3 text-xs text-muted-foreground">
+              <span className="font-medium text-slate-700">{de.documents.uploadZone.supportedTypes}</span>
+              <span>{de.documents.uploadZone.dropHint}</span>
+            </div>
+          </div>
         </div>
 
         {/* Folder upload button */}
-        <div className="flex flex-col items-center justify-center">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                <FolderOpen className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{de.documents.uploadZone.folderUpload}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{de.documents.uploadZone.folderHint}</p>
+              </div>
+            </div>
           <input
             ref={folderInputRef}
             type="file"
@@ -170,23 +227,36 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             variant="outline"
             disabled={uploading}
             onClick={() => folderInputRef.current?.click()}
-            className="h-full px-6"
+            className="w-full justify-center"
           >
-            <FolderOpen className="h-5 w-5 mr-2" />
+            <FolderOpen className="mr-2 h-4 w-4" />
             {de.documents.uploadZone.folderUpload}
           </Button>
+            <InfoPanel tone="info" title={de.documents.uploadZone.supportedTypes}>
+              {SUPPORTED_TYPE_BADGES.join(" / ")}
+            </InfoPanel>
+          </div>
         </div>
       </div>
 
-      {/* Upload progress */}
       {uploadStats && (
-        <div className="text-sm font-medium text-blue-700">
-          {de.documents.uploadZone.progress
-            .replace("{done}", String(uploadStats.done))
-            .replace("{total}", String(uploadStats.total))}
-          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-blue-900">{de.documents.uploading}</p>
+              <p className="text-blue-700">
+                {de.documents.uploadZone.progress
+                  .replace("{done}", String(uploadStats.done))
+                  .replace("{total}", String(uploadStats.total))}
+              </p>
+            </div>
+            <Badge variant="outline" className="border-blue-200 bg-white text-blue-800">
+              {`${uploadStats.done}/${uploadStats.total}`}
+            </Badge>
+          </div>
+          <div className="mt-3 h-1.5 w-full rounded-full bg-blue-100">
             <div
-              className="bg-blue-600 h-1.5 rounded-full transition-all"
+              className="h-1.5 rounded-full bg-blue-600 transition-all"
               style={{ width: `${(uploadStats.done / uploadStats.total) * 100}%` }}
             />
           </div>
@@ -199,14 +269,35 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             <div key={i} className="flex items-center gap-2 text-sm p-1.5 rounded border bg-white">
               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="truncate flex-1 text-xs">{item.name}</span>
-              {item.status === "waiting" && <span className="text-gray-400 text-xs">{de.documents.uploadZone.waitingShort}</span>}
-              {item.status === "uploading" && <Loader2 className="h-3 w-3 text-amber-600 animate-spin" />}
-              {item.status === "done" && <span className="text-green-600 text-xs">✓</span>}
+              {item.status === "waiting" && (
+                <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                  <Clock3 className="h-3 w-3" />
+                  {de.documents.uploadZone.waitingShort}
+                </Badge>
+              )}
+              {item.status === "uploading" && (
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {de.documents.uploading}
+                </Badge>
+              )}
+              {item.status === "done" && (
+                <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {de.documents.uploadZone.doneShort}
+                </Badge>
+              )}
               {item.status === "duplicate" && (
-                <span className="text-amber-600 text-xs">{de.documents.uploadZone.duplicateBadge}</span>
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  {de.documents.uploadZone.duplicateBadge}
+                </Badge>
               )}
               {item.status === "error" && (
-                <span className="text-red-600 text-xs">{de.documents.uploadZone.errorShort} {item.message?.slice(0, 30)}</span>
+                <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  {de.documents.uploadZone.errorShort}
+                </Badge>
               )}
             </div>
           ))}

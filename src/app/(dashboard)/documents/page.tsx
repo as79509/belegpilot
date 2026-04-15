@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Filter, X, RefreshCw, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EntityHeader, FilterBar, StatusBadge, InfoPanel } from "@/components/ds";
+import { EntityHeader, InfoPanel, SectionCard } from "@/components/ds";
 import { usePageShortcuts } from "@/lib/hooks/use-keyboard-shortcuts";
-import { typo, statusColors } from "@/lib/design-tokens";
+import { statusColors } from "@/lib/design-tokens";
 import { useRole } from "@/lib/hooks/use-role";
 import { hasPermission } from "@/lib/permissions";
 
@@ -163,57 +163,93 @@ export default function DocumentsPage() {
         ]}
       />
 
-      {canUpload && showUpload && <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />}
-
-      {/* Trustee info line */}
-      {(counts.needs_review ?? 0) > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {(counts.uploaded
-            ? de.documents.reviewSummaryWithUploaded
-            : de.documents.reviewSummary)
-            .replace("{count}", String(counts.needs_review))
-            .replace("{uploaded}", String(counts.uploaded ?? 0))}
-        </p>
+      {canUpload && showUpload && (
+        <SectionCard
+          title={de.documents.uploadZoneTitle}
+          icon={Upload}
+          iconColor="text-blue-600"
+          bodyClassName="space-y-3"
+        >
+          <UploadZone onUploadComplete={() => setRefreshKey((k) => k + 1)} />
+          <p className="text-xs text-muted-foreground">{de.documents.uploadZone.dropHint}</p>
+        </SectionCard>
       )}
 
-      {/* Summary alerts using InfoPanel */}
-      {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (
-        <div className="grid gap-2 md:grid-cols-2">
-          {(counts.escalated ?? 0) > 0 && (
-            <InfoPanel tone="warning" icon={AlertTriangle}>
-              <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
-            </InfoPanel>
-          )}
-          {(counts.unverified_suppliers ?? 0) > 0 && (
-            <InfoPanel tone="warning" icon={ShieldAlert}>
-              <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
-            </InfoPanel>
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                <FileText className="h-3.5 w-3.5" />
+                {counts.total != null ? `${counts.total} ${de.documentList.totalDocs}` : de.documents.title}
+              </div>
+              {(counts.needs_review ?? 0) > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {(counts.uploaded
+                    ? de.documents.reviewSummaryWithUploaded
+                    : de.documents.reviewSummary)
+                    .replace("{count}", String(counts.needs_review))
+                    .replace("{uploaded}", String(counts.uploaded ?? 0))}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {QUICK_FILTERS.map((f) => (
+                <Button
+                  key={f.key}
+                  variant={statusFilter === f.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(f.key)}
+                  className={cn(
+                    "rounded-full",
+                    statusFilter === f.key ? "" : "text-muted-foreground"
+                  )}
+                >
+                  {f.label}
+                  {f.key && counts[f.key] != null && (
+                    <Badge variant="secondary" className={cn("ml-1.5 text-xs px-1.5", f.color)}>
+                      {counts[f.key]}
+                    </Badge>
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {((counts.escalated ?? 0) > 0 || (counts.unverified_suppliers ?? 0) > 0) && (
+            <div className="grid gap-2 md:grid-cols-2">
+              {(counts.escalated ?? 0) > 0 && (
+                <InfoPanel tone="warning" icon={AlertTriangle}>
+                  <span className="font-medium">{counts.escalated}</span> {de.documentList.escalatedCount}
+                </InfoPanel>
+              )}
+              {(counts.unverified_suppliers ?? 0) > 0 && (
+                <InfoPanel tone="warning" icon={ShieldAlert}>
+                  <span className="font-medium">{counts.unverified_suppliers}</span> {de.documentList.unverifiedCount}
+                </InfoPanel>
+              )}
+            </div>
           )}
         </div>
-      )}
-
-      {/* Quick filter buttons */}
-      <div className="flex flex-wrap gap-2">
-        {QUICK_FILTERS.map((f) => (
-          <Button
-            key={f.key}
-            variant={statusFilter === f.key ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter(f.key)}
-            className={cn(statusFilter === f.key ? "" : "text-muted-foreground")}
-          >
-            {f.label}
-            {f.key && counts[f.key] != null && (
-              <Badge variant="secondary" className={cn("ml-1.5 text-xs px-1.5", f.color)}>{counts[f.key]}</Badge>
-            )}
-          </Button>
-        ))}
       </div>
 
       {/* Advanced filters */}
       {showFilters && (
-        <div className="border rounded-md p-4 bg-white space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SectionCard
+          title={de.documents.filterButton}
+          icon={Filter}
+          action={
+            hasAdvancedFilters ? (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="mr-1 h-3 w-3" />
+                {de.filters.clearAll}
+              </Button>
+            ) : undefined
+          }
+          bodyClassName="space-y-3"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div>
               <label className="text-xs text-muted-foreground">{de.filters.dateFrom}</label>
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
@@ -232,14 +268,14 @@ export default function DocumentsPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{de.documents.supplier}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+              <select className="w-full rounded-md border bg-white px-3 py-1.5 text-sm" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 <option value="">{de.common.all}</option>
                 {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.nameNormalized}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.currency}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <select className="w-full rounded-md border bg-white px-3 py-1.5 text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 <option value="">{de.common.all}</option>
                 <option value="CHF">CHF</option>
                 <option value="EUR">EUR</option>
@@ -248,7 +284,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.exportStatus}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={exportStatus} onChange={(e) => setExportStatus(e.target.value)}>
+              <select className="w-full rounded-md border bg-white px-3 py-1.5 text-sm" value={exportStatus} onChange={(e) => setExportStatus(e.target.value)}>
                 <option value="">{de.common.all}</option>
                 <option value="exported">{de.documents.filtersExtended.exportDone}</option>
                 <option value="not_exported">{de.documents.filtersExtended.exportPending}</option>
@@ -256,7 +292,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.confidence}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={confidence} onChange={(e) => setConfidence(e.target.value)}>
+              <select className="w-full rounded-md border bg-white px-3 py-1.5 text-sm" value={confidence} onChange={(e) => setConfidence(e.target.value)}>
                 <option value="">{de.common.all}</option>
                 <option value="high">{de.documents.filtersExtended.confidenceHigh}</option>
                 <option value="medium">{de.documents.filtersExtended.confidenceMedium}</option>
@@ -264,27 +300,21 @@ export default function DocumentsPage() {
               </select>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div>
-              <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.documentType}</label>
-              <select className="w-full border rounded-md px-3 py-1.5 text-sm bg-white" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-                <option value="">{de.common.all}</option>
-                {Object.entries(de.documentType).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-            {hasAdvancedFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="mt-4">
-                <X className="h-3 w-3 mr-1" />{de.filters.clearAll}
-              </Button>
-            )}
+          <div className="max-w-xs">
+            <label className="text-xs text-muted-foreground">{de.documents.filtersExtended.documentType}</label>
+            <select className="w-full rounded-md border bg-white px-3 py-1.5 text-sm" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+              <option value="">{de.common.all}</option>
+              {Object.entries(de.documentType).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
           </div>
-        </div>
+        </SectionCard>
       )}
 
       <DocumentTable
         refreshKey={refreshKey}
         initialStatus={statusFilter}
         extraParams={extraParams}
+        showStatusFilter={false}
         key={`${statusFilter}-${JSON.stringify(extraParams)}`}
       />
     </div>

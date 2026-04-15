@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Link2, Upload, Check, X, Loader2 } from "lucide-react";
+import { EntityHeader, EmptyState, InfoPanel, SectionCard } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import { toast } from "sonner";
 
@@ -37,6 +38,10 @@ export default function IntegrationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const configuredCount = providers.filter((provider) => provider.isConfigured).length;
+  const importReadyCount = providers.filter((provider) => provider.canImport && provider.isConfigured && provider.isEnabled).length;
+  const activationOpenCount = providers.filter((provider) => !provider.isConfigured || !provider.isEnabled).length;
+
   async function handleImport(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!importDialog) return;
@@ -65,13 +70,43 @@ export default function IntegrationsPage() {
   const actionLabels: Record<string, string> = t.actions as any;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.title}</h1>
+    <div className="space-y-6 p-6">
+      <EntityHeader title={t.title} subtitle={t.subtitle} />
 
       {loading && <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
 
+      {!loading && providers.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t.available}</p>
+            <p className="text-3xl font-semibold tracking-tight">{providers.length}</p>
+            <p className="text-sm text-muted-foreground">{t.title}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t.readyToImport}</p>
+            <p className="text-3xl font-semibold tracking-tight">{importReadyCount}</p>
+            <p className="text-sm text-muted-foreground">
+              {configuredCount} {t.configured.toLowerCase()}
+            </p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t.activationOpen}</p>
+            <p className="text-3xl font-semibold tracking-tight">{activationOpenCount}</p>
+            <p className="text-sm text-muted-foreground">{t.activationRequired}</p>
+          </SectionCard>
+        </div>
+      )}
+
+      <InfoPanel tone="info" icon={Link2}>
+        <p className="text-sm">{t.activationRequired}</p>
+      </InfoPanel>
+
       {!loading && providers.length === 0 && (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">{t.noIntegrations}</CardContent></Card>
+        <SectionCard bodyClassName="p-0">
+          <EmptyState icon={Link2} title={t.noIntegrations} description={t.subtitle} />
+        </SectionCard>
       )}
 
       {!loading && (

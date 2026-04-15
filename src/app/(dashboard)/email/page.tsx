@@ -12,9 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EntityHeader, EmptyState, InfoPanel } from "@/components/ds";
+import { EntityHeader, InfoPanel, SectionCard } from "@/components/ds";
 import { de } from "@/lib/i18n/de";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { Mail, Plus, Copy, Check } from "lucide-react";
@@ -145,27 +144,32 @@ export default function EmailImportPage() {
 
       {/* Stats Cards */}
       {inboxes.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{de.emailImport.activeInboxes}</p>
-              <p className="text-2xl font-bold mt-1">{activeCount}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{de.emailImport.processed}</p>
-              <p className="text-2xl font-bold mt-1">{totalProcessed}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">{de.emailImport.lastReceived}</p>
-              <p className="text-lg font-semibold mt-1">
+        <div className="grid gap-4 md:grid-cols-3">
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {de.emailImport.activeInboxes}
+            </p>
+            <p className="text-3xl font-semibold tracking-tight">{activeCount}</p>
+            <p className="text-sm text-muted-foreground">{de.emailImport.status}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {de.emailImport.processed}
+            </p>
+            <p className="text-3xl font-semibold tracking-tight">{totalProcessed}</p>
+            <p className="text-sm text-muted-foreground">{de.emailImport.autoProcess}</p>
+          </SectionCard>
+
+          <SectionCard bodyClassName="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {de.emailImport.lastReceived}
+            </p>
+            <p className="text-lg font-semibold mt-1">
                 {lastReceived ? formatRelativeTime(lastReceived) : de.common.noData}
-              </p>
-            </CardContent>
-          </Card>
+            </p>
+            <p className="text-sm text-muted-foreground">{de.emailImport.webhookOnlyInfo}</p>
+          </SectionCard>
         </div>
       )}
 
@@ -176,7 +180,7 @@ export default function EmailImportPage() {
       </InfoPanel>
 
       {/* Inbox Table */}
-      <div className="border rounded-md bg-white">
+      <SectionCard bodyClassName="p-0 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -247,7 +251,7 @@ export default function EmailImportPage() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </SectionCard>
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { EmptyState } from "@/components/ds";
+import { EmptyState, EntityHeader, FilterBar, SectionCard } from "@/components/ds";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, BookOpen, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, BookOpen, Loader2, ChevronDown, ChevronRight, FileText, Wallet } from "lucide-react";
 import { de } from "@/lib/i18n/de";
 import { formatDate, formatCurrency } from "@/lib/i18n/format";
 import { toast } from "sonner";
@@ -144,72 +144,113 @@ export default function JournalPage() {
   }
 
   const total = filteredEntries.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const documentEntries = filteredEntries.filter((entry) => entryToSource(entry) === "document").length;
+  const manualEntries = filteredEntries.filter((entry) => entryToSource(entry) === "manual").length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{de.journal.title}</h1>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />{de.journal.newEntry}</Button>
-      </div>
+      <EntityHeader
+        title={de.journal.title}
+        primaryAction={{
+          label: de.journal.newEntry,
+          icon: Plus,
+          onClick: () => setDialogOpen(true),
+        }}
+      />
 
-      {/* Filter row */}
-      <div className="flex flex-wrap gap-2 items-end">
-        <div>
-          <Label className="text-xs text-muted-foreground">{de.journalDeep.filterByType}</Label>
-          <select
-            className="block border rounded-md px-3 py-1.5 text-sm bg-white"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="">{de.journalDeep.allSources}</option>
-            {Object.entries(de.journal.types).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={de.journalDeep.searchPlaceholder}
+        filters={[
+          {
+            key: "entryType",
+            label: de.journalDeep.filterByType,
+            value: typeFilter,
+            onChange: setTypeFilter,
+            options: Object.entries(de.journal.types).map(([value, label]) => ({ value, label })),
+          },
+          {
+            key: "period",
+            label: de.journalDeep.filterByPeriod,
+            value: periodFilter,
+            onChange: setPeriodFilter,
+            options: periodOptions,
+          },
+          {
+            key: "source",
+            label: de.journalDeep.filterBySource,
+            value: sourceFilter,
+            onChange: setSourceFilter,
+            options: Object.entries(de.journalDeep.sources).map(([value, label]) => ({ value, label })),
+          },
+        ]}
+        onClear={
+          search || typeFilter || periodFilter || sourceFilter
+            ? () => {
+                setSearch("");
+                setTypeFilter("");
+                setPeriodFilter("");
+                setSourceFilter("");
+              }
+            : undefined
+        }
+      />
+
+      {loading ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-xl" />
+          ))}
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">{de.journalDeep.filterByPeriod}</Label>
-          <select
-            className="block border rounded-md px-3 py-1.5 text-sm bg-white"
-            value={periodFilter}
-            onChange={(e) => setPeriodFilter(e.target.value)}
-          >
-            <option value="">{de.journalDeep.allPeriods}</option>
-            {periodOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+      ) : filteredEntries.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{de.journal.title}</div>
+                <div className="text-2xl font-semibold text-slate-900">{filteredEntries.length}</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <BookOpen className="h-5 w-5 text-slate-700" />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{de.journal.total}</div>
+                <div className="text-2xl font-semibold text-slate-900">{formatCurrency(total, "CHF")}</div>
+              </div>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                <Wallet className="h-5 w-5 text-blue-700" />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{de.journalDeep.sources.document}</div>
+                <div className="text-2xl font-semibold text-slate-900">{documentEntries}</div>
+              </div>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                <FileText className="h-5 w-5 text-blue-700" />
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard bodyClassName="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{de.journalDeep.sources.manual}</div>
+                <div className="text-2xl font-semibold text-slate-900">{manualEntries}</div>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                <Plus className="h-5 w-5 text-amber-700" />
+              </div>
+            </div>
+          </SectionCard>
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">{de.journalDeep.filterBySource}</Label>
-          <select
-            className="block border rounded-md px-3 py-1.5 text-sm bg-white"
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-          >
-            <option value="">{de.journalDeep.allSources}</option>
-            {Object.entries(de.journalDeep.sources).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <Label className="text-xs text-muted-foreground">{de.documents.search}</Label>
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={de.journalDeep.searchPlaceholder}
-            className="text-sm"
-          />
-        </div>
-      </div>
+      ) : null}
 
       <Card>
         <CardContent className="pt-4">

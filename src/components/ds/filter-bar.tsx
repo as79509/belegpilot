@@ -4,6 +4,7 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
+import { de } from "@/lib/i18n/de";
 
 export interface FilterOption {
   value: string;
@@ -22,6 +23,7 @@ export interface FilterBarProps {
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
+  searchInputProps?: React.InputHTMLAttributes<HTMLInputElement> & Record<`data-${string}`, string | undefined>;
   filters?: FilterDef[];
   onClear?: () => void;
   rightExtra?: React.ReactNode;
@@ -31,6 +33,7 @@ export function FilterBar({
   searchValue,
   onSearchChange,
   searchPlaceholder = "Suchen...",
+  searchInputProps,
   filters = [],
   onClear,
   rightExtra,
@@ -49,6 +52,7 @@ export function FilterBar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
             className="pl-8 h-9 text-sm"
+            {...searchInputProps}
           />
         </div>
       )}
@@ -71,7 +75,7 @@ export function FilterBar({
       {hasActiveFilters && onClear && (
         <Button variant="ghost" size="sm" onClick={onClear} className="h-9">
           <X className="h-3 w-3 mr-1" />
-          Filter zurücksetzen
+          {de.filters.clearAll}
         </Button>
       )}
       {rightExtra && <div className="ml-auto">{rightExtra}</div>}
