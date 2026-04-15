@@ -90,7 +90,8 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
     setProgress((prev) => {
       const created = prev.filter((p) => p.status === "done").length;
       const dups = prev.filter((p) => p.status === "duplicate").length;
-      const errs = prev.filter((p) => p.status === "error").length;
+      const errors = prev.filter((p) => p.status === "error");
+      const errs = errors.length;
       if (created > 0) toast.success(
         (created === 1 ? de.documents.uploadZone.uploadedSingle : de.documents.uploadZone.uploadedMultiple)
           .replace("{count}", String(created))
@@ -99,9 +100,13 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         (dups === 1 ? de.documents.uploadZone.duplicateSingle : de.documents.uploadZone.duplicateMultiple)
           .replace("{count}", String(dups))
       );
-      if (errs > 0) toast.error(
-        de.documents.uploadZone.failedCount.replace("{count}", String(errs))
-      );
+      if (errs > 0) {
+        toast.error(
+          errs === 1 && errors[0]?.message
+            ? errors[0].message
+            : de.documents.uploadZone.failedCount.replace("{count}", String(errs))
+        );
+      }
       return prev;
     });
 
@@ -268,7 +273,12 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
           {progress.map((item, i) => (
             <div key={i} className="flex items-center gap-2 text-sm p-1.5 rounded border bg-white">
               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="truncate flex-1 text-xs">{item.name}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs">{item.name}</p>
+                {item.status === "error" && item.message && (
+                  <p className="mt-0.5 text-[11px] text-red-700">{item.message}</p>
+                )}
+              </div>
               {item.status === "waiting" && (
                 <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
                   <Clock3 className="h-3 w-3" />

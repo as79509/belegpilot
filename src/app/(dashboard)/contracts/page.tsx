@@ -249,7 +249,9 @@ export default function ContractsPage() {
             <div><Label className="text-xs">Notizen</Label><Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} /></div>
           </div>
           <DialogFooter>
-            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <DialogClose render={<Button variant="outline" />}>
+              {de.common.cancel}
+            </DialogClose>
             <Button onClick={handleSave} disabled={saving || !form.name || !form.counterparty || !form.monthlyAmount}>
               {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{de.common.save}
             </Button>

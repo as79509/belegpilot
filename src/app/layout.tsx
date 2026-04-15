@@ -1,17 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "BelegPilot",
@@ -26,7 +15,11 @@ export default function RootLayout({
   return (
     <html
       lang="de"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={{
+        ["--font-sans" as string]: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
+        ["--font-geist-mono" as string]: '"Consolas", "SFMono-Regular", "Courier New", monospace',
+      }}
     >
       <body className="min-h-full flex flex-col">
         {children}

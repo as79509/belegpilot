@@ -273,7 +273,9 @@ export default function EmailImportPage() {
             </p>
           </div>
           <DialogFooter>
-            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <DialogClose render={<Button variant="outline" />}>
+              {de.common.cancel}
+            </DialogClose>
             <Button onClick={handleCreate} disabled={creating}>
               {creating ? de.emailImport.creating : de.emailImport.addInbox}
             </Button>
@@ -332,7 +334,9 @@ export default function EmailImportPage() {
             </div>
           )}
           <DialogFooter>
-            <DialogClose><Button variant="outline">{de.common.cancel}</Button></DialogClose>
+            <DialogClose render={<Button variant="outline" />}>
+              {de.common.cancel}
+            </DialogClose>
             <Button onClick={handleSaveEdit}>{de.common.save}</Button>
           </DialogFooter>
         </DialogContent>

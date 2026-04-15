@@ -166,12 +166,46 @@ interface AutopilotHealth {
   driftAlerts: number;
 }
 
+function isAbortError(error: unknown, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    return true;
+  }
+
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+
+  return error instanceof TypeError && error.message === "Failed to fetch" && !!signal?.aborted;
+}
+
+async function readJsonIfOk<T>(response: Response): Promise<T | null> {
+  if (!response.ok) {
+    return null;
+  }
+
+  if (typeof response.text === "function") {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+
+    return JSON.parse(text) as T;
+  }
+
+  if (typeof response.json === "function") {
+    return (await response.json()) as T;
+  }
+
+  return null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { switchCompany, isMultiCompany, activeCompany, capabilities } = useCompany();
   const { items: recentItems } = useRecentItems();
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [autopilotHealth, setAutopilotHealth] = useState<AutopilotHealth | null>(null);
   const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [setupStatus, setSetupStatus] = useState<{ items: Array<{ id: string; label: string; status: string; helpText: string; setupUrl: string | null }>; completionRate: number; criticalMissing: string[] } | null>(null);
@@ -182,40 +216,111 @@ export default function DashboardPage() {
   const canUploadDocuments = capabilities?.canMutate?.documents ?? !isViewer;
 
   useEffect(() => {
-    fetch("/api/dashboard/cockpit")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch((e) => console.error("[Dashboard]", e))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    let active = true;
 
-    // Lightweight Autopilot Health snapshot from telemetry
-    fetch("/api/telemetry?days=30")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((t) => {
-        if (!t) return;
+    async function loadDashboard() {
+      try {
+        const response = await fetch("/api/dashboard/cockpit", { signal: controller.signal });
+        const cockpit = await readJsonIfOk<CockpitData>(response);
+        if (active && cockpit) {
+          setLoadFailed(false);
+          setData(cockpit);
+          return;
+        }
+        if (active) {
+          setLoadFailed(true);
+        }
+      } catch (error) {
+        if (!active || isAbortError(error, controller.signal)) {
+          return;
+        }
+        if (error instanceof TypeError && error.message === "Failed to fetch") {
+          setLoadFailed(true);
+          return;
+        }
+        if (!isAbortError(error, controller.signal)) {
+          setLoadFailed(true);
+          console.error("[Dashboard]", error);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    async function loadTelemetry() {
+      try {
+        const response = await fetch("/api/telemetry?days=30", { signal: controller.signal });
+        const telemetry = await readJsonIfOk<any>(response);
+        if (!active || !telemetry) return;
         setAutopilotHealth({
-          isCalibrated: !!t.calibration?.isCalibrated,
-          coverage: t.suggestions?.coverage ?? 0,
-          acceptanceRate: t.suggestions?.acceptanceRate ?? 0,
-          driftAlerts: Array.isArray(t.drift?.alerts) ? t.drift.alerts.length : 0,
+          isCalibrated: !!telemetry.calibration?.isCalibrated,
+          coverage: telemetry.suggestions?.coverage ?? 0,
+          acceptanceRate: telemetry.suggestions?.acceptanceRate ?? 0,
+          driftAlerts: Array.isArray(telemetry.drift?.alerts) ? telemetry.drift.alerts.length : 0,
         });
-      })
-      .catch((e) => console.error("[Dashboard][Telemetry]", e));
+      } catch (error) {
+        if (!active || isAbortError(error, controller.signal)) {
+          return;
+        }
+      }
+    }
 
-    fetch("/api/setup/status")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((s) => { if (s) setSetupStatus(s); })
-      .catch(() => {});
+    async function loadSetupStatus() {
+      try {
+        const response = await fetch("/api/setup/status", { signal: controller.signal });
+        const status = await readJsonIfOk<typeof setupStatus>(response);
+        if (active && status) {
+          setSetupStatus(status);
+        }
+      } catch (error) {
+        if (!active || isAbortError(error, controller.signal)) {
+          return;
+        }
+      }
+    }
 
-    fetch("/api/onboarding/golive")
-      .then((r) => r.ok ? r.json() : null)
-      .then(setGoLiveStatus)
-      .catch(() => {});
+    async function loadGoLiveStatus() {
+      try {
+        const response = await fetch("/api/onboarding/golive", { signal: controller.signal });
+        const status = await readJsonIfOk<any>(response);
+        if (active) {
+          setGoLiveStatus(status);
+        }
+      } catch (error) {
+        if (!active || isAbortError(error, controller.signal)) {
+          return;
+        }
+      }
+    }
+
+    void loadDashboard();
+    void loadTelemetry();
+    void loadSetupStatus();
+    void loadGoLiveStatus();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
-
-  if (loading || !data) return <DashboardSkeleton />;
-
   const today = new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  if (loading) return <DashboardSkeleton />;
+
+  if (!data) {
+    return (
+      <div className="space-y-5">
+        <EntityHeader title={getGreeting()} subtitle={today} />
+        <InfoPanel tone="error" title={de.common.error}>
+          <p className="text-sm">{loadFailed ? de.errors.serverError : de.common.noData}</p>
+        </InfoPanel>
+      </div>
+    );
+  }
+
   const setupItems = Array.isArray(setupStatus?.items) ? setupStatus.items : [];
   const criticalMissingItems = Array.isArray(setupStatus?.criticalMissing) ? setupStatus.criticalMissing : [];
   const hasCriticalSetupItems = criticalMissingItems.length > 0;
