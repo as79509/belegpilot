@@ -124,4 +124,31 @@ describe("email parser runtime", () => {
       failedAttachments: [],
     });
   });
+  it("parst provider-typisches multipart/form-data mit Dateianhang", async () => {
+    const { parseInboundEmailPayload } = await import("@/lib/services/email/email-parser");
+    const formData = new FormData();
+    formData.set("sender", "buchhaltung@example.com");
+    formData.set("recipient", "inbox@belege.belegpilot.ch");
+    formData.set("subject", "Rechnung");
+    formData.set("body-plain", "Bitte prüfen");
+    formData.append(
+      "attachment1",
+      new File([Buffer.from("pdf-data")], "rechnung.pdf", { type: "application/pdf" })
+    );
+
+    const parsed = await parseInboundEmailPayload(formData);
+
+    expect(parsed.from).toBe("buchhaltung@example.com");
+    expect(parsed.to).toBe("inbox@belege.belegpilot.ch");
+    expect(parsed.subject).toBe("Rechnung");
+    expect(parsed.textBody).toBe("Bitte prüfen");
+    expect(parsed.attachments).toHaveLength(1);
+    expect(parsed.attachments[0]).toEqual(
+      expect.objectContaining({
+        filename: "rechnung.pdf",
+        contentType: "application/pdf",
+        size: 8,
+      })
+    );
+  });
 });

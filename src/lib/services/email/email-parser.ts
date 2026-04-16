@@ -62,6 +62,14 @@ export function parseInboundEmail(payload: any): ParsedEmail {
   return parseGenericFormat(payload);
 }
 
+export async function parseInboundEmailPayload(payload: any): Promise<ParsedEmail> {
+  if (typeof FormData !== "undefined" && payload instanceof FormData) {
+    return parseFormDataPayload(payload);
+  }
+
+  return parseInboundEmail(payload);
+}
+
 function parseMailgunFormat(payload: any): ParsedEmail {
   const attachments = extractAttachments(payload.attachments);
 
@@ -113,6 +121,49 @@ function parseGenericFormat(payload: any): ParsedEmail {
   };
 }
 
+async function parseFormDataPayload(formData: FormData): Promise<ParsedEmail> {
+  const envelope = safeJsonParse(readFormValue(formData, "envelope")) || {};
+  const attachments = await extractAttachmentsFromFormData(formData);
+  const timestamp = readFormValue(formData, "timestamp");
+  const envelopeTo =
+    envelope && typeof envelope === "object" && Array.isArray(envelope.to)
+      ? envelope.to[0]
+      : null;
+
+  return {
+    from:
+      readFormValue(formData, "sender") ||
+      readFormValue(formData, "from") ||
+      (envelope && typeof envelope === "object" && typeof envelope.from === "string"
+        ? envelope.from
+        : "") ||
+      "",
+    to:
+      readFormValue(formData, "recipient") ||
+      readFormValue(formData, "to") ||
+      envelopeTo ||
+      "",
+    subject: readFormValue(formData, "subject") || "",
+    textBody:
+      readFormValue(formData, "body-plain") ||
+      readFormValue(formData, "stripped-text") ||
+      readFormValue(formData, "text") ||
+      readFormValue(formData, "body") ||
+      null,
+    htmlBody:
+      readFormValue(formData, "body-html") ||
+      readFormValue(formData, "stripped-html") ||
+      readFormValue(formData, "html") ||
+      null,
+    attachments,
+    receivedAt: timestamp ? new Date(parseInt(timestamp, 10) * 1000) : new Date(),
+    messageId:
+      readFormValue(formData, "Message-Id") ||
+      readFormValue(formData, "message-id") ||
+      null,
+  };
+}
+
 // -- Attachment extraction (shared) --
 
 function extractAttachments(raw: any): ParsedAttachment[] {
@@ -137,6 +188,28 @@ function extractAttachments(raw: any): ParsedAttachment[] {
       content: att.content instanceof Buffer
         ? att.content
         : Buffer.from(att.content || att.data || "", "base64"),
+    });
+  }
+
+  return attachments;
+}
+
+async function extractAttachmentsFromFormData(formData: FormData): Promise<ParsedAttachment[]> {
+  const attachments: ParsedAttachment[] = [];
+
+  for (const [, value] of formData.entries()) {
+    if (!(value instanceof File)) continue;
+
+    const contentType = value.type || "";
+    const size = value.size || 0;
+
+    if (!isAllowedAttachment(contentType, size)) continue;
+
+    attachments.push({
+      filename: value.name || "attachment.pdf",
+      contentType: contentType.toLowerCase().split(";")[0].trim(),
+      size,
+      content: Buffer.from(await value.arrayBuffer()),
     });
   }
 
@@ -267,4 +340,9 @@ function safeJsonParse(val: any): any {
   } catch {
     return null;
   }
+}
+
+function readFormValue(formData: FormData, key: string): string | null {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : null;
 }

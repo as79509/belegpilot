@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { parseInboundEmail, processEmailAttachments } from "@/lib/services/email/email-parser";
+import { parseInboundEmailPayload, processEmailAttachments } from "@/lib/services/email/email-parser";
 import { createNotification, NotificationTemplates } from "@/lib/services/notifications/notification-service";
 
 const WEBHOOK_SECRET = process.env.EMAIL_WEBHOOK_SECRET;
@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const payload = await request.json();
+    const payload = await readWebhookPayload(request);
 
     // Parse the email
-    const email = parseInboundEmail(payload);
+    const email = await parseInboundEmailPayload(payload);
 
     if (!email.to) {
       console.error("[EmailWebhook] No recipient address found");
@@ -117,4 +117,21 @@ export async function POST(request: NextRequest) {
     // Always return 200 for webhooks to prevent retries
     return NextResponse.json({ status: "error", message: err.message });
   }
+}
+
+async function readWebhookPayload(request: NextRequest) {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return request.json();
+  }
+
+  if (
+    contentType.includes("multipart/form-data") ||
+    contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    return request.formData();
+  }
+
+  throw new Error("Nicht unterstützter Webhook-Inhaltstyp");
 }
