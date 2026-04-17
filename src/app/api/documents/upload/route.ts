@@ -50,6 +50,48 @@ function getUploadErrorMessage(error: unknown) {
   return "Upload fehlgeschlagen. Bitte erneut versuchen.";
 }
 
+function isDocumentNumberConflict(error: unknown) {
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : "";
+
+  return (
+    message.toLowerCase().includes("document_number") ||
+    message.toLowerCase().includes("unique constraint") ||
+    message.toLowerCase().includes("p2002")
+  );
+}
+
+async function createDocumentWithRetry(companyId: string) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const documentNumber = await generateDocumentNumber(companyId);
+      return await prisma.document.create({
+        data: {
+          companyId,
+          documentNumber,
+          status: "uploaded",
+          documentType: "other",
+        },
+      });
+    } catch (error) {
+      if (!isDocumentNumberConflict(error)) {
+        throw error;
+      }
+
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+
+  throw lastError ?? new Error("Beleg konnte lokal nicht gespeichert werden");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const ctx = await getActiveCompany();
@@ -131,15 +173,7 @@ export async function POST(request: NextRequest) {
         );
         const now = new Date();
 
-        const documentNumber = await generateDocumentNumber(companyId);
-        const document = await prisma.document.create({
-          data: {
-            companyId,
-            documentNumber,
-            status: "uploaded",
-            documentType: "other",
-          },
-        });
+        const document = await createDocumentWithRetry(companyId);
 
         await prisma.documentFile.create({
           data: {
