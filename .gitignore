@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-lite/
 /out/
 
 # production
@@ -29,6 +30,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.codex-*.log
+.codex-runtime-fixtures/
 
 # env files
 .env
@@ -45,3 +48,6 @@ next-env.d.ts
 /src/generated/prisma
 e2e/
 tmp/
+data/dev.db
+data/dev.db-journal
+data/uploads/

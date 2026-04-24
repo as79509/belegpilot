@@ -1,263 +1,132 @@
-# BelegPilot — Schweizer KMU Buchhaltungsautomatisierung
+# BelegPilot Lite
 
-## Status
+Mobile-first PWA für Treuhänder zum Erfassen, Prüfen und Exportieren von Belegen als Banana-Importdatei.
 
-Phase 7x Premium Upgrade — KOMPLETT
-Phase 8 (Autopilot + Intelligence + Governance) — KOMPLETT
-Phase 9/9X (Bank, MwSt, E-Mail, Assets, Contracts, Consolidation) — KOMPLETT
-Phase 10/10X (Banana, Evaluation, Drift, Trust, Calibration, Audit) — KOMPLETT
-Phase 11 (Onboarding Wizard, Business Chat, Bootstrapping, Go-Live) — KOMPLETT
-Phase 11X (UX Polish, Navigation, Rollen, Skeletons, Trust Layer) — KOMPLETT
+## MVP Umfang
 
-**Stats:** 42 Prisma-Models, 154 API-Routes, 39 Seiten, 34 Test-Dateien (370+ Tests), 432 Source-Dateien, 2628 i18n-Zeilen, 15 DS-Komponenten.
+- Mandanten anlegen und bearbeiten
+- Kontenplan als Rohtext speichern
+- Kontenplan heuristisch oder per AI strukturieren
+- Belege per Kamera oder Mehrfach-Upload erfassen
+- AI-Auslesen und Vorschlag für genau ein Aufwandskonto
+- Mobile Prüfmaske für Korrektur und Statuswechsel
+- Banana Export pro Mandant und Zeitraum
+- Installierbare PWA mit Manifest, Icons, Apple-Touch-Support und Service Worker
 
-## Stack
+## Tech Stack
 
-- **Frontend**: Next.js 16, React 19, TypeScript (strict), Tailwind CSS, shadcn/ui
-- **Backend**: Next.js API Routes, Prisma 7, PostgreSQL (Supabase)
-- **AI**: Anthropic Claude Vision API (claude-sonnet-4)
-- **Queue**: Inngest (async document processing)
-- **Storage**: Supabase Storage
-- **Export**: Bexio API, CSV, XLSX
-- **Testing**: Vitest
+- Next.js 16 App Router
+- TypeScript
+- Tailwind CSS
+- Prisma 7
+- SQLite
 
-## Architektur-Übersicht
+## Lokal starten
 
-```
-src/
-├── app/
-│   ├── (auth)/           Login, Reset
-│   ├── (dashboard)/      Hauptseiten (39 Seiten)
-│   └── api/              155+ Routes nach Feature gruppiert
-├── components/
-│   ├── ui/               shadcn/ui Primitives
-│   ├── ds/               Design System (StatusBadge, EntityHeader,
-│   │                     FilterBar, InfoPanel, AuditPanel, ActionBar,
-│   │                     ConfidenceBadge, EmptyState, SectionCard,
-│   │                     DataTableWrapper)
-│   ├── shared/           Command Palette, Global Shortcuts
-│   ├── layout/           Sidebar, Header
-│   ├── dashboard/        Dashboard-spezifische Widgets
-│   ├── documents/        Document Detail Komponenten
-│   ├── review/           Review Cockpit
-│   └── suppliers/        Lieferanten-Komponenten
-├── lib/
-│   ├── auth.ts           NextAuth Setup
-│   ├── permissions.ts    Permission-System (Phase 8.9.2)
-│   ├── get-active-company.ts Multi-Tenant Cookie + UserCompany
-│   ├── i18n/             Vollständige DE-Übersetzungen
-│   ├── design-tokens.ts  Farben, Spacings, Status-Mappings
-│   ├── inngest/          Background Jobs
-│   ├── hooks/            React Query / SWR Hooks
-│   ├── services/         Business Logic
-│   │   ├── ai/           Claude Vision Pipeline
-│   │   ├── ocr/          OCR Fallback
-│   │   ├── pdf/          PDF-Splitting + Vorschau
-│   │   ├── validation/   11 Validierungs-Checks
-│   │   ├── rules/        Regel-Engine + Konflikterkennung
-│   │   ├── suggestions/  Smart Suggestions
-│   │   ├── autopilot/    Decision Engine, Drift, Trust, Calibration
-│   │   ├── evaluation/   SuggestionEvaluation Feld-Level-Accuracy
-│   │   ├── corrections/  Korrekturmuster-Erkennung
-│   │   ├── telemetry/    System Metriken (echte Evaluations)
-│   │   ├── banana/       Mapping, Export, Round Trip, Lernsignale
-│   │   ├── cockpit/      Review-Cockpit-Helpers
-│   │   ├── export/       Bexio + CSV + XLSX
-│   │   ├── bexio/        Bexio API Client
-│   │   ├── audit/        Audit-Service
-│   │   ├── actions/      Next-Action-Engine
-│   │   ├── analytics/    Cross-Client Treuhänder-BI
-│   │   ├── supplier-matching/ Fuzzy Matching
-│   │   ├── onboarding/   Wizard, Business Chat, Bootstrapping,
-│   │   │                 Go-Live, Failure Handler, Telemetrie
-│   │   └── storage/      Supabase Storage
-│   └── types/            Shared Types
-└── generated/prisma/     Prisma Client
-```
+1. `npm install`
+2. `npx prisma generate`
+3. `npm run db:bootstrap`
+4. `npm run dev`
 
-## Features
+Die lokale SQLite-Datei liegt standardmäßig unter `data/dev.db`.
 
-### Phase 1–7 (Basis)
-- AI-gestützte Belegextraktion mit 11 Validierungs-Checks
-- Multi-Mandanten mit Cookie-basiertem Company-Switching
-- Review Cockpit mit Keyboard-Shortcuts + Queue-Navigation
-- Monatsabschluss mit Live-Checkliste + Periodensperre
-- Soll-Ist Dokumentenvollständigkeit pro Mandant
-- Regel-Engine mit globalen Regeln + Vorlagen
-- Knowledge Base mit Versionierung
-- Mandanten-Risiko-Board für Treuhänder
-- Erklärbare AI-Entscheidungen (Decision Reasons)
-- Vollständiger Audit-Trail für alle Entitäten
-- Bexio-Integration + CSV/XLSX Export
-- Anlagenbuchhaltung mit Abschreibungen (linear/degressiv)
-- Verträge & Fristen mit Ablauf-Erinnerungen
-- Buchungsjournal mit wiederkehrenden Buchungen
-- Pendenzen mit Prioritäten + Nachrichten-Templates
-- Reporting: Monatsübersicht, MwSt-Zusammenfassung, Mandantenvergleich
-- Smart Suggestions: Lernt aus Entscheidungen, schlägt Regeln vor
+## Verifikation
 
-### Phase 8 (Autopilot + Intelligence + Governance)
-- **Autopilot** mit Modi (shadow / prefill / auto_ready), Kill-Switch, Audit-Trail
-- **Korrekturmuster**: Erkennt wiederholte Korrekturen, Promotion zu Regel/Knowledge/Lieferantenstandard
-- **Telemetrie & Feedback**: System-KPIs, Genauigkeit, Feedback-Loop
-- **Decision-Replay**: Schritt-für-Schritt Wiedergabe der KI-Entscheidung
-- **Lieferanten-Intelligenz**: Verknüpfte Regeln, Wissen, Eskalationen
-- **Wirkungsanalyse** für Regeln und Wissen (`/api/rules/[id]/impact`, `/api/knowledge/[id]/usage`)
-- **Next-Actions-Engine**: Schlägt nächste sinnvolle Schritte vor
-- **Globale Suche** über Belege, Lieferanten, Perioden, Knowledge
-- **Permission-System**: Feinkörnige Berechtigungen pro Rolle (Phase 8.9.2)
-- **Regelkonflikt-Erkennung**: Findet doppelte und widersprüchliche Regeln (Phase 8.9.2)
-- **Erweiterter Security-Audit**: Multi-Tenant Tests für alle Phase-8 Routes (Phase 8.9.2)
+- TypeScript: `npx tsc --noEmit`
+- Tests: `npm run test`
+- Produktions-Build: `npm run build`
 
-### Phase 9 (Finanz-Module)
-- **Bank-Import**: camt.053 Parser, Auto-Matching, Payment-Status
-- **MwSt-Abrechnung**: VAT Calculate, Validate, Approve, PDF, XML (eCH-0217 Placeholder)
-- **E-Mail-Import**: Webhook, Attachment-Parser, Auto-Pipeline
-- **Anlagenbuchhaltung**: Lineare/Degressive Abschreibung
-- **Verträge & Fristen**: Ablauf-Erinnerungen
+## Wichtige Dateien
 
-### Phase 10 (Banana + Intelligence)
-- **Banana-Harmonisierung**: Kontenplan-Mapping, MwSt-Code-Mapping, Auto-Mapper
-- **Banana-Export**: Readiness-Gate, CSV-Export, ExportRecord
-- **Banana Round Trip**: Rückimport, 3-Stufen-Matching, Feld-Level-Deltas, Lernsignale
-- **SuggestionEvaluation**: Feld-Level-Accuracy (Konto, Kategorie, KST, MwSt)
-- **Drift Detection**: 30-Tage-Vergleich, Auto-Downgrade (auto_ready→prefill→shadow)
-- **Supplier Trust Score**: Gewichteter Score aus Korrekturen, Stabilität, Accuracy, Banana-Änderungen
-- **Supplier Autopilot Override**: Pro-Lieferant Modus (shadow/prefill/auto_ready/disabled)
-- **Konfidenz-Kalibrierung**: Echte vs. erwartete Accuracy pro Confidence-Level
+- `prisma/schema.prisma`
+- `prisma/migrations/20260424023000_init/migration.sql`
+- `prisma/bootstrap.ts`
+- `src/app/mandanten/page.tsx`
+- `src/app/belege/page.tsx`
+- `src/app/belege/[id]/page.tsx`
+- `src/app/export/page.tsx`
+- `src/app/einstellungen/page.tsx`
+- `src/app/api/documents/upload/route.ts`
+- `src/app/api/documents/[id]/process/route.ts`
+- `src/app/api/export/route.ts`
+- `src/lib/ai.ts`
+- `src/lib/chart-of-accounts.ts`
+- `src/lib/banana.ts`
+- `src/lib/db.ts`
 
-### Phase 10X (Konsolidierung)
-- **Dead-End Elimination**: Alle Buttons verdrahtet, keine Stubs
-- **Flow Integration Audit**: 37/37 Schritte in 6 Kernflows verdrahtet
-- **Operational Smoke Matrix**: 29/30 Funktionen ✅, 1 ⚠️ (VAT XML Placeholder)
+## Umgebungsvariablen
 
-### Phase 11: Intelligentes Mandanten-Onboarding
-- 11.1+11.2 Wizard-Architektur mit Session-Model, BusinessProfile, First-Useful-State
-- 11.3 Geführter Bootstrapping-Upload mit Dokumentklassifikation
-- 11.4 Konversationeller Business-Chat mit Claude-Extraktion
-- 11.5 Intelligence Bootstrapping Engine (Multi-Source, Governance-Status)
-- 11.6 Modul-Readiness mit 10 Modulen × 7 Stufen, Known-Unknowns
-- 11.7+11.8 Go-Live mit 5-Phasen-Hochlauf (First-30-Days)
-- 11.9 Rollenspezifischer Wizard (Unternehmer vs Treuhänder)
-- 11.10 Failure Modes mit konservativen Fallbacks
-- 11.11 Onboarding-Telemetrie (15+ KPIs)
+### Optional für lokale Datenbank
 
-### Phase 11X: UX Polish & Produktreife
-- 11X.1 Design-Token-System (Farben, Typografie, Spacing, Status-Mappings)
-- 11X.2 Rollenbasierte Navigation (Viewer 6, Trustee 14, Admin 24+ Einträge)
-- 11X.3 Rollenbasierte Produktoberflächen (useRole Hook)
-- 11X.4 Page-Flow (Skeleton-Layouts, SaveIndicator, Interaction-Classes)
-- 11X.5 Review-Effizienz (Keyboard-Shortcuts, Queue-Navigation, Heute-Widget)
-- 11X.6 Text-Konsistenz (Begriffe, Fehlertexte, Fachsprache)
-- 11X.7 Empty States & Erste-Nutzung-Hinweise (12 Seiten)
-- 11X.8 Trust Layer (TrustSignal, ProtectionBadge)
-- 11X.9 Finaler Polish (Optimistic Updates, Produktabnahme)
+- `DATABASE_URL`
+  Standard: `file:./data/dev.db`
+  Wenn eine alte Nicht-SQLite-URL in `.env` steht, fällt die Lite-App automatisch auf die lokale SQLite-Datei zurück.
 
-## Setup
+### Optional für AI
 
-### Voraussetzungen
+- `AI_BASE_URL`
+- `AI_API_KEY`
+- `AI_MODEL`
+- `AI_OCR_MODEL`
+- `AI_TIMEOUT_MS`
 
-- Node.js 20+
-- PostgreSQL (Supabase empfohlen)
-- Anthropic API Key
-- Optional: Bexio Account + PAT
+Ohne AI-Konfiguration läuft der Upload weiter mit sauberem Fallback:
 
-### Installation
+- Lieferant aus Dateiname
+- Standardwährung des Mandanten
+- Fallback-Aufwandskonto des Mandanten
+- Status bleibt prüfbar
 
-```bash
-git clone https://github.com/as79509/belegpilot.git
-cd belegpilot
-npm install
-cp .env.example .env
-# .env ausfüllen
-npx prisma generate
-npx prisma db push
-npx tsx prisma/seed.ts
-npm run dev
-```
+## AI Annahmen
 
-### Inngest (Background Processing)
+- Erwartet wird ein OpenAI-kompatibler `chat/completions` Endpunkt.
+- Bilder werden direkt als Base64-Bildinput gesendet.
+- PDFs werden serverseitig in PNG-Seiten umgewandelt und dann an das Modell gesendet.
+- Der Kontierungsprompt enthält die strukturierten Konten des aktuellen Mandanten.
+- Wenn das Modell ein unbekanntes Konto liefert, fällt die App auf das Standard-Aufwandskonto zurück.
 
-```bash
-npx inngest-cli@latest dev -u http://localhost:3000/api/inngest
-```
+## Banana Export Annahmen
 
-### Standard-Anmeldedaten
+Vor der Implementierung wurden die offiziellen Banana-Dokumentationsseiten geprüft:
 
-| E-Mail | Passwort | Rolle |
-|---|---|---|
-| admin@belegpilot.ch | demo2026 | Administrator |
-| reviewer@belegpilot.ch | demo2026 | Prüfer |
-| trustee@belegpilot.ch | demo2026 | Treuhänder |
+- [Import "Text file with columns header"](https://www.banana.ch/doc/en/node/9966)
+- [Multi-currency accounting tables and columns structure](https://www.banana.ch/doc/en/node/10133)
+- [Import Transactions dialog](https://www.banana.ch/doc/en/node/9964)
 
-## API-Übersicht (gruppiert)
+Umgesetzt wurde die konservative, einfache Importvariante:
 
-### Belege
-- `GET/POST /api/documents` — Liste / Erstellen
-- `GET/PATCH/DELETE /api/documents/[id]` — Detail
-- `POST /api/documents/[id]/approve|reject|reset|reextract` — Workflow
-- `POST /api/documents/bulk-approve` / `bulk-reject` / `bulk-reprocess` — Batch
-- `GET /api/documents/[id]/decision-replay` — Schritt-für-Schritt-Wiedergabe
-- `POST /api/documents/upload` / `download-zip` / `reset-stuck`
+- UTF-8 Textdatei mit Spaltenkopf in der ersten Zeile
+- Tab-separiert
+- Datum im Format `yyyy-mm-dd`
+- Dezimaltrennzeichen `.`
+- Keine Tausendertrennzeichen
+- Stabile Spaltenreihenfolge:
+  `Date`, `DateDocument`, `Doc`, `DocInvoice`, `ExternalReference`, `Description`, `AccountDebit`, `AccountCredit`, `Amount`
+- `DocInvoice` wird gesetzt, wenn eine Rechnungsnummer vorhanden ist
+- `ExternalReference` wird immer gesetzt
+- Pro Beleg genau eine Buchungszeile
+- Export optional nur für geprüfte Belege
+- Nach erfolgreichem Export werden die exportierten Belege als `exportiert` markiert
 
-### Lieferanten & Stammdaten
-- `GET/POST /api/suppliers` (+ `/[id]`, `/autocomplete`, `/merge`, `/intelligence`)
-- `GET/POST /api/knowledge` (+ `/[id]`, `/usage`)
-- `GET/POST /api/expected-documents`
+## Datenbank und Migration
 
-### Regeln & Eskalation
-- `GET/POST /api/rules` (+ `/[id]`, `/quick`, `/templates`, `/suggestions`, `/[id]/impact`)
-- `GET /api/rules/conflicts` — Konflikt-Analyse (Phase 8.9.2)
-- `GET/POST /api/escalation-rules` (+ `/defaults`)
+- Die Initialmigration liegt als SQL-Datei unter `prisma/migrations/20260424023000_init/migration.sql`
+- `npm run db:bootstrap` wendet diese Initialmigration lokal an
+- Zusätzlich initialisiert sich die App auf einer leeren lokalen SQLite-Datei beim ersten Zugriff selbst
 
-### Autopilot & Intelligence
-- `GET/PATCH /api/autopilot/config` — Konfiguration
-- `POST /api/autopilot/kill-switch` — Notabschaltung
-- `GET/POST /api/autopilot/drift` — Drift Detection + Auto-Downgrade
-- `GET /api/autopilot/calibration` — Konfidenz-Kalibrierung
-- `GET /api/telemetry` — Metriken (echte SuggestionEvaluations)
-- `POST /api/telemetry/feedback` — Feedback-Loop
-- `GET /api/corrections/patterns` (+ `/[id]/promote`, `/[id]/dismiss`)
-- `GET /api/suppliers/trust-scores` — Lieferanten-Trust-Scores
-- `PUT /api/suppliers/[id]/autopilot-override` — Supplier Autopilot Override
+## Demo Daten
 
-### Banana-Harmonisierung
-- `GET/POST /api/banana/mapping` — Kontenplan-Mapping
-- `POST /api/banana/mapping/vat-codes` — MwSt-Code-Mapping
-- `GET /api/banana/export/readiness` — Export-Readiness
-- `POST /api/banana/export` — CSV-Export
-- `GET/POST /api/banana/round-trip` — Round Trip Import
-- `GET /api/banana/round-trip/[batchId]` — Batch-Detail
+In den Einstellungen gibt es einen Button für Demo-Daten.
 
-### Buchhaltung
-- `GET/POST /api/journal` (+ `/[id]`)
-- `GET/POST /api/recurring`
-- `GET/POST /api/contracts`
-- `GET/POST /api/periods` (+ `/[id]`)
-- `GET/POST /api/reports`
-- `GET/POST /api/assets`
+Alternativ per Laufzeit:
 
-### Exporte & Bexio
-- `GET/POST /api/exports` (+ `/[id]`, `/[id]/retry`)
-- `GET /api/bexio/...` — Verbindung, Mapping, Sync
+- `POST /api/demo`
 
-### System
-- `GET /api/health` — Health Check
-- `GET /api/audit-log` (+ `/entity`)
-- `GET /api/dashboard`
-- `GET/POST /api/tasks`
-- `GET/POST /api/messages`
+## Bewusst klein gehalten
 
-## Tests
-
-```bash
-npm run test        # Einmalig
-npm run test:watch  # Watch-Modus
-npx tsc --noEmit    # TypeScript-Prüfung
-```
-
-370+ Tests in 34 Suiten: Multi-Tenant Security, Rollen-Matrix, Permission Enforcement, Period Guard, Pipeline Regression, Validation Engine, Rules + Konflikterkennung, Telemetrie, Evaluation, Flow Integration, Dead-End Audit, Smoke Matrix, Drift/Trust Code Audit, API Contract Audit, i18n-Vollständigkeit, Audit-Coverage, Onboarding Wizard Architecture.
-
-## Lizenz
-
-Privat. Nicht zur Weiterverbreitung bestimmt.
+- Keine Benutzer- und Rollenverwaltung
+- Keine Bank-, Mail- oder Bexio-Integration
+- Kein Analytics- oder Cockpit-Bereich
+- Keine komplexe OCR-Pipeline außerhalb des Modell-Inputs
+- Kein mehrstufiges Freigabe- oder Regelwerk
+- Kein Desktop-zentriertes Tabellenprodukt

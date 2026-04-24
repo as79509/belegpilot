@@ -1,32 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getActiveCompany } from "@/lib/get-active-company";
-import { prisma } from "@/lib/db";
-import { SupabaseStorageService } from "@/lib/services/storage/supabase-storage";
+import { NextResponse } from "next/server";
+
+import { ensureDatabase, prisma } from "@/lib/db";
+import { readStoredFile } from "@/lib/storage";
 
 export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
 ) {
-  const ctx = await getActiveCompany();
-  if (!ctx) {
-    return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+  const { id } = await context.params;
+  await ensureDatabase();
+  const document = await prisma.document.findUnique({ where: { id } });
+
+  if (!document) {
+    return NextResponse.json({ error: "Datei wurde nicht gefunden." }, { status: 404 });
   }
 
-  const { id } = await params;
+  const buffer = await readStoredFile(document.storedPath);
 
-  const file = await prisma.documentFile.findFirst({
-    where: {
-      documentId: id,
-      document: { companyId: ctx.companyId },
+  return new NextResponse(buffer, {
+    headers: {
+      "Content-Type": document.mimeType,
+      "Cache-Control": "no-store",
+      "Content-Disposition": `inline; filename="${document.originalFilename}"`,
     },
   });
-
-  if (!file) {
-    return NextResponse.json({ error: "Datei nicht gefunden" }, { status: 404 });
-  }
-
-  const storage = new SupabaseStorageService();
-  const signedUrl = await storage.getSignedUrl(file.filePath, 3600);
-
-  return NextResponse.redirect(signedUrl);
 }
