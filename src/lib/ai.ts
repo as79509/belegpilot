@@ -1,8 +1,40 @@
+import Anthropic from "@anthropic-ai/sdk";
+
 import { readStoredFile } from "@/lib/storage";
 import type { ExtractedDocumentResult, LiteSettings, StructuredAccount } from "@/lib/types";
 import { isImageMimeType, isPdfMimeType, takeFirstLine } from "@/lib/utils";
 
 type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+
+type AnthropicMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+type AnthropicContent =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: AnthropicMediaType; data: string } };
+
+function normalizeMediaType(raw: string): AnthropicMediaType {
+  const lower = raw.toLowerCase();
+  if (lower === "image/jpeg" || lower === "image/jpg") return "image/jpeg";
+  if (lower === "image/png") return "image/png";
+  if (lower === "image/gif") return "image/gif";
+  if (lower === "image/webp") return "image/webp";
+  // Fallback: PNG akzeptiert Anthropic immer
+  return "image/png";
+}
+
+export class AiConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiConfigError";
+  }
+}
+
+export class AiCallError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = "AiCallError";
+  }
+}
 
 function buildChatEndpoint(baseUrl: string) {
   return /\/(chat\/completions|responses)$/.test(baseUrl)
@@ -35,20 +67,97 @@ function extractJsonCandidate(value: unknown) {
   return "";
 }
 
+/** True when aiBaseUrl is empty, unset, or explicitly mentions Anthropic. */
+export function useAnthropicSdk(settings: LiteSettings) {
+  const base = (settings.aiBaseUrl || "").trim().toLowerCase();
+  return base === "" || base.includes("anthropic");
+}
+
 export function hasUsableAiConfig(settings: LiteSettings) {
+  // Anthropic-Pfad: braucht nur apiKey + model (BaseURL optional/leer)
+  if (useAnthropicSdk(settings)) {
+    return Boolean(settings.aiApiKey && settings.aiModel);
+  }
+  // OpenAI-Compatible-Pfad: braucht BaseURL + apiKey + model
   return Boolean(settings.aiBaseUrl && settings.aiApiKey && settings.aiModel);
 }
 
-export async function callAiJson<T>(input: {
-  settings: LiteSettings;
-  content: ContentPart[];
-}) {
-  if (!hasUsableAiConfig(input.settings)) {
-    throw new Error("AI nicht konfiguriert");
-  }
+/** Convert OpenAI-style ContentPart[] to Anthropic content blocks. */
+function toAnthropicContent(parts: ContentPart[]): AnthropicContent[] {
+  return parts.map((part) => {
+    if (part.type === "text") {
+      return { type: "text" as const, text: part.text };
+    }
+    // image_url: extract base64 + media_type from data URL
+    const url = part.image_url.url;
+    const match = url.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      return { type: "text" as const, text: "[unbekanntes Bild]" };
+    }
+    return {
+      type: "image" as const,
+      source: { type: "base64" as const, media_type: normalizeMediaType(match[1]), data: match[2] },
+    };
+  });
+}
 
+const SYSTEM_PROMPT =
+  "Du bist ein deutscher Buchhaltungsassistent fuer Treuhaender. " +
+  "Antworte ausschliesslich als JSON. Keine Markdown-Ausgabe.";
+
+async function callAnthropic<T>(input: { settings: LiteSettings; content: ContentPart[] }): Promise<T> {
+  const client = new Anthropic({ apiKey: input.settings.aiApiKey! });
+  const timeoutMs = input.settings.aiTimeoutMs ?? 45000;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.settings.aiTimeoutMs ?? 45000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await client.messages.create(
+      {
+        model: input.settings.aiModel!,
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: toAnthropicContent(input.content),
+          },
+        ],
+      },
+      { signal: controller.signal },
+    );
+
+    // Collect text from content blocks
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+
+    const raw = extractJsonCandidate(text);
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new AiCallError(`AI-Call Timeout nach ${timeoutMs} ms`);
+    }
+    if (error instanceof Anthropic.APIError) {
+      throw new AiCallError(`Anthropic-API-Fehler (${error.status}): ${error.message}`, error);
+    }
+    if (error instanceof SyntaxError) {
+      throw new AiCallError(`AI-Antwort ist kein valides JSON: ${error.message}`);
+    }
+    throw new AiCallError(
+      `AI-Call fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`,
+      error,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callOpenAiCompatible<T>(input: { settings: LiteSettings; content: ContentPart[] }): Promise<T> {
+  const timeoutMs = input.settings.aiTimeoutMs ?? 45000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(buildChatEndpoint(input.settings.aiBaseUrl!), {
@@ -62,22 +171,15 @@ export async function callAiJson<T>(input: {
         model: input.settings.aiModel,
         response_format: { type: "json_object" },
         messages: [
-          {
-            role: "system",
-            content:
-              "Du bist ein deutscher Buchhaltungsassistent fuer Treuhaender. " +
-              "Antworte ausschliesslich als JSON. Keine Markdown-Ausgabe.",
-          },
-          {
-            role: "user",
-            content: input.content,
-          },
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: input.content },
         ],
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`AI Anfrage fehlgeschlagen (${response.status})`);
+      const body = await response.text().catch(() => "");
+      throw new AiCallError(`AI-Anfrage fehlgeschlagen (${response.status}): ${body.slice(0, 300)}`);
     }
 
     const payload = (await response.json()) as {
@@ -90,9 +192,31 @@ export async function callAiJson<T>(input: {
     const raw = extractJsonCandidate(choiceContent || outputContent);
 
     return JSON.parse(raw) as T;
+  } catch (error) {
+    if (error instanceof AiCallError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new AiCallError(`AI-Call Timeout nach ${timeoutMs} ms`);
+    }
+    if (error instanceof SyntaxError) {
+      throw new AiCallError(`AI-Antwort ist kein valides JSON: ${error.message}`);
+    }
+    throw new AiCallError(
+      `AI-Call fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`,
+      error,
+    );
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer);
   }
+}
+
+export async function callAiJson<T>(input: { settings: LiteSettings; content: ContentPart[] }): Promise<T> {
+  if (!hasUsableAiConfig(input.settings)) {
+    throw new AiConfigError("AI nicht konfiguriert");
+  }
+  if (useAnthropicSdk(input.settings)) {
+    return callAnthropic<T>(input);
+  }
+  return callOpenAiCompatible<T>(input);
 }
 
 function inferFallbackSupplier(filename: string) {
@@ -166,6 +290,11 @@ function normalizeSuggestedAccount(
   return startsWith?.accountNo ?? fallbackAccount;
 }
 
+/**
+ * Wenn Config fehlt: Fallback + Flag `aiConfigured=false`.
+ * Wenn AI-Call scheitert: AiCallError wird nach oben propagiert damit die Route
+ * HTTP 502 mit klarer Fehlermeldung zurueckgeben kann.
+ */
 export async function extractDocumentData(input: {
   storedPath: string;
   mimeType: string;
@@ -185,75 +314,69 @@ export async function extractDocumentData(input: {
   });
 
   if (!hasUsableAiConfig(input.settings)) {
-    return {
-      ...fallback,
-      rawJson: JSON.stringify(fallback, null, 2),
-    };
+    throw new AiConfigError(
+      "AI nicht konfiguriert — bitte in Einstellungen aiApiKey und aiModel setzen",
+    );
   }
 
-  try {
-    const accountExcerpt = input.accounts
-      .slice(0, 80)
-      .map((account) => `${account.accountNo} ${account.name}`)
-      .join("\n");
+  const accountExcerpt = input.accounts
+    .slice(0, 80)
+    .map((account) => `${account.accountNo} ${account.name}`)
+    .join("\n");
 
-    const content: ContentPart[] = [
-      {
-        type: "text",
-        text:
-          "Lies den Beleg fuer einen Treuhaender aus und antworte ausschliesslich als JSON. " +
-          'Format: {"supplierName":"","documentDate":"YYYY-MM-DD|null","invoiceDate":"YYYY-MM-DD|null",' +
-          '"dueDate":"YYYY-MM-DD|null","invoiceNumber":"","currency":"CHF","grossAmount":123.45,' +
-          '"shortDescription":"","suggestedExpenseAccount":"4200","reasoningShort":"","confidenceLabel":"niedrig|mittel|hoch",' +
-          '"taxHint":""}. Verwende genau ein Aufwandskonto.',
-      },
-      {
-        type: "text",
-        text:
-          `Mandantenwaehrung: ${input.client.currency}\n` +
-          `Fallback Aufwandskonto: ${input.client.defaultExpenseAccount}\n` +
-          `Verfuegbare Konten:\n${accountExcerpt}`,
-      },
-      ...((await buildVisualContent(input.storedPath, input.mimeType)) as ContentPart[]),
-    ];
+  const visual = await buildVisualContent(input.storedPath, input.mimeType);
 
-    const result = await callAiJson<ExtractedDocumentResult>({
-      settings: input.settings,
-      content,
-    });
+  const content: ContentPart[] = [
+    {
+      type: "text",
+      text:
+        "Lies den Beleg fuer einen Treuhaender aus und antworte ausschliesslich als JSON. " +
+        'Format: {"supplierName":"","documentDate":"YYYY-MM-DD|null","invoiceDate":"YYYY-MM-DD|null",' +
+        '"dueDate":"YYYY-MM-DD|null","invoiceNumber":"","currency":"CHF","grossAmount":123.45,' +
+        '"shortDescription":"","suggestedExpenseAccount":"4200","reasoningShort":"","confidenceLabel":"niedrig|mittel|hoch",' +
+        '"taxHint":""}. Verwende genau ein Aufwandskonto.',
+    },
+    {
+      type: "text",
+      text:
+        `Mandantenwaehrung: ${input.client.currency}\n` +
+        `Fallback Aufwandskonto: ${input.client.defaultExpenseAccount}\n` +
+        `Verfuegbare Konten:\n${accountExcerpt}`,
+    },
+    ...visual,
+  ];
 
-    const normalized: ExtractedDocumentResult = {
-      supplierName: result.supplierName || fallback.supplierName,
-      documentDate: result.documentDate || null,
-      invoiceDate: result.invoiceDate || null,
-      dueDate: result.dueDate || null,
-      invoiceNumber: result.invoiceNumber || null,
-      currency: result.currency || input.client.currency || input.settings.defaultCurrency || "CHF",
-      grossAmount:
-        typeof result.grossAmount === "number" && Number.isFinite(result.grossAmount)
-          ? result.grossAmount
-          : null,
-      shortDescription: result.shortDescription || fallback.shortDescription,
-      suggestedExpenseAccount: normalizeSuggestedAccount(
-        result.suggestedExpenseAccount,
-        input.accounts,
-        input.client.defaultExpenseAccount,
-      ),
-      reasoningShort:
-        result.reasoningShort ||
-        "Kontierung ueber Fallbacklogik, weil der Vorschlag nicht eindeutig war.",
-      confidenceLabel: result.confidenceLabel || "mittel",
-      taxHint: result.taxHint || null,
-    };
+  const result = await callAiJson<ExtractedDocumentResult>({
+    settings: input.settings,
+    content,
+  });
 
-    return {
-      ...normalized,
-      rawJson: JSON.stringify(normalized, null, 2),
-    };
-  } catch {
-    return {
-      ...fallback,
-      rawJson: JSON.stringify(fallback, null, 2),
-    };
-  }
+  const normalized: ExtractedDocumentResult = {
+    supplierName: result.supplierName || fallback.supplierName,
+    documentDate: result.documentDate || null,
+    invoiceDate: result.invoiceDate || null,
+    dueDate: result.dueDate || null,
+    invoiceNumber: result.invoiceNumber || null,
+    currency: result.currency || input.client.currency || input.settings.defaultCurrency || "CHF",
+    grossAmount:
+      typeof result.grossAmount === "number" && Number.isFinite(result.grossAmount)
+        ? result.grossAmount
+        : null,
+    shortDescription: result.shortDescription || fallback.shortDescription,
+    suggestedExpenseAccount: normalizeSuggestedAccount(
+      result.suggestedExpenseAccount,
+      input.accounts,
+      input.client.defaultExpenseAccount,
+    ),
+    reasoningShort:
+      result.reasoningShort ||
+      "Kontierung ueber Fallbacklogik, weil der Vorschlag nicht eindeutig war.",
+    confidenceLabel: result.confidenceLabel || "mittel",
+    taxHint: result.taxHint || null,
+  };
+
+  return {
+    ...normalized,
+    rawJson: JSON.stringify(result, null, 2),
+  };
 }

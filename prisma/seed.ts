@@ -11,6 +11,9 @@ async function main() {
       defaultCurrency: "CHF",
       globalExternalReferencePrefix: "BPL",
       defaultDateBehavior: "document_first",
+      aiModel: "claude-haiku-4-5-20251001",
+      aiOcrModel: "claude-haiku-4-5-20251001",
+      aiTimeoutMs: 45000,
     },
   });
 }

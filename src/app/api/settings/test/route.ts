@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { callAiJson, hasUsableAiConfig } from "@/lib/ai";
+import { callAiJson, hasUsableAiConfig, useAnthropicSdk } from "@/lib/ai";
 
 export async function POST(request: Request) {
   const payload = (await request.json()) as {
@@ -18,7 +18,11 @@ export async function POST(request: Request) {
   };
 
   if (!hasUsableAiConfig(settings)) {
-    return NextResponse.json({ error: "Bitte Base URL, API Key und Modell hinterlegen." }, { status: 400 });
+    const anthropic = useAnthropicSdk(settings);
+    const hint = anthropic
+      ? "Bitte API Key und Modell hinterlegen."
+      : "Bitte Base URL, API Key und Modell hinterlegen.";
+    return NextResponse.json({ error: hint }, { status: 400 });
   }
 
   try {
@@ -33,7 +37,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ message: "AI Verbindung erfolgreich getestet." });
-  } catch {
-    return NextResponse.json({ error: "AI Verbindung konnte nicht aufgebaut werden." }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      { error: `AI Verbindung konnte nicht aufgebaut werden: ${message}` },
+      { status: 400 },
+    );
   }
 }

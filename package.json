@@ -17,6 +17,7 @@
     "seed": "prisma db seed"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.0",
     "@prisma/adapter-better-sqlite3": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "clsx": "^2.1.1",

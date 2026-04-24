@@ -128,18 +128,41 @@ export function SettingsEditor(props: {
       </SectionCard>
 
       <SectionCard className="space-y-4">
-        <Field label={de.settings.aiBaseUrl}>
-          <TextInput value={form.aiBaseUrl} onChange={(event) => setForm((current) => ({ ...current, aiBaseUrl: event.target.value }))} />
+        <Field
+          label="AI Base URL (optional, leer lassen für Anthropic)"
+          hint="Leer lassen um Anthropic Claude direkt zu nutzen. Nur setzen für OpenAI-kompatible Endpoints."
+        >
+          <TextInput
+            value={form.aiBaseUrl}
+            placeholder="https://api.openai.com/v1 (leer = Anthropic SDK)"
+            onChange={(event) => setForm((current) => ({ ...current, aiBaseUrl: event.target.value }))}
+          />
         </Field>
-        <Field label={de.settings.aiApiKey}>
-          <TextInput type="password" value={form.aiApiKey} onChange={(event) => setForm((current) => ({ ...current, aiApiKey: event.target.value }))} />
+        <Field
+          label={de.settings.aiApiKey}
+          hint="Anthropic API Key von https://console.anthropic.com/ (beginnt mit sk-ant-)"
+        >
+          <TextInput
+            type="password"
+            value={form.aiApiKey}
+            placeholder="sk-ant-..."
+            onChange={(event) => setForm((current) => ({ ...current, aiApiKey: event.target.value }))}
+          />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={de.settings.aiModel}>
-            <TextInput value={form.aiModel} onChange={(event) => setForm((current) => ({ ...current, aiModel: event.target.value }))} />
+            <TextInput
+              value={form.aiModel}
+              placeholder="claude-haiku-4-5-20251001"
+              onChange={(event) => setForm((current) => ({ ...current, aiModel: event.target.value }))}
+            />
           </Field>
           <Field label={de.settings.aiOcrModel}>
-            <TextInput value={form.aiOcrModel} onChange={(event) => setForm((current) => ({ ...current, aiOcrModel: event.target.value }))} />
+            <TextInput
+              value={form.aiOcrModel}
+              placeholder="claude-haiku-4-5-20251001"
+              onChange={(event) => setForm((current) => ({ ...current, aiOcrModel: event.target.value }))}
+            />
           </Field>
         </div>
         <Field label={de.settings.aiTimeout}>
